@@ -2,19 +2,31 @@ import cv2
 import sys
 
 """TODO
-- track the markers
 - when selecting markers, ability to right click and cancel previous selection
 - wtf do i do with the tracking information
 """
 
+global video_path
+video_path = "videos/2024-01-23_Test video_DI-01232024120123.avi"
+
+
 def mouse_callback(event, x, y, flags, params):
     first_frame = params['first_frame']
+    marker_positions = params["marker_positions"]
 
-    if event == cv2.EVENT_LBUTTONDOWN: # on left click
+    if event == cv2.EVENT_LBUTTONDOWN: # on left click save pos and show on screen
         cur_marker = [(x,y)]
-        params['marker_positions'].append(cur_marker)
+        marker_positions.append(cur_marker)
         cv2.circle(first_frame, cur_marker[0], 10, (255, 255, 0), 2) # draw circle where clicked
-        cv2.imshow('Select Markers', first_frame)
+
+    if event == cv2.EVENT_RBUTTONDOWN: # on right click remove last selection
+        removed_marker = marker_positions.pop()
+        first_frame = cv2.imread(video_path)
+        for marker in marker_positions:
+            cv2.circle(first_frame, marker[0], 10, (255, 255, 0), 2)
+
+    cv2.imshow('Select Markers', first_frame)
+
 
 def select_markers(cap):
     ret, first_frame = cap.read() # get first frame for selection
@@ -71,7 +83,6 @@ def track_markers(marker_positions, first_frame, cap):
     cv2.destroyAllWindows()
 
 if __name__ == '__main__':
-    video_path = "videos/2024-01-23_Test video_DI-01232024120123.avi"
     cap = cv2.VideoCapture(video_path) # load video
 
     # get video metadata
