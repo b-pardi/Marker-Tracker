@@ -1,6 +1,15 @@
 import cv2
 import sys
 
+'''NOTES
+- when running software window of first frame opens
+- in this window click on the markers you want to track
+    - right click to undo an erroneous selection
+- hit enter to confirm selections and proceed with tracking, or ESC to cancel
+    - first window will close, but reopen momentarily
+    - hit ESC to cancel this process once it begins
+'''
+
 """TODO
 - when selecting markers, ability to right click and cancel previous selection
 - wtf do i do with the tracking information
@@ -11,28 +20,39 @@ video_path = "videos/2024-01-23_Test video_DI-01232024120123.avi"
 
 
 def mouse_callback(event, x, y, flags, params):
+    """handle mouse clicks during software execution
+    intended for use with the selection of trackers
+
+    Args:
+        event (_type_): _description_
+        x (_type_): _description_
+        y (_type_): _description_
+        flags (_type_): _description_
+        params (_type_): _description_
+    """    
     first_frame = params['first_frame']
     marker_positions = params["marker_positions"]
 
     if event == cv2.EVENT_LBUTTONDOWN: # on left click save pos and show on screen
         cur_marker = [(x,y)]
         marker_positions.append(cur_marker)
-        cv2.circle(first_frame, cur_marker[0], 10, (255, 255, 0), 2) # draw circle where clicked
 
     if event == cv2.EVENT_RBUTTONDOWN: # on right click remove last selection
-        removed_marker = marker_positions.pop()
-        first_frame = cv2.imread(video_path)
-        for marker in marker_positions:
-            cv2.circle(first_frame, marker[0], 10, (255, 255, 0), 2)
+        if marker_positions:
+            marker_positions.pop()
 
-    cv2.imshow('Select Markers', first_frame)
+    cur_frame = first_frame.copy()
+    for marker in marker_positions:
+        cv2.circle(cur_frame, marker[0], 10, (255, 255, 0), 2) # draw circle where clicked
+
+    cv2.imshow('Select Markers', cur_frame)
 
 
 def select_markers(cap):
     ret, first_frame = cap.read() # get first frame for selection
     cv2.imshow('Select Markers', first_frame) # show first frame
 
-    mouse_params = {"first_frame": first_frame,"marker_positions": []}
+    mouse_params = {"first_frame": first_frame.copy(), "marker_positions": []}
     cv2.setMouseCallback('Select Markers', mouse_callback, mouse_params) # set mouse callback function defn above
     
     # inf loop until user hits esc to cancel or enter to confirm selections
