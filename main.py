@@ -152,7 +152,7 @@ def track_markers(marker_positions, first_frame, cap):
     cv2.destroyAllWindows()
 
 
-def contours(video_path, gradient_max=100, gradient_min=20, area_thresh=50):
+def contours(video_path, gradient_max=100, gradient_min=20, area_thresh=500):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         print("Error: Couldn't open video file.")

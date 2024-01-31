@@ -1,3 +1,8 @@
+1/30
+- added contour tracking functionality
+- contour gradient thresholds
+- added area threshold
+
 1/29
 - fixed right click to deselect bug
     - right click removed markers from list but not from screen
