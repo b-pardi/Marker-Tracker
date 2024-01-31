@@ -1,7 +1,13 @@
+'''
+Author: Brandon Pardi
+Created 1/26/2024
+'''
+
 import cv2
 import numpy as np
 import pandas as pd
 
+import time
 import sys
 
 '''NOTES
@@ -14,12 +20,12 @@ import sys
 '''
 
 """TODO
-- when selecting markers, ability to right click and cancel previous selection
-- wtf do i do with the tracking information
+- calculate euclidean distances of trackers
+- implement edge detection for necking point
 """
 
 global video_path
-video_path = "videos/2024-01-23_Test video_DI-01232024120123.avi"
+video_path = "videos/test 15_marker-01252024153133-0000.avi"
 
 def marker_distance(p1, p2):
     
@@ -89,6 +95,7 @@ def select_markers(cap):
 
 def track_markers(marker_positions, first_frame, cap):
     """main tracking loop of markers selected
+    saves distances of each mark each frame update to 'Tracking_Output.csv'
 
     Args:
         marker_positions (list): list of marker positions from user selections
@@ -100,12 +107,12 @@ def track_markers(marker_positions, first_frame, cap):
     for _ in range(len(marker_positions)):
         trackers.append(cv2.TrackerKCF_create())
 
-    # initialize trackers
+    # init trackers
     for i, mark_pos in enumerate(marker_positions):
         bbox = (mark_pos[0][0], mark_pos[0][1], 20, 20) # 20x20 bounding box
         trackers[i].init(first_frame, bbox)
 
-    # init distances arr
+    # init tracking data dict
     tracker_data = {'Frame': [], 'Time(s)': [], 'Tracker': [], 'x (px)': [], 'y (px)': []}
     frame_num = 0
 
@@ -145,8 +152,48 @@ def track_markers(marker_positions, first_frame, cap):
     cv2.destroyAllWindows()
 
 
+def contours(video_path, gradient_max=100, gradient_min=20, area_thresh=50):
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        print("Error: Couldn't open video file.")
+        return
+    
+    while True: # read frame by frame until end of video
+        time.sleep(0.1)
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        #gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) # frame already gray, but not read as such
+        edges = cv2.Canny(frame, gradient_min, gradient_max) # edge detection, nums are gradient thresholds
+
+        # detect contours, mode RETR_EXTERNAL returns only outermost contours
+        # CHAIN_APPROX_SIMPLE compresses contour segments and leave only endpoints
+        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        frame_draw = frame.copy() 
+
+        for contour in contours: # iterate over contours
+            area = cv2.contourArea(contour)
+            print(area)
+            if area > area_thresh:
+                cv2.drawContours(frame_draw, contours, -1, (0, 255, 0), 2) # draw contours
+                contour_min = tuple(contour[contour[:, :, 0].argmax()][0]) # find max and min of contours
+                contour_max = tuple(contour[contour[:, :, 0].argmin()][0])
+
+                cv2.circle(frame_draw, contour_max, 5, (200, 0, 0), -1)
+                cv2.circle(frame_draw, contour_min, 5, (255, 255, 0), -1)
+        
+        cv2.imshow('Contours', frame_draw)
+        if cv2.waitKey(1) == 27:
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+
 if __name__ == '__main__':
     cap = cv2.VideoCapture(video_path) # load video
+    contours(video_path)
 
     # get video metadata
     width = int(cap.get(3))
@@ -155,5 +202,5 @@ if __name__ == '__main__':
     n_frames = int(cap.get(7))
     print(width, height, fps, n_frames)
 
-    selected_markers, first_frame = select_markers(cap) # prompt to select markers
-    track_markers(selected_markers, first_frame, cap)
+    #selected_markers, first_frame = select_markers(cap) # prompt to select markers
+    #track_markers(selected_markers, first_frame, cap)
