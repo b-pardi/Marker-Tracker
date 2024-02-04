@@ -10,19 +10,7 @@ import pandas as pd
 import time
 import sys
 
-'''NOTES
-- when running software window of first frame opens
-- in this window click on the markers you want to track
-    - right click to undo an erroneous selection
-- hit enter to confirm selections and proceed with tracking, or ESC to cancel
-    - first window will close, but reopen momentarily
-    - hit ESC to cancel this process once it begins
-'''
 
-"""TODO
-- calculate euclidean distances of trackers
-- implement edge detection for necking point
-"""
 
 global video_path
 video_path = "videos/test 15_marker-01252024153133-0000.avi"
@@ -152,40 +140,67 @@ def track_markers(marker_positions, first_frame, cap):
     cv2.destroyAllWindows()
 
 
-def contours(video_path, gradient_max=100, gradient_min=20, area_thresh=500):
+def necking_point(video_path, binarize_thresh=120, x_interval=50):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         print("Error: Couldn't open video file.")
         return
     
+    frame_num = 0
+    dist_data = {'Frame': [], 'Time(s)': [], 'x at necking point (px)': [], 'y necking distance (px)': []}
+
     while True: # read frame by frame until end of video
-        time.sleep(0.1)
         ret, frame = cap.read()
+        frame_num += 1
+        time.sleep(0.1)
         if not ret:
             break
 
-        #gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) # frame already gray, but not read as such
-        edges = cv2.Canny(frame, gradient_min, gradient_max) # edge detection, nums are gradient thresholds
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) # frame already gray, but not read as such
+        _, binary_frame = cv2.threshold(gray_frame, binarize_thresh, 1,cv2.THRESH_BINARY) # threshold to binarize img
+        edges = cv2.Canny(binary_frame, 0, 2) # edge detection, nums are gradient thresholds
 
-        # detect contours, mode RETR_EXTERNAL returns only outermost contours
-        # CHAIN_APPROX_SIMPLE compresses contour segments and leave only endpoints
-        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        x_samples = []
+        y_distances = []
+        y_line_values = []
+
         frame_draw = frame.copy() 
+        frame_draw[edges > 0] = [0, 255, 0]  # draw edges
 
-        for contour in contours: # iterate over contours
-            area = cv2.contourArea(contour)
-            print(area)
-            if area > area_thresh:
-                cv2.drawContours(frame_draw, contours, -1, (0, 255, 0), 2) # draw contours
-                contour_min = tuple(contour[contour[:, :, 0].argmax()][0]) # find max and min of contours
-                contour_max = tuple(contour[contour[:, :, 0].argmin()][0])
+        for x in range(0, edges.shape[1]):
+            edge_pixels = np.nonzero(edges[:,x])[0] # find y coord of edge pixels in cur column
 
-                cv2.circle(frame_draw, contour_max, 5, (200, 0, 0), -1)
-                cv2.circle(frame_draw, contour_min, 5, (255, 255, 0), -1)
-        
-        cv2.imshow('Contours', frame_draw)
+            if edge_pixels.size > 0: # if edge pixels in cur column, 
+                dist = np.abs(edge_pixels[0] - edge_pixels[-1]) # find distance of top and bottom edges
+                x_samples.append(x)
+                y_line_values.append((edge_pixels[0], edge_pixels[-1]))
+                y_distances.append(dist)
+
+                if x % x_interval == 0: # draw visualization lines at every x_interval pixels
+                    # draw vertical lines connecting edges for visualization
+                    cv2.line(frame_draw, (x, edge_pixels[0]), (x, edge_pixels[-1]), (200, 0, 0), 1)  
+
+        # find index of smallest distance
+        # multiple mins occur in typically close together, for now just pick middle of min occurences
+        necking_distance = np.min(y_distances)
+        necking_pt_indices = np.where(y_distances==necking_distance)[0]
+        necking_pt_ind = int(np.median(necking_pt_indices))
+        print(y_distances[necking_pt_ind], y_distances)
+        cv2.line(frame_draw, (x_samples[necking_pt_ind], y_line_values[necking_pt_ind][0]), (x_samples[necking_pt_ind], y_line_values[necking_pt_ind][1]), (0,0,255), 2)     
+
+        # record and save data
+        dist_data['Frame'].append(frame_num)
+        dist_data['Time(s)'].append(np.float32(frame_num / cap.get(5)))
+        dist_data['x at necking point (px)'].append(x_samples[necking_pt_ind])
+        dist_data['y necking distance (px)'].append(necking_distance)
+
+        cv2.imshow('Necking Point Visualization', frame_draw)
         if cv2.waitKey(1) == 27:
             break
+
+    dist_df = pd.DataFrame(dist_data)
+    dist_df.set_index('Frame', inplace=True)
+    dist_df.to_csv("Necking_Point_Output.csv")
 
     cap.release()
     cv2.destroyAllWindows()
@@ -193,7 +208,9 @@ def contours(video_path, gradient_max=100, gradient_min=20, area_thresh=500):
 
 if __name__ == '__main__':
     cap = cv2.VideoCapture(video_path) # load video
-    contours(video_path)
+    necking_point(video_path)
+    #selected_markers, first_frame = select_markers(cap) # prompt to select markers
+    #track_markers(selected_markers, first_frame, cap)
 
     # get video metadata
     width = int(cap.get(3))
@@ -201,6 +218,3 @@ if __name__ == '__main__':
     fps = int(cap.get(5))
     n_frames = int(cap.get(7))
     print(width, height, fps, n_frames)
-
-    #selected_markers, first_frame = select_markers(cap) # prompt to select markers
-    #track_markers(selected_markers, first_frame, cap)
