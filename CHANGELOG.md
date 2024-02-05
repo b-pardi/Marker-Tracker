@@ -6,12 +6,15 @@
         - exclude x% edges of frames?
 
 ## TODO
-- ui for video path and selecting to do necking our marker tracking
 - gaussian blurring
 - 'crop' outer x% of video 
 
 
 # Changelog
+
+2/4
+- added ui for selecting video and tracking operation
+
 2/3
 - ditched contour method, opting to just track edges as curve of contour was so miniscule
 - added distance tracking between top and bottom edges
