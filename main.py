@@ -6,17 +6,68 @@ Created 1/26/2024
 import cv2
 import numpy as np
 import pandas as pd
+import tkinter as tk
+from tkinter import filedialog
 
+import os
 import time
 import sys
 
 
 
-global video_path
-video_path = "videos/test 15_marker-01252024153133-0000.avi"
+VIDEO_PATH = ""
+
+def get_file(label_var):
+    fp = filedialog.askopenfilename(initialdir=os.path.join(os.getcwd(), 'videos'),
+                                    title='Browse for video file',
+                                    filetypes=[("Audio Video Interleave", "*.avi"),
+                                               ("MPEG-4 Part 14", "*.mp4"),
+                                               ("Matroska", "*.mkv"),
+                                               ("QuickTime Movie", "*.mov"),
+                                               ("Windows Media Video", "*.wmv"),
+                                               ("Flash Video", "*.flv"),
+                                               ("WebM", "*.webm"),
+                                               ("MPEG Video", "*.mpeg"),
+                                               ("MPEG-1/2 Video", "*.mpg")
+                                               ])
+    
+    if fp:
+        label_var.set(os.path.basename(fp))
+
+    global VIDEO_PATH
+    VIDEO_PATH = fp
+
+
+def window():
+    root = tk.Tk()
+    
+    # file browse button
+    data_label_var = tk.StringVar()
+    file_btn = tk.Button(root, text="Browse for video file", command=lambda: get_file(data_label_var))
+    file_btn.pack(padx=32,pady=24)
+
+    # file name label
+    data_label_var.set("File not selected")
+    data_label = tk.Label(root, textvariable=data_label_var)
+    data_label.pack(pady=(0,8))
+
+    # radios for selecting operation
+    operation_intvar = tk.IntVar()
+    operation_intvar.set(0)
+    operation_frame = tk.Frame(root)
+    operation_tracking_radio = tk.Radiobutton(operation_frame, text="Marker tracking", variable=operation_intvar, value=1)
+    operation_tracking_radio.grid(row=0, column=0, pady=16)
+    operation_necking_radio = tk.Radiobutton(operation_frame, text="Necking point detection", variable=operation_intvar, value=2)
+    operation_necking_radio.grid(row=0, column=1, pady=16)
+    operation_frame.pack()
+
+    # submit button
+    submit_btn = tk.Button(root, text="Submit", command=lambda: main(operation_intvar.get()))
+    submit_btn.pack(padx=32, pady=12)
+    
+    root.mainloop()
 
 def marker_distance(p1, p2):
-    
     return np.linalg.norm(np.array(p1) - np.array(p2))
 
 
@@ -140,8 +191,7 @@ def track_markers(marker_positions, first_frame, cap):
     cv2.destroyAllWindows()
 
 
-def necking_point(video_path, binarize_thresh=120, x_interval=50):
-    cap = cv2.VideoCapture(video_path)
+def necking_point(cap, binarize_thresh=120, x_interval=50):
     if not cap.isOpened():
         print("Error: Couldn't open video file.")
         return
@@ -152,7 +202,7 @@ def necking_point(video_path, binarize_thresh=120, x_interval=50):
     while True: # read frame by frame until end of video
         ret, frame = cap.read()
         frame_num += 1
-        time.sleep(0.1)
+        #time.sleep(0.1)
         if not ret:
             break
 
@@ -206,15 +256,28 @@ def necking_point(video_path, binarize_thresh=120, x_interval=50):
     cv2.destroyAllWindows()
 
 
-if __name__ == '__main__':
-    cap = cv2.VideoCapture(video_path) # load video
-    necking_point(video_path)
-    #selected_markers, first_frame = select_markers(cap) # prompt to select markers
-    #track_markers(selected_markers, first_frame, cap)
+def main(operation):
+    global VIDEO_PATH
+    cap = cv2.VideoCapture(VIDEO_PATH) # load video
 
+    match operation:
+        case 0:
+            print("ERROR: Please select a radio option")
+        case 1:
+            print("Beginning Marker Tracking Process...")
+            selected_markers, first_frame = select_markers(cap) # prompt to select markers
+            track_markers(selected_markers, first_frame, cap)
+        case 2:
+            print("Beginning Necking Point")
+            necking_point(cap)
+        
     # get video metadata
     width = int(cap.get(3))
     height = int(cap.get(4))
     fps = int(cap.get(5))
     n_frames = int(cap.get(7))
     print(width, height, fps, n_frames)
+
+
+if __name__ == '__main__':
+    window()
