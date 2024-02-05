@@ -7,6 +7,8 @@
 
 ## TODO
 - ui for video path and selecting to do necking our marker tracking
+- gaussian blurring
+- 'crop' outer x% of video 
 
 
 # Changelog

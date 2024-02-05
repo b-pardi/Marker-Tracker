@@ -202,7 +202,7 @@ def necking_point(cap, binarize_thresh=120, x_interval=50):
     while True: # read frame by frame until end of video
         ret, frame = cap.read()
         frame_num += 1
-        #time.sleep(0.1)
+        #time.sleep(0.25)
         if not ret:
             break
 
