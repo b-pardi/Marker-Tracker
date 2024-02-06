@@ -134,7 +134,7 @@ def select_markers(cap):
 
 def track_markers(marker_positions, first_frame, cap):
     """main tracking loop of markers selected
-    saves distances of each mark each frame update to 'Tracking_Output.csv'
+    saves distances of each mark each frame update to 'output/Tracking_Output.csv'
 
     Args:
         marker_positions (list): list of marker positions from user selections
@@ -185,7 +185,7 @@ def track_markers(marker_positions, first_frame, cap):
     
     dist_df = pd.DataFrame(tracker_data)
     dist_df.set_index('Frame', inplace=True)
-    dist_df.to_csv("Tracking_Output.csv")
+    dist_df.to_csv("output/Tracking_Output.csv")
 
     cap.release()
     cv2.destroyAllWindows()
@@ -202,7 +202,7 @@ def necking_point(cap, binarize_thresh=120, x_interval=50):
     while True: # read frame by frame until end of video
         ret, frame = cap.read()
         frame_num += 1
-        #time.sleep(0.25)
+        #time.sleep(0.5)
         if not ret:
             break
 
@@ -250,7 +250,7 @@ def necking_point(cap, binarize_thresh=120, x_interval=50):
 
     dist_df = pd.DataFrame(dist_data)
     dist_df.set_index('Frame', inplace=True)
-    dist_df.to_csv("Necking_Point_Output.csv")
+    dist_df.to_csv("output/Necking_Point_Output.csv")
 
     cap.release()
     cv2.destroyAllWindows()

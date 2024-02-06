@@ -23,8 +23,11 @@
 - Hit enter to confirm selections and proceed with tracking, or ESC to cancel
     - First window will close, but reopen momentarily, visualizing the tracking process
     - Hit ESC to cancel this process once it begins
-- Outputs of the tracking will be saved in 'Tracking_Output.csv'
+- Outputs of the tracking will be saved in 'output/Tracking_Output.csv'
 
 ### Necking Point Detection
 - After submitting, just sit back and watch the magic
-- Outputs are saved to 'Necking_Point_Detection.csv'
+    - Green lines are detected edges, top and bottom edges are what are looked at vertical distance of necking point
+    - blue lines are visualizations of the vertical distances to ensure they are touching the top and bottom green edges
+    - red line moving around is tracking the minimum distance
+- Outputs are saved to 'output/Necking_Point_Detection.csv'

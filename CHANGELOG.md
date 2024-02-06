@@ -4,6 +4,7 @@
         - currently take median of these locations
     - at end of video seems to jump to far right as it is the min area, but might be camera issue
         - exclude x% edges of frames?
+    - artifacts outside the tube have edges being detected
 
 ## TODO
 - plotting of data
