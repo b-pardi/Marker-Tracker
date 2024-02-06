@@ -3,6 +3,14 @@
 
 # How to Use
 - First run 'install_packages.py'
+- If you get an error with this script,
+    - In a command prompt, (not anaconda terminal) type 'where python' on windows, or in a mac terminal type 'which python'
+    -FCopy and paste the full path that it prints out
+        - On windows it should look something like: 'C:\<some path stuff>\Python\Python310\python.exe'
+        - In spider, go to tools > preferences > python interpreter
+        - Select 'Use the following Python interpreter:'
+        - Paste in the path you copied earlier from the terminal
+        - Click apply and ok, and restart spyder for changes to take effect
 - Run 'main.py' upon completion of above
 - Click button to select video file
 - Select either marker tracking or necking point detection

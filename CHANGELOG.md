@@ -6,9 +6,13 @@
         - exclude x% edges of frames?
 
 ## TODO
+- plotting of data
 - gaussian blurring
 - 'crop' outer x% of video 
-
+- add parameter inputs to the ui for necking pt (maybe marker tracking if something comes up)
+    - binarize intensity value threshold
+    - x% of frame edges to not consider for y distances
+    - gaussian blur factor
 
 # Changelog
 
