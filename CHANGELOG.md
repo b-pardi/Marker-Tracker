@@ -8,7 +8,6 @@
 
 ## TODO
 - plotting of data
-- gaussian blurring
 - 'crop' outer x% of video 
 - add parameter inputs to the ui for necking pt (maybe marker tracking if something comes up)
     - binarize intensity value threshold
@@ -16,6 +15,11 @@
     - gaussian blur factor
 
 # Changelog
+
+2/12
+- moved tkinter ui to an object oriented setup for easier expanding
+- added various ui parameters for tweaking necking point process
+    - also added placeholder ui entry for marker tracker, but no tweakable parameters yet
 
 2/4
 - added ui for selecting video and tracking operation

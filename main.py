@@ -17,6 +17,93 @@ import sys
 
 VIDEO_PATH = ""
 
+class TrackingUI:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Marker Tracker")
+        
+        # file browse button
+        data_label_var = tk.StringVar()
+        file_btn = tk.Button(self.root, text="Browse for video file", command=lambda: get_file(data_label_var))
+        file_btn.grid(row=0, column=0, padx=32, pady=24)
+
+        # file name label
+        data_label_var.set("File not selected")
+        data_label = tk.Label(self.root, textvariable=data_label_var)
+        data_label.grid(row=1, column=0, pady=(0,8))
+
+        # radios for selecting operation
+        self.operation_intvar = tk.IntVar()
+        self.operation_intvar.set(0)
+        operation_frame = tk.Frame(self.root)
+        operation_tracking_radio = tk.Radiobutton(operation_frame, text="Marker tracking", variable=self.operation_intvar, value=1, command=self.handle_radios)
+        operation_tracking_radio.grid(row=0, column=0, padx=4, pady=16)
+        operation_necking_radio = tk.Radiobutton(operation_frame, text="Necking point detection", variable=self.operation_intvar, value=2, command=self.handle_radios)
+        operation_necking_radio.grid(row=0, column=1, padx=4, pady=16)
+        operation_frame.grid(row=2, column=0)
+        self.select_msg = tk.Label(self.root, text="Select from above for more customizable parameters")
+        self.select_msg.grid(row=3, column=0)
+
+        # options for marker tracking
+        self.tracking_frame = tk.Frame(self.root)
+
+        temp_label = tk.Label(self.tracking_frame, text="Future param here")
+        temp_label.grid(row=0, column=0, padx=4, pady=8)
+        self.temp_entry = tk.Entry(self.tracking_frame, width=10)
+        self.temp_entry.grid(row=0, column=1, padx=4, pady=8)
+
+        # options for necking point
+        self.necking_frame = tk.Frame(self.root)
+
+        percent_crop_label = tk.Label(self.necking_frame, text="% of video width to\ncrop outter edges of\n(blank for none)")
+        percent_crop_label.grid(row=0, column=0, padx=4, pady=8)        
+        self.percent_crop_entry = tk.Entry(self.necking_frame, width=10)
+        self.percent_crop_entry.insert(0, "0")
+        self.percent_crop_entry.grid(row=0, column=1, padx=4, pady=8)
+
+        binarize_intensity_thresh_label = tk.Label(self.necking_frame, text="pixel intensity value\nfor frame binarization\n(0-255)")
+        binarize_intensity_thresh_label.grid(row=1, column=0, padx=4, pady=8)
+        self.binarize_intensity_thresh_entry = tk.Entry(self.necking_frame, width=10)
+        self.binarize_intensity_thresh_entry.insert(0, "120")
+        self.binarize_intensity_thresh_entry.grid(row=1, column=1, padx=4, pady=8)
+
+        # submit button
+        submit_btn = tk.Button(self.root, text="Submit", command=self.on_submit)
+        submit_btn.grid(row=20, column=0, padx=32, pady=12)
+        
+    def handle_radios(self):
+        option = self.operation_intvar.get()
+
+        match option:
+            case 1:
+                self.select_msg.grid_forget()
+                self.necking_frame.grid_forget()
+                self.tracking_frame.grid(row=3, column=0)
+            case 2:
+                self.select_msg.grid_forget()
+                self.tracking_frame.grid_forget()
+                self.necking_frame.grid(row=3, column=0)
+
+    def on_submit(self):
+        global VIDEO_PATH
+        cap = cv2.VideoCapture(VIDEO_PATH) # load video
+        option = self.operation_intvar.get()
+
+        match option:
+            case 0:
+                print("ERROR: Please select a radio option")
+            case 1:
+                print("Beginning Marker Tracking Process...")
+                selected_markers, first_frame = select_markers(cap) # prompt to select markers
+                track_markers(selected_markers, first_frame, cap)
+            case 2:
+                percent_crop = float(self.percent_crop_entry.get())
+                binarize_intensity_thresh = int(self.binarize_intensity_thresh_entry.get())
+
+                print("Beginning Necking Point")
+                necking_point(cap, percent_crop, binarize_intensity_thresh)
+
+
 def get_file(label_var):
     fp = filedialog.askopenfilename(initialdir=os.path.join(os.getcwd(), 'videos'),
                                     title='Browse for video file',
@@ -37,39 +124,8 @@ def get_file(label_var):
     global VIDEO_PATH
     VIDEO_PATH = fp
 
-
-def window():
-    root = tk.Tk()
-    
-    # file browse button
-    data_label_var = tk.StringVar()
-    file_btn = tk.Button(root, text="Browse for video file", command=lambda: get_file(data_label_var))
-    file_btn.pack(padx=32,pady=24)
-
-    # file name label
-    data_label_var.set("File not selected")
-    data_label = tk.Label(root, textvariable=data_label_var)
-    data_label.pack(pady=(0,8))
-
-    # radios for selecting operation
-    operation_intvar = tk.IntVar()
-    operation_intvar.set(0)
-    operation_frame = tk.Frame(root)
-    operation_tracking_radio = tk.Radiobutton(operation_frame, text="Marker tracking", variable=operation_intvar, value=1)
-    operation_tracking_radio.grid(row=0, column=0, pady=16)
-    operation_necking_radio = tk.Radiobutton(operation_frame, text="Necking point detection", variable=operation_intvar, value=2)
-    operation_necking_radio.grid(row=0, column=1, pady=16)
-    operation_frame.pack()
-
-    # submit button
-    submit_btn = tk.Button(root, text="Submit", command=lambda: main(operation_intvar.get()))
-    submit_btn.pack(padx=32, pady=12)
-    
-    root.mainloop()
-
 def marker_distance(p1, p2):
     return np.linalg.norm(np.array(p1) - np.array(p2))
-
 
 def mouse_callback(event, x, y, flags, params):
     """handle mouse clicks during software execution
@@ -148,7 +204,7 @@ def track_markers(marker_positions, first_frame, cap):
 
     # init trackers
     for i, mark_pos in enumerate(marker_positions):
-        bbox = (mark_pos[0][0], mark_pos[0][1], 20, 20) # 20x20 bounding box
+        bbox = (mark_pos[0][0], mark_pos[0][1], 50, 50) # 20x20 bounding box
         trackers[i].init(first_frame, bbox)
 
     # init tracking data dict
@@ -191,7 +247,7 @@ def track_markers(marker_positions, first_frame, cap):
     cv2.destroyAllWindows()
 
 
-def necking_point(cap, binarize_thresh=120, x_interval=50):
+def necking_point(cap, percent_crop=0., binarize_intensity_thresh=120, x_interval=50):
     if not cap.isOpened():
         print("Error: Couldn't open video file.")
         return
@@ -207,7 +263,7 @@ def necking_point(cap, binarize_thresh=120, x_interval=50):
             break
 
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) # frame already gray, but not read as such
-        _, binary_frame = cv2.threshold(gray_frame, binarize_thresh, 1,cv2.THRESH_BINARY) # threshold to binarize img
+        _, binary_frame = cv2.threshold(gray_frame, binarize_intensity_thresh, 1,cv2.THRESH_BINARY) # threshold to binarize img
         edges = cv2.Canny(binary_frame, 0, 2) # edge detection, nums are gradient thresholds
 
         x_samples = []
@@ -256,28 +312,7 @@ def necking_point(cap, binarize_thresh=120, x_interval=50):
     cv2.destroyAllWindows()
 
 
-def main(operation):
-    global VIDEO_PATH
-    cap = cv2.VideoCapture(VIDEO_PATH) # load video
-
-    match operation:
-        case 0:
-            print("ERROR: Please select a radio option")
-        case 1:
-            print("Beginning Marker Tracking Process...")
-            selected_markers, first_frame = select_markers(cap) # prompt to select markers
-            track_markers(selected_markers, first_frame, cap)
-        case 2:
-            print("Beginning Necking Point")
-            necking_point(cap)
-        
-    # get video metadata
-    width = int(cap.get(3))
-    height = int(cap.get(4))
-    fps = int(cap.get(5))
-    n_frames = int(cap.get(7))
-    print(width, height, fps, n_frames)
-
-
 if __name__ == '__main__':
-    window()
+    root = tk.Tk()
+    window = TrackingUI(root)
+    root.mainloop()
