@@ -8,18 +8,24 @@
 
 ## TODO
 - plotting of data
-- 'crop' outer x% of video 
-- add parameter inputs to the ui for necking pt (maybe marker tracking if something comes up)
-    - binarize intensity value threshold
-    - x% of frame edges to not consider for y distances
-    - gaussian blur factor
+- ability to input start and end frames?
+
 
 # Changelog
 
 2/12
 - moved tkinter ui to an object oriented setup for easier expanding
 - added various ui parameters for tweaking necking point process
-    - also added placeholder ui entry for marker tracker, but no tweakable parameters yet
+    - added bbox size for marker tracker
+    - added binarization pixel intensity threshold for necking pt
+    - added percent crop of edges for necking point
+- added functions for producing error/warning msgs
+    - added error message for if binarize threshold too big/small
+    - added error message for if unable to open video for necking and markers
+    - added error message for if video was unable to open
+- adjusted marker tracking bbox so that initial locations of tracker selections become the center of the tracker, not the top left corner
+- added ability to exclude outer x% of horizontal pixels from consideration for necking point
+
 
 2/4
 - added ui for selecting video and tracking operation

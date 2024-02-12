@@ -13,7 +13,7 @@ import os
 import time
 import sys
 
-
+from exceptions import error_popup, warning_popup
 
 VIDEO_PATH = ""
 
@@ -46,15 +46,14 @@ class TrackingUI:
 
         # options for marker tracking
         self.tracking_frame = tk.Frame(self.root)
-
-        temp_label = tk.Label(self.tracking_frame, text="Future param here")
-        temp_label.grid(row=0, column=0, padx=4, pady=8)
-        self.temp_entry = tk.Entry(self.tracking_frame, width=10)
-        self.temp_entry.grid(row=0, column=1, padx=4, pady=8)
+        bbox_size_label = tk.Label(self.tracking_frame, text="Tracker bounding box size (px)")
+        bbox_size_label.grid(row=0, column=0, padx=4, pady=8)
+        self.bbox_size_entry = tk.Entry(self.tracking_frame, width=10)
+        self.bbox_size_entry.insert(0, "20")
+        self.bbox_size_entry.grid(row=0, column=1, padx=4, pady=8)
 
         # options for necking point
         self.necking_frame = tk.Frame(self.root)
-
         percent_crop_label = tk.Label(self.necking_frame, text="% of video width to\ncrop outter edges of\n(blank for none)")
         percent_crop_label.grid(row=0, column=0, padx=4, pady=8)        
         self.percent_crop_entry = tk.Entry(self.necking_frame, width=10)
@@ -87,15 +86,21 @@ class TrackingUI:
     def on_submit(self):
         global VIDEO_PATH
         cap = cv2.VideoCapture(VIDEO_PATH) # load video
+        if not cap.isOpened():
+            msg = "Error: Couldn't open video file.\nPlease ensure one was selected, and it is not corrupted."
+            error_popup(msg)
         option = self.operation_intvar.get()
 
         match option:
             case 0:
-                print("ERROR: Please select a radio option")
+                msg = "ERROR: Please select a radio button for a tracking operation."
+                error_popup(msg)
             case 1:
                 print("Beginning Marker Tracking Process...")
+                bbox_size = int(self.bbox_size_entry.get())
+
                 selected_markers, first_frame = select_markers(cap) # prompt to select markers
-                track_markers(selected_markers, first_frame, cap)
+                track_markers(selected_markers, first_frame, cap, bbox_size)
             case 2:
                 percent_crop = float(self.percent_crop_entry.get())
                 binarize_intensity_thresh = int(self.binarize_intensity_thresh_entry.get())
@@ -188,7 +193,7 @@ def select_markers(cap):
     return mouse_params['marker_positions'], first_frame
 
 
-def track_markers(marker_positions, first_frame, cap):
+def track_markers(marker_positions, first_frame, cap, bbox_size):
     """main tracking loop of markers selected
     saves distances of each mark each frame update to 'output/Tracking_Output.csv'
 
@@ -204,7 +209,7 @@ def track_markers(marker_positions, first_frame, cap):
 
     # init trackers
     for i, mark_pos in enumerate(marker_positions):
-        bbox = (mark_pos[0][0], mark_pos[0][1], 50, 50) # 20x20 bounding box
+        bbox = (mark_pos[0][0] - bbox_size//2, mark_pos[0][1] - bbox_size//2, bbox_size, bbox_size)
         trackers[i].init(first_frame, bbox)
 
     # init tracking data dict
@@ -248,12 +253,9 @@ def track_markers(marker_positions, first_frame, cap):
 
 
 def necking_point(cap, percent_crop=0., binarize_intensity_thresh=120, x_interval=50):
-    if not cap.isOpened():
-        print("Error: Couldn't open video file.")
-        return
-    
     frame_num = 0
     dist_data = {'Frame': [], 'Time(s)': [], 'x at necking point (px)': [], 'y necking distance (px)': []}
+    percent_crop *= 0.01
 
     while True: # read frame by frame until end of video
         ret, frame = cap.read()
@@ -264,6 +266,15 @@ def necking_point(cap, percent_crop=0., binarize_intensity_thresh=120, x_interva
 
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) # frame already gray, but not read as such
         _, binary_frame = cv2.threshold(gray_frame, binarize_intensity_thresh, 1,cv2.THRESH_BINARY) # threshold to binarize img
+        
+        # error checking for appropriate binarization threshold
+        if np.all(binary_frame == 1):
+            msg = "Binarization threshold too low,\nfound no pixels below the threshold.\n\nPlease adjust the threshold (default is 120)"
+            error_popup(msg)
+        if np.all(binary_frame == 0):
+            msg = "Binarization threshold too high,\nfound no pixels above the threshold.\n\nPlease adjust the threshold (default is 120)"
+            error_popup(msg)   
+
         edges = cv2.Canny(binary_frame, 0, 2) # edge detection, nums are gradient thresholds
 
         x_samples = []
@@ -273,7 +284,15 @@ def necking_point(cap, percent_crop=0., binarize_intensity_thresh=120, x_interva
         frame_draw = frame.copy() 
         frame_draw[edges > 0] = [0, 255, 0]  # draw edges
 
-        for x in range(0, edges.shape[1]):
+        # remove x% of edges from consideration of detection
+        horizontal_pixels_range = (0, frame.shape[1])
+        if percent_crop != 0.:
+            horizonatal_pixels_removed = int(percent_crop*frame.shape[1])
+            print(horizonatal_pixels_removed)
+            horizontal_pixels_range = (horizonatal_pixels_removed//2, frame.shape[1] - horizonatal_pixels_removed//2)
+            print(horizontal_pixels_range)
+
+        for x in range(horizontal_pixels_range[0], horizontal_pixels_range[1]):
             edge_pixels = np.nonzero(edges[:,x])[0] # find y coord of edge pixels in cur column
 
             if edge_pixels.size > 0: # if edge pixels in cur column, 
@@ -291,7 +310,7 @@ def necking_point(cap, percent_crop=0., binarize_intensity_thresh=120, x_interva
         necking_distance = np.min(y_distances)
         necking_pt_indices = np.where(y_distances==necking_distance)[0]
         necking_pt_ind = int(np.median(necking_pt_indices))
-        print(y_distances[necking_pt_ind], y_distances)
+        #print(y_distances[necking_pt_ind], y_distances)
         cv2.line(frame_draw, (x_samples[necking_pt_ind], y_line_values[necking_pt_ind][0]), (x_samples[necking_pt_ind], y_line_values[necking_pt_ind][1]), (0,0,255), 2)     
 
         # record and save data
