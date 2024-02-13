@@ -7,11 +7,18 @@
     - artifacts outside the tube have edges being detected
 
 ## TODO
-- plotting of data
+- gaussian blur before frame binarization?
 - ability to input start and end frames?
 
 
 # Changelog
+
+2/13
+- updated horizontal pixel removal parameters to remove left or right x% of edges from necking point consideration separately
+- updated ui to have separate inputs
+- added plotting functionality for necking point
+    - plots x location of necking point vs time
+- updated code documentation
 
 2/12
 - moved tkinter ui to an object oriented setup for easier expanding
@@ -35,7 +42,7 @@
 - plot distances of markers against time (currently in seconds)
 - added function to simplify plot formatting code
 - added 'figures' folder for saving code
-
+- added exit button that calls sys.exit since just closing window can cause it to freeze up
 
 2/4
 - added ui for selecting video and tracking operation

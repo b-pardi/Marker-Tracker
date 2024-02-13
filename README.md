@@ -14,9 +14,17 @@
 - Run 'main.py' upon completion of above
 - Click button to select video file
 - Select either marker tracking or necking point detection
+- Specify parameters (detailed below)
 - Click submit, each option's process is described below
 
 ### Marker Tracking
+- Tunable parameters include:
+    - Size of bounding box (bbox) for tracker (default 20 pixels)
+        - bbox should be slightly larger than the object being tracked
+        - should capture discernable areas of contrast
+    - Choice of tracking algorithm
+        - KCF (default): fast and efficient, more stable tracking rigid objects (non deforming)
+        - CSRT: slower than KCF and jittery on rigid objects, but can track deformable objects
 - After submitting, you'll see window of first frame of the video you selected
 - In this window click on the markers you want to track
     - Right click to undo an erroneous selection
@@ -26,6 +34,14 @@
 - Outputs of the tracking will be saved in 'output/Tracking_Output.csv'
 
 ### Necking Point Detection
+- Tunable parameters include:
+    - % of video width to exclude outter edges of
+        - Sometimes lighting effects make the tube at the edges of the video appear narrower than they actually are, effecting the necking point detection
+        - This allows the ability to exclude x% of the video from detection, essentially cropping it
+        - Full video will still be displayed, but the vertical blue lines will indicate area of consideration
+    - Threshold pixel intensity value for frame binarization
+        - This is a pixel brightness value from 0-255, where any brightness value below this becomes black (0), any any above becomes white (255)
+        - This frame binarization is not displayed, but the edge detection uses these binarized images behind the scenes
 - After submitting, just sit back and watch the magic
     - Green lines are detected edges, top and bottom edges are what are looked at vertical distance of necking point
     - blue lines are visualizations of the vertical distances to ensure they are touching the top and bottom green edges

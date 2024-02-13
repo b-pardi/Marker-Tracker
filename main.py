@@ -8,7 +8,9 @@ import numpy as np
 import pandas as pd
 import tkinter as tk
 from tkinter import filedialog
+
 import os
+import sys
 
 from exceptions import error_popup, warning_popup
 import analysis
@@ -16,13 +18,14 @@ import analysis
 VIDEO_PATH = ""
 
 class TrackingUI:
+    """class for handling Tkinter window and its functionalities"""    
     def __init__(self, root):
         self.root = root
         self.root.title("Marker Tracker")
         
         # file browse button
         data_label_var = tk.StringVar()
-        file_btn = tk.Button(self.root, text="Browse for video file", command=lambda: get_file(data_label_var))
+        file_btn = tk.Button(self.root, text="Browse for video file", command=lambda: get_file(data_label_var), width=20, height=1)
         file_btn.grid(row=0, column=0, padx=32, pady=24)
 
         # file name label
@@ -34,9 +37,9 @@ class TrackingUI:
         self.operation_intvar = tk.IntVar()
         self.operation_intvar.set(0)
         operation_frame = tk.Frame(self.root)
-        operation_tracking_radio = tk.Radiobutton(operation_frame, text="Marker tracking", variable=self.operation_intvar, value=1, command=self.handle_radios, indicatoron=0)
+        operation_tracking_radio = tk.Radiobutton(operation_frame, text="Marker tracking", variable=self.operation_intvar, value=1, command=self.handle_radios, indicatoron=0, width=20, height=1)
         operation_tracking_radio.grid(row=0, column=0, padx=4, pady=16)
-        operation_necking_radio = tk.Radiobutton(operation_frame, text="Necking point detection", variable=self.operation_intvar, value=2, command=self.handle_radios, indicatoron=0)
+        operation_necking_radio = tk.Radiobutton(operation_frame, text="Necking point detection", variable=self.operation_intvar, value=2, command=self.handle_radios, indicatoron=0, width=20, height=1)
         operation_necking_radio.grid(row=0, column=1, padx=4, pady=16)
         operation_frame.grid(row=2, column=0)
         self.select_msg = tk.Label(self.root, text="Select from above for more customizable parameters")
@@ -61,31 +64,41 @@ class TrackingUI:
 
         # options for necking point
         self.necking_frame = tk.Frame(self.root)
-        percent_crop_label = tk.Label(self.necking_frame, text="% of video width to\ncrop outter edges of\n(blank for none)")
-        percent_crop_label.grid(row=0, column=0, padx=4, pady=8)        
-        self.percent_crop_entry = tk.Entry(self.necking_frame, width=10)
-        self.percent_crop_entry.insert(0, "0")
-        self.percent_crop_entry.grid(row=0, column=1, padx=4, pady=8)
+        percent_crop_label = tk.Label(self.necking_frame, text="% of video width to\nexclude outter edges of\n(0 for none)")
+        percent_crop_label.grid(row=0, column=0, rowspan=2, padx=4, pady=8)
+        percent_crop_left_label = tk.Label(self.necking_frame, text="left edge") 
+        percent_crop_left_label.grid(row=0, column=1)    
+        self.percent_crop_left_entry = tk.Entry(self.necking_frame, width=10)
+        self.percent_crop_left_entry.insert(0, "0")
+        self.percent_crop_left_entry.grid(row=1, column=1, padx=4, pady=8)
+
+        percent_crop_right_label = tk.Label(self.necking_frame, text="right edge")     
+        percent_crop_right_label.grid(row=0, column=2)    
+        self.percent_crop_right_entry = tk.Entry(self.necking_frame, width=10)
+        self.percent_crop_right_entry.insert(0, "0")
+        self.percent_crop_right_entry.grid(row=1, column=2, padx=4, pady=8)
 
         binarize_intensity_thresh_label = tk.Label(self.necking_frame, text="pixel intensity value\nfor frame binarization\n(0-255)")
-        binarize_intensity_thresh_label.grid(row=1, column=0, padx=4, pady=8)
+        binarize_intensity_thresh_label.grid(row=2, column=0, padx=4, pady=8)
         self.binarize_intensity_thresh_entry = tk.Entry(self.necking_frame, width=10)
         self.binarize_intensity_thresh_entry.insert(0, "120")
-        self.binarize_intensity_thresh_entry.grid(row=1, column=1, padx=4, pady=8)
+        self.binarize_intensity_thresh_entry.grid(row=2, column=1, columnspan=2, padx=4, pady=8)
 
         # submit buttons
         submit_frame = tk.Frame()
         track_btn = tk.Button(submit_frame, text="Begin tracking", command=self.on_submit_tracking, width=20, height=2)
         track_btn.grid(row=0, column=0, columnspan=2, padx=32, pady=12)
-        marker_deltas_btn = tk.Button(submit_frame, text="Marker deltas analysis", command=analysis.test, width=20, height=1)
+        marker_deltas_btn = tk.Button(submit_frame, text="Marker deltas analysis", command=analysis.analyze_marker_deltas, width=20, height=1)
         marker_deltas_btn.grid(row=1, column=0, padx=16, pady=4)
-        analyze_data_btn = tk.Button(submit_frame, text="placeholder", command=analysis.test, width=20, height=1)
+        analyze_data_btn = tk.Button(submit_frame, text="Necking point analysis", command=analysis.analyze_necking_point, width=20, height=1)
         analyze_data_btn.grid(row=1, column=1, padx=16, pady=4)
+        exit_btn = tk.Button(submit_frame, text='Exit', command=sys.exit, width=20, height=2)
+        exit_btn.grid(row=10, column=0, columnspan=2, padx=32, pady=(24,12))
         submit_frame.grid(row=20, column=0)
         
     def handle_radios(self):
+        """blits options for the corresponding radio button selected"""        
         option = self.operation_intvar.get()
-
         match option:
             case 1:
                 self.select_msg.grid_forget()
@@ -97,6 +110,7 @@ class TrackingUI:
                 self.necking_frame.grid(row=3, column=0)
 
     def on_submit_tracking(self):
+        """calls the appropriate functions with user spec'd args when tracking start button clicked"""        
         global VIDEO_PATH
         cap = cv2.VideoCapture(VIDEO_PATH) # load video
         if not cap.isOpened():
@@ -119,14 +133,20 @@ class TrackingUI:
                 selected_markers, first_frame = select_markers(cap) # prompt to select markers
                 track_markers(selected_markers, first_frame, cap, bbox_size, tracker_choice)
             case 2:
-                percent_crop = float(self.percent_crop_entry.get())
+                percent_crop_right = float(self.percent_crop_right_entry.get())
+                percent_crop_left = float(self.percent_crop_left_entry.get())
                 binarize_intensity_thresh = int(self.binarize_intensity_thresh_entry.get())
 
                 print("Beginning Necking Point")
-                necking_point(cap, percent_crop, binarize_intensity_thresh)
+                necking_point(cap, percent_crop_left, percent_crop_right, binarize_intensity_thresh)
 
 
 def get_file(label_var):
+    """util function to prompt a file browser to select the video file that will be tracked
+
+    Args:
+        label_var (tk.Label): tkinter label object to be updated with the chosen file name/path
+    """    
     fp = filedialog.askopenfilename(initialdir=os.path.join(os.getcwd(), 'videos'),
                                     title='Browse for video file',
                                     filetypes=[("Audio Video Interleave", "*.avi"),
@@ -145,7 +165,7 @@ def get_file(label_var):
 
     global VIDEO_PATH
     VIDEO_PATH = fp
-    
+
 
 def mouse_callback(event, x, y, flags, params):
     """handle mouse clicks during software execution
@@ -208,13 +228,15 @@ def select_markers(cap):
 
 
 def track_markers(marker_positions, first_frame, cap, bbox_size, tracker_choice):
-    """main tracking loop of markers selected
+    """main tracking loop of markers selected using marker selections from select_markers()
     saves distances of each mark each frame update to 'output/Tracking_Output.csv'
 
     Args:
         marker_positions (list): list of marker positions from user selections
         first_frame (np.Array(np.uint8)): image of first frame of loaded video
         cap (cv2.VideoCapture): loaded video
+        bbox_size(int): length of 1 edge of the bounding box that will be the size of the tracker
+        tracker_choice(str): 'KCF' or 'CSRT' determines choice of tracking algorithm used (see README.md for details)
     """    
     # create trackers
     trackers = []
@@ -270,10 +292,26 @@ def track_markers(marker_positions, first_frame, cap, bbox_size, tracker_choice)
     cv2.destroyAllWindows()
 
 
-def necking_point(cap, percent_crop=0., binarize_intensity_thresh=120, x_interval=50):
+def necking_point(cap, percent_crop_left=0., percent_crop_right=0., binarize_intensity_thresh=120, x_interval=50):
+    """necking point detection loop
+    necking point defined as the most shortest vertical line between two horizontal edges
+    frames are preprocessed and then edges are detected, top and bottom most edges are singled out
+    each frame the vertical distance between these edges are recorded at every x coordinate and the shortest is highlighted in red
+    in cases where there are multiple min distance values, the median x location is chosen
+    recorded data saved to "output/Necking_Point_Output.csv"
+
+    Args:
+        cap (cv2.VideoCapture): loaded video file for selecting markers of
+        percent_crop_left (float, optional): percentage of pixels to remove from consideration from left side of frame of necking pt detection. Defaults to 0..
+        percent_crop_right (_type_, optional): percentage of pixels to remove from consideration from right side of frame of necking pt detection. Defaults to 0..
+        binarize_intensity_thresh (int, optional): threshold pixel intensity value for frame binarization. Defaults to 120.
+        x_interval (int, optional): interval of horizontal pixels to draw vertical blue lines for visualization purposes. Defaults to 50.
+    """    
     frame_num = 0
     dist_data = {'Frame': [], 'Time(s)': [], 'x at necking point (px)': [], 'y necking distance (px)': []}
-    percent_crop *= 0.01
+    percent_crop_left *= 0.01
+    percent_crop_right *= 0.01
+    print(percent_crop_left)
 
     while True: # read frame by frame until end of video
         ret, frame = cap.read()
@@ -303,14 +341,16 @@ def necking_point(cap, percent_crop=0., binarize_intensity_thresh=120, x_interva
         frame_draw[edges > 0] = [0, 255, 0]  # draw edges
 
         # remove x% of edges from consideration of detection
-        horizontal_pixels_range = (0, frame.shape[1])
-        if percent_crop != 0.:
-            horizonatal_pixels_removed = int(percent_crop*frame.shape[1])
-            print(horizonatal_pixels_removed)
-            horizontal_pixels_range = (horizonatal_pixels_removed//2, frame.shape[1] - horizonatal_pixels_removed//2)
-            print(horizontal_pixels_range)
+        horizontal_pixels_left = 0
+        horizontal_pixels_right = frame.shape[1]
+        if percent_crop_left != 0.:
+            left_pixels_removed = int(percent_crop_left*frame.shape[1])
+            horizontal_pixels_left = max(0, left_pixels_removed)
+        if percent_crop_right != 0.:
+            right_pixels_removed = int(percent_crop_right*frame.shape[1])
+            horizontal_pixels_right = min(frame.shape[1], frame.shape[1] - right_pixels_removed)
 
-        for x in range(horizontal_pixels_range[0], horizontal_pixels_range[1]):
+        for x in range(horizontal_pixels_left, horizontal_pixels_right):
             edge_pixels = np.nonzero(edges[:,x])[0] # find y coord of edge pixels in cur column
 
             if edge_pixels.size > 0: # if edge pixels in cur column, 
