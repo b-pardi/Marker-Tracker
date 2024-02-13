@@ -25,6 +25,10 @@
     - added error message for if video was unable to open
 - adjusted marker tracking bbox so that initial locations of tracker selections become the center of the tracker, not the top left corner
 - added ability to exclude outer x% of horizontal pixels from consideration for necking point
+- added ability to choose between 2 tracking methods
+    - KCF: good for more stable markers
+    - CSRT: good for tracking deformable objects
+- removed sys.exit when escaping marker tracking, instead just close window but keep ui open
 
 
 2/4

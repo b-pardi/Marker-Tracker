@@ -36,9 +36,9 @@ class TrackingUI:
         self.operation_intvar = tk.IntVar()
         self.operation_intvar.set(0)
         operation_frame = tk.Frame(self.root)
-        operation_tracking_radio = tk.Radiobutton(operation_frame, text="Marker tracking", variable=self.operation_intvar, value=1, command=self.handle_radios)
+        operation_tracking_radio = tk.Radiobutton(operation_frame, text="Marker tracking", variable=self.operation_intvar, value=1, command=self.handle_radios, indicatoron=0)
         operation_tracking_radio.grid(row=0, column=0, padx=4, pady=16)
-        operation_necking_radio = tk.Radiobutton(operation_frame, text="Necking point detection", variable=self.operation_intvar, value=2, command=self.handle_radios)
+        operation_necking_radio = tk.Radiobutton(operation_frame, text="Necking point detection", variable=self.operation_intvar, value=2, command=self.handle_radios, indicatoron=0)
         operation_necking_radio.grid(row=0, column=1, padx=4, pady=16)
         operation_frame.grid(row=2, column=0)
         self.select_msg = tk.Label(self.root, text="Select from above for more customizable parameters")
@@ -51,6 +51,15 @@ class TrackingUI:
         self.bbox_size_entry = tk.Entry(self.tracking_frame, width=10)
         self.bbox_size_entry.insert(0, "20")
         self.bbox_size_entry.grid(row=0, column=1, padx=4, pady=8)
+
+        self.tracker_choice_intvar = tk.IntVar()
+        self.tracker_choice_intvar.set(0)
+        tracker_choice_label = tk.Label(self.tracking_frame, text="Choose tracking algorithm")
+        tracker_choice_label.grid(row=1, column=0, columnspan=2, padx=4, pady=(12,4))
+        tracker_KCF_radio = tk.Radiobutton(self.tracking_frame, text="KCF tracker\n(best for consistent shape tracking)", variable=self.tracker_choice_intvar, value=0, indicatoron=0)
+        tracker_KCF_radio.grid(row=2, column=0, padx=4)
+        tracker_CSRT_radio = tk.Radiobutton(self.tracking_frame, text="CSRT tracker\n(best for deformable shape tracking)", variable=self.tracker_choice_intvar, value=1, indicatoron=0)
+        tracker_CSRT_radio.grid(row=2, column=1, padx=4)
 
         # options for necking point
         self.necking_frame = tk.Frame(self.root)
@@ -98,9 +107,13 @@ class TrackingUI:
             case 1:
                 print("Beginning Marker Tracking Process...")
                 bbox_size = int(self.bbox_size_entry.get())
+                if self.tracker_choice_intvar.get() == 0:
+                    tracker_choice = 'KCF'
+                elif self.tracker_choice_intvar.get() == 1:
+                    tracker_choice = 'CSRT'
 
                 selected_markers, first_frame = select_markers(cap) # prompt to select markers
-                track_markers(selected_markers, first_frame, cap, bbox_size)
+                track_markers(selected_markers, first_frame, cap, bbox_size, tracker_choice)
             case 2:
                 percent_crop = float(self.percent_crop_entry.get())
                 binarize_intensity_thresh = int(self.binarize_intensity_thresh_entry.get())
@@ -182,8 +195,7 @@ def select_markers(cap):
         key = cv2.waitKey(1) # wait to capture input
         if key == 27: # 27 is ASCII for escape key
             print("SELECTIONS CANCELLED")
-            sys.exit()
-        elif key == 13: #13 ASCII for Enter key
+        elif key == 13: # 13 ASCII for Enter key
             print(f"Selected positions: {mouse_params['marker_positions']}")
             break
 
@@ -193,7 +205,7 @@ def select_markers(cap):
     return mouse_params['marker_positions'], first_frame
 
 
-def track_markers(marker_positions, first_frame, cap, bbox_size):
+def track_markers(marker_positions, first_frame, cap, bbox_size, tracker_choice):
     """main tracking loop of markers selected
     saves distances of each mark each frame update to 'output/Tracking_Output.csv'
 
@@ -204,8 +216,12 @@ def track_markers(marker_positions, first_frame, cap, bbox_size):
     """    
     # create trackers
     trackers = []
-    for _ in range(len(marker_positions)):
-        trackers.append(cv2.TrackerKCF_create())
+    if tracker_choice == 'KCF':
+        for _ in range(len(marker_positions)):
+            trackers.append(cv2.TrackerKCF_create())
+    elif tracker_choice == 'CSRT':
+        for _ in range(len(marker_positions)):
+            trackers.append(cv2.TrackerCSRT_create())
 
     # init trackers
     for i, mark_pos in enumerate(marker_positions):
