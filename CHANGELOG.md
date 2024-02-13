@@ -9,7 +9,7 @@
 ## TODO
 - gaussian blur before frame binarization?
 - ability to input start and end frames?
-
+- separate button for analysis for marker tracking with cell stuff
 
 # Changelog
 
@@ -19,6 +19,10 @@
 - added plotting functionality for necking point
     - plots x location of necking point vs time
 - updated code documentation
+- added failed exit status to marker selection if ESC key is pressed
+- marker selection circles now have a radius corresponding to user spec'd bbox size
+- when selecting markers, first frame resolution is now scaled to ensure full frame is in view and selection can be made anywhere
+    - when tracking video plays and when marker locations saved, the original resolution is displayed and recorded, scaling is just for first frame selections and then scaled back to original resolution
 
 2/12
 - moved tkinter ui to an object oriented setup for easier expanding

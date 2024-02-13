@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import tkinter as tk
 from tkinter import filedialog
+import screeninfo
 
 import os
 import sys
@@ -130,8 +131,10 @@ class TrackingUI:
                 elif self.tracker_choice_intvar.get() == 1:
                     tracker_choice = 'CSRT'
 
-                selected_markers, first_frame = select_markers(cap) # prompt to select markers
-                track_markers(selected_markers, first_frame, cap, bbox_size, tracker_choice)
+                selected_markers, first_frame = select_markers(cap, bbox_size) # prompt to select markers
+                print(selected_markers)
+                if not selected_markers.__contains__((-1,-1)): # select_markers returns list of -1 if selections cancelled
+                    track_markers(selected_markers, first_frame, cap, bbox_size, tracker_choice)
             case 2:
                 percent_crop_right = float(self.percent_crop_right_entry.get())
                 percent_crop_left = float(self.percent_crop_left_entry.get())
@@ -167,6 +170,20 @@ def get_file(label_var):
     VIDEO_PATH = fp
 
 
+def scale_frame(frame, scale_factor=0.8):
+    monitor = screeninfo.get_monitors()[0] # get primary monitor resolution
+
+    # get indv scale factors for width and height
+    scale_factor_height = monitor.height / frame.shape[0]
+    scale_factor_width = monitor.width / frame.shape[1]
+
+    min_scale_factor = min(scale_factor_width, scale_factor_height)
+
+    # resize based on scale factors
+    scaled_frame = cv2.resize(frame, (int(frame.shape[1] * min_scale_factor), int(frame.shape[0] * min_scale_factor)))
+    return scaled_frame, min_scale_factor
+
+
 def mouse_callback(event, x, y, flags, params):
     """handle mouse clicks during software execution
     intended for use with the selection of trackers
@@ -180,23 +197,30 @@ def mouse_callback(event, x, y, flags, params):
     """    
     first_frame = params['first_frame']
     marker_positions = params["marker_positions"]
+    bbox_size = params['bbox_size']
+    radius = bbox_size // 2
+
+    # scale frame for display so full image in view even if video res > monitor res
+    first_frame_scaled, scale_factor = scale_frame(first_frame)
 
     if event == cv2.EVENT_LBUTTONDOWN: # on left click save pos and show on screen
-        cur_marker = [(x,y)]
+        cur_marker = [(int(x / scale_factor), int(y / scale_factor))] # ensure original resolution coords stored
         marker_positions.append(cur_marker)
 
     if event == cv2.EVENT_RBUTTONDOWN: # on right click remove last selection
         if marker_positions:
             marker_positions.pop()
 
-    cur_frame = first_frame.copy()
+    cur_frame = first_frame_scaled.copy()
     for marker in marker_positions: # draw circles where selections made
-        cv2.circle(cur_frame, marker[0], 10, (255, 255, 0), 2) # draw circle where clicked
+        scaled_x = int(marker[0][0] * scale_factor)
+        scaled_y = int(marker[0][1] * scale_factor)
+        cv2.circle(cur_frame, (scaled_x, scaled_y), int(radius*scale_factor), (255, 255, 0), 2) # draw circle where clicked
 
     cv2.imshow('Select Markers', cur_frame)
 
 
-def select_markers(cap):
+def select_markers(cap, bbox_size):
     """event loop for handling initial marker selection
 
     Args:
@@ -209,7 +233,7 @@ def select_markers(cap):
     ret, first_frame = cap.read() # get first frame for selection
     cv2.imshow('Select Markers', first_frame) # show first frame
 
-    mouse_params = {"first_frame": first_frame.copy(), "marker_positions": []}
+    mouse_params = {"first_frame": first_frame.copy(), "marker_positions": [], 'bbox_size': bbox_size}
     cv2.setMouseCallback('Select Markers', mouse_callback, mouse_params) # set mouse callback function defn above
     
     # inf loop until user hits esc to cancel or enter to confirm selections
@@ -217,6 +241,9 @@ def select_markers(cap):
         key = cv2.waitKey(1) # wait to capture input
         if key == 27: # 27 is ASCII for escape key
             print("SELECTIONS CANCELLED")
+            cv2.destroyAllWindows()
+            mouse_params['marker_positions'] = [(-1,-1)] # exit status failed
+            break
         elif key == 13: # 13 ASCII for Enter key
             print(f"Selected positions: {mouse_params['marker_positions']}")
             break
