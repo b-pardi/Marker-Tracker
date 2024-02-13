@@ -8,12 +8,10 @@ import numpy as np
 import pandas as pd
 import tkinter as tk
 from tkinter import filedialog
-
 import os
-import time
-import sys
 
 from exceptions import error_popup, warning_popup
+import analysis
 
 VIDEO_PATH = ""
 
@@ -75,9 +73,15 @@ class TrackingUI:
         self.binarize_intensity_thresh_entry.insert(0, "120")
         self.binarize_intensity_thresh_entry.grid(row=1, column=1, padx=4, pady=8)
 
-        # submit button
-        submit_btn = tk.Button(self.root, text="Submit", command=self.on_submit)
-        submit_btn.grid(row=20, column=0, padx=32, pady=12)
+        # submit buttons
+        submit_frame = tk.Frame()
+        track_btn = tk.Button(submit_frame, text="Begin tracking", command=self.on_submit_tracking, width=20, height=2)
+        track_btn.grid(row=0, column=0, columnspan=2, padx=32, pady=12)
+        marker_deltas_btn = tk.Button(submit_frame, text="Marker deltas analysis", command=analysis.test, width=20, height=1)
+        marker_deltas_btn.grid(row=1, column=0, padx=16, pady=4)
+        analyze_data_btn = tk.Button(submit_frame, text="placeholder", command=analysis.test, width=20, height=1)
+        analyze_data_btn.grid(row=1, column=1, padx=16, pady=4)
+        submit_frame.grid(row=20, column=0)
         
     def handle_radios(self):
         option = self.operation_intvar.get()
@@ -92,7 +96,7 @@ class TrackingUI:
                 self.tracking_frame.grid_forget()
                 self.necking_frame.grid(row=3, column=0)
 
-    def on_submit(self):
+    def on_submit_tracking(self):
         global VIDEO_PATH
         cap = cv2.VideoCapture(VIDEO_PATH) # load video
         if not cap.isOpened():
@@ -141,9 +145,7 @@ def get_file(label_var):
 
     global VIDEO_PATH
     VIDEO_PATH = fp
-
-def marker_distance(p1, p2):
-    return np.linalg.norm(np.array(p1) - np.array(p2))
+    
 
 def mouse_callback(event, x, y, flags, params):
     """handle mouse clicks during software execution

@@ -29,6 +29,12 @@
     - KCF: good for more stable markers
     - CSRT: good for tracking deformable objects
 - removed sys.exit when escaping marker tracking, instead just close window but keep ui open
+- added buttons to plot data from video tracking functions
+- began plotting functionality for tracking 2 marker distances relative to eachother
+- calculate euclidean distances of markers
+- plot distances of markers against time (currently in seconds)
+- added function to simplify plot formatting code
+- added 'figures' folder for saving code
 
 
 2/4
