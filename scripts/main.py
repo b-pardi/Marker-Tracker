@@ -39,11 +39,11 @@ class TrackingUI:
         
         # file browse button
         self.video_path = ""
-        self.data_label_var = tk.StringVar()
         file_btn = ttk.Button(self.root, text="Browse for video file", command=self.get_file, style='Regular.TButton')
         file_btn.grid(row=0, column=0, padx=32, pady=24)
 
         # file name label
+        self.data_label_var = tk.StringVar()
         self.data_label_var.set("File not selected")
         data_label = ttk.Label(self.root, textvariable=self.data_label_var)
         data_label.grid(row=1, column=0, pady=(0,8))
@@ -52,8 +52,12 @@ class TrackingUI:
         self.frame_start = -1
         self.frame_end = -1
         self.child = None
+        self.frame_label_var = tk.StringVar()
+        self.frame_label_var.set("Frame range: FULL")
+        self.frame_label = ttk.Label(self.root, textvariable=self.frame_label_var)
         self.frame_selector_btn = ttk.Button(self.root, text="Select start/end frames", command=self.select_frames, style='Regular.TButton')
-        self.frame_selector_btn.grid(row=2, pady=16)
+        self.frame_selector_btn.grid(row=2, pady=(12,4))
+        self.frame_label.grid(row=3, column=0, pady=(0,8))
 
         # radios for selecting operation
         self.operation_intvar = tk.IntVar()
@@ -63,9 +67,9 @@ class TrackingUI:
         operation_tracking_radio.grid(row=0, column=0, padx=4, pady=16)
         operation_necking_radio = ttk.Radiobutton(operation_frame, text="Necking point detection", variable=self.operation_intvar, value=2, command=self.handle_radios, width=25, style='Outline.TButton')
         operation_necking_radio.grid(row=0, column=1, padx=4, pady=16)
-        operation_frame.grid(row=3, column=0)
+        operation_frame.grid(row=4, column=0)
         self.select_msg = ttk.Label(self.root, text="Select from above for more customizable parameters")
-        self.select_msg.grid(row=4, column=0)
+        self.select_msg.grid(row=5, column=0)
 
         # options for marker tracking
         self.tracking_frame = tk.Frame(self.root)
@@ -120,7 +124,7 @@ class TrackingUI:
         
     def select_frames(self):
         if self.video_path != "":
-            self.child = FrameSelector(self.root, self.video_path)
+            self.child = FrameSelector(self.root, self.video_path, self.frame_label_var)
         else:
             msg = "Select a video before opening the frame selector"
             error_popup(msg)
@@ -132,11 +136,11 @@ class TrackingUI:
             case 1:
                 self.select_msg.grid_forget()
                 self.necking_frame.grid_forget()
-                self.tracking_frame.grid(row=5, column=0)
+                self.tracking_frame.grid(row=6, column=0)
             case 2:
                 self.select_msg.grid_forget()
                 self.tracking_frame.grid_forget()
-                self.necking_frame.grid(row=5, column=0)
+                self.necking_frame.grid(row=6, column=0)
 
     def on_submit_tracking(self):
         """calls the appropriate functions with user spec'd args when tracking start button clicked"""        
@@ -205,9 +209,12 @@ class TrackingUI:
             self.video_path = fp
 
 class FrameSelector:
-    def __init__(self, parent, video_path):
+    def __init__(self, parent, video_path, parent_label_var):
         self.parent = parent
         self.video_path = video_path
+        self.parent_label_var = parent_label_var
+        self.child_label_var = tk.StringVar()
+        self.child_label_var.set("Use slider to select start and end frames\nCurrent frame: 0")
         self.cap = cv2.VideoCapture(self.video_path)
         self.n_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
         self.frame_start = 0
@@ -227,7 +234,7 @@ class FrameSelector:
                 foreground=[('selected', 'blue'), ('!selected', 'black')],
                 background=[('selected', 'blue'), ('!selected', 'white')])
         
-        self.frame_select_label = ttk.Label(self.child_window, text="Use slider to select start and end frames")
+        self.frame_select_label = ttk.Label(self.child_window, textvariable=self.child_label_var)
         self.frame_select_label.pack(pady=10)
         
         self.confirm_start_button = ttk.Button(self.child_window, text="Confirm start frame", command=self.confirm_start, style='Regular.TButton')
@@ -248,6 +255,7 @@ class FrameSelector:
         self.frame_start = int(float(value))
         self.frame_end = int(float(self.slider.get()))
         self.frame_display.config(text=f"Selected Frames: {self.frame_start} to {self.frame_end}")
+        self.child_label_var.set(f"Use slider to select start and end frames\n\nCurrent frame: {int(float(self.slider.get()))}\n")
         
         # Update displayed frame
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, self.frame_start)
@@ -275,6 +283,11 @@ class FrameSelector:
     def on_close(self):
         self.cap.release()
         self.child_window.destroy()
+        if not self.start_selection_flag:
+            self.frame_start_select = 0
+        if not self.end_selection_flag:
+            self.frame_end_select = self.n_frames - 1
+        self.parent_label_var.set(f"Frame start: {self.frame_start_select}, Frame end: {self.frame_end_select}")
         print("Selections confirmed!")
 
 def scale_frame(frame, scale_factor=0.9):

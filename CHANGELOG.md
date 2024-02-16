@@ -7,7 +7,6 @@
     - artifacts outside the tube have edges being detected
 
 ## TODO
-- label for selected frames
 - gaussian blur before frame binarization?
 
 # Changelog
@@ -25,6 +24,8 @@
 - formatted ttk buttons in frame select window
 - added error catch for frame selections to ensure video has been selected first
 - updated all first frame displays to move window to top left so it doesn't need to be moved since some is usually off screen
+- frame selections now have a label to indicate selected frames in main ui
+- indicators also in frame selections window
 
 2/15
 - updated file structure
