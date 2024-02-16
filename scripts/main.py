@@ -119,7 +119,11 @@ class TrackingUI:
         submit_frame.grid(row=20, column=0)
         
     def select_frames(self):
-        self.child = FrameSelector(self.root, self.video_path)
+        if self.video_path != "":
+            self.child = FrameSelector(self.root, self.video_path)
+        else:
+            msg = "Select a video before opening the frame selector"
+            error_popup(msg)
 
     def handle_radios(self):
         """blits options for the corresponding radio button selected"""        
@@ -148,12 +152,8 @@ class TrackingUI:
         if self.child: # if frame select window exists (if it was opened via the btn),
             if self.child.start_selection_flag: # if a start frame sel made,
                 self.frame_start = self.child.frame_start_select
-            else: 
-                self.frame_start = 0
             if self.child.end_selection_flag: # if an end frame sel made,
-                self.frame_end = self.child.frame_end_select
-            else:
-                self.frame_end = self.child.n_frames - 1            
+                self.frame_end = self.child.frame_end_select   
 
         print(f"frame start: {self.frame_start}, frame end: {self.frame_end}")
 
@@ -179,7 +179,7 @@ class TrackingUI:
                 binarize_intensity_thresh = int(self.binarize_intensity_thresh_entry.get())
 
                 print("Beginning Necking Point")
-                necking_point(cap, percent_crop_left, percent_crop_right, binarize_intensity_thresh)
+                necking_point(cap, self.frame_start, self.frame_end, percent_crop_left, percent_crop_right, binarize_intensity_thresh)
 
     def get_file(self):
         """util function to prompt a file browser to select the video file that will be tracked
@@ -220,14 +220,20 @@ class FrameSelector:
         self.child_window.title("Select Start and End Frames")
         self.child_window.geometry("+50+50")  # Adjust the values as needed
 
+        # btn styling
+        btn_style = ttk.Style()
+        btn_style.configure("Regular.TButton", padding=(10,2), relief="raised", width=20)
+        btn_style.map("Outline.TButton",
+                foreground=[('selected', 'blue'), ('!selected', 'black')],
+                background=[('selected', 'blue'), ('!selected', 'white')])
         
         self.frame_select_label = ttk.Label(self.child_window, text="Use slider to select start and end frames")
         self.frame_select_label.pack(pady=10)
         
-        self.confirm_start_button = ttk.Button(self.child_window, text="Confirm start frame", command=self.confirm_start)
-        self.confirm_start_button.pack(pady=10)
-        self.confirm_end_button = ttk.Button(self.child_window, text="Confirm end frame", command=self.confirm_end)
-        self.confirm_end_button.pack(pady=10)
+        self.confirm_start_button = ttk.Button(self.child_window, text="Confirm start frame", command=self.confirm_start, style='Regular.TButton')
+        self.confirm_start_button.pack()
+        self.confirm_end_button = ttk.Button(self.child_window, text="Confirm end frame", command=self.confirm_end, style='Regular.TButton')
+        self.confirm_end_button.pack()
         
         self.frame_display = ttk.Label(self.child_window, text="test")
         self.frame_display.pack(pady=10)
@@ -269,8 +275,7 @@ class FrameSelector:
     def on_close(self):
         self.cap.release()
         self.child_window.destroy()
-        print(f"Selected start: {self.parent.frame_start}")
-
+        print("Selections confirmed!")
 
 def scale_frame(frame, scale_factor=0.9):
     monitor = screeninfo.get_monitors()[0] # get primary monitor resolution
@@ -425,7 +430,7 @@ def track_markers(marker_positions, first_frame, frame_start, frame_end, cap, bb
     cv2.destroyAllWindows()
 
 
-def necking_point(cap, percent_crop_left=0., percent_crop_right=0., binarize_intensity_thresh=120, x_interval=50):
+def necking_point(cap, frame_start, frame_end, percent_crop_left=0., percent_crop_right=0., binarize_intensity_thresh=120, x_interval=50):
     """necking point detection loop
     necking point defined as the most shortest vertical line between two horizontal edges
     frames are preprocessed and then edges are detected, top and bottom most edges are singled out
@@ -448,6 +453,7 @@ def necking_point(cap, percent_crop_left=0., percent_crop_right=0., binarize_int
 
     while True: # read frame by frame until end of video
         ret, frame = cap.read()
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_start+frame_num)
         frame_num += 1
         #time.sleep(0.5)
         if not ret:
@@ -511,7 +517,7 @@ def necking_point(cap, percent_crop_left=0., percent_crop_right=0., binarize_int
         dist_data['y necking distance (px)'].append(necking_distance)
 
         cv2.imshow('Necking Point Visualization', frame_draw)
-        if cv2.waitKey(1) == 27:
+        if cv2.waitKey(1) == 27 or frame_end == frame_num+frame_start:
             break
 
     dist_df = pd.DataFrame(dist_data)
