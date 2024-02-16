@@ -5,3 +5,4 @@ opencv-python==4.9.0.80
 opencv-contrib-python==4.9.0.80
 tk==0.1.0
 screeninfo==0.8.1
+pillow==10.2.0

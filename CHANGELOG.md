@@ -7,11 +7,32 @@
     - artifacts outside the tube have edges being detected
 
 ## TODO
+- label for selected frames
 - gaussian blur before frame binarization?
-- ability to input start and end frames?
-- separate button for analysis for marker tracking with cell stuff
 
 # Changelog
+
+2/16
+- frame selector works
+    - when clicking frame selector button in main ui, new window opens
+    - displays first frame, 2 confirm btns and a slider
+    - use the slider to find a frame
+    - click confirm start/end selection
+    - will save both selection in child class (frame selector window class)
+    - main window checks if window was opened (self.child exists) and assigns the child class's frame selections to parent class frame start/end if selections were made
+    - else they are just 0 and n_frames - 1
+- updated marker tracker, marker selection, and necking point to accommodate frame selections
+- formatted ttk buttons in frame select window
+- added error catch for frame selections to ensure video has been selected first
+- updated all first frame displays to move window to top left so it doesn't need to be moved since some is usually off screen
+
+2/15
+- updated file structure
+- updated most tk objects to ttk objects (themed tkinter objs)
+- added styles to ttk objects
+- added frame selector class (and btn in parent window)
+- frame selector allows user to select start and end frames of video (in progress)
+
 
 2/13
 - updated horizontal pixel removal parameters to remove left or right x% of edges from necking point consideration separately

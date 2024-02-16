@@ -1,11 +1,11 @@
 # Marker-Tracker
-### Computer vision scripts intended to track fiducial markers from videos of viscoelastic hydrogels as they expand over time
+### Computer vision scripts intended to track fiducial markers from videos of viscoelastic hydrogels as they expand over time (updated 2/16/24)
 
 # How to Use
 - First run 'install_packages.py'
 - If you get an error with this script,
     - In a command prompt, (not anaconda terminal) type 'where python' on windows, or in a mac terminal type 'which python'
-    -FCopy and paste the full path that it prints out
+    - Copy and paste the full path that it prints out
         - On windows it should look something like: 'C:\<some path stuff>\Python\Python310\python.exe'
         - In spider, go to tools > preferences > python interpreter
         - Select 'Use the following Python interpreter:'
@@ -13,6 +13,11 @@
         - Click apply and ok, and restart spyder for changes to take effect
 - Run 'main.py' upon completion of above
 - Click button to select video file
+- If needed, select the frames of the video you want tracked by clicking the 'Select start/end frames' button
+    - This will open a window with a slider to scroll through the video
+    - Scroll to where you want the tracking to begin and click 'Confirm start frame
+    - Repeat for tracking end frame
+    - close window and frame selections are saved
 - Select either marker tracking or necking point detection
 - Specify parameters (detailed below)
 - Click submit, each option's process is described below
