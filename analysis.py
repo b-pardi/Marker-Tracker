@@ -76,28 +76,42 @@ def analyze_marker_deltas():
     m2_y = m2_df['y (px)'].values
 
     # find euclidean distances of markers
-    marker_deltas = []
+    marker_distances = []
     for i in range(len(time)):
         euclidean_dist = marker_euclidean_distance(m1_x[i], m1_y[i], m2_x[i], m2_y[i])
-        marker_deltas.append(np.abs(euclidean_dist))
+        marker_distances.append(np.abs(euclidean_dist))
     
-    print(np.mean(marker_deltas), len(m1_x), len(m2_x), len(marker_deltas), marker_deltas[0], marker_deltas[-1])
+    print(np.mean(marker_distances), len(m1_x), len(m2_x), len(marker_distances), marker_distances[0], marker_distances[-1])
+
+    # longitudinal strain (deltaL / L0)
+    L0 = marker_distances[0]
+    longitudinal_strain = [(L-L0) / L0 for L in marker_distances]
 
     plot_args = {
-        'title': 'Marker Delta Tracking',
+        'title': r'Marker Delta Tracking',
         'x_label': 'Time (s)',
         'y_label': 'Marker Deltas (px)',
         'data_label': '',
         'has_legend': False
     }
 
-    fig, ax = plot_data(time, marker_deltas, plot_args)
+    # plot marker distances
+    fig, ax = plot_data(time, marker_distances, plot_args)
     fig.savefig("figures/marker_deltas.png")
+
+    # plot longitudinal strain
+    plot_args['title'] = r'Longitudinal strain - ${\epsilon}_{l}(t)$'
+    plot_args['y_label'] = r'${\epsilon}_{l}$'
+    longitudinal_strain_fig, longitudinal_strain_ax = plot_data(time, longitudinal_strain, plot_args)
+    longitudinal_strain_fig.savefig("figures/longitudinal_strain.png")
+
     print("Done")
+
+    return time, longitudinal_strain
 
 
 def analyze_necking_point():
-    """plots necking point data, x location of necking point against time
+    """plots necking point data, x location of necking point against time, as well as diameter at necking point
     reads from 'output/Necking_Point_Output.csv' which is created in the necking point tracking process
     saves plot in 'figures' folder
     """    
@@ -107,17 +121,72 @@ def analyze_necking_point():
 
     time = df['Time(s)'].values
     necking_pt_x = df['x at necking point (px)'].values
+    necking_pt_len = df['y necking distance (px)'].values
+
+    # radial strain (deltaR / R0)
+    R0 = necking_pt_len[0]
+    radial_strain = [(R - R0) / R0 for R in necking_pt_len]
 
     plot_args = {
-        'title': 'Necking Point Detection',
+        'title': 'Necking Point Horizontal Location',
         'x_label': 'Time (s)',
         'y_label': 'Horizontal coordinate of necking point (px)',
         'data_label': '',
         'has_legend': False
     }
 
-    fig, ax = plot_data(time, necking_pt_x, plot_args)
-    fig.savefig("figures/necking_point_location.png")
+    # plot x location of necking point over time
+    necking_pt_loc_fig, necking_pt_loc_ax = plot_data(time, necking_pt_x, plot_args)
+    necking_pt_loc_fig.savefig("figures/necking_point_location.png")
+
+    # plot diameter at necking point
+    plot_args['title'] = r'Diameter of Hydrogel at Necking Point' 
+    plot_args['y_label'] = 'Diameter (px)'
+    necking_pt_len_fig, necking_pt_len_ax = plot_data(time, necking_pt_len, plot_args)
+    necking_pt_len_fig.savefig("figures/diameter_at_necking_point.png")
+
+    # plot radial strain
+    plot_args['title'] = r'Radial strain - ${\epsilon}_{r}(t)$'
+    plot_args['y_label'] = '${\epsilon}_{r}$'
+    radial_strain_fig, radial_strain_ax = plot_data(time, radial_strain, plot_args)
+    radial_strain_fig.savefig("figures/radial_strain.png")
+    print("Done")
+
+    return time, radial_strain
+
+def poissons_ratio():
+    marker_time, longitudinal_strain = analyze_marker_deltas()
+    necking_time, radial_strain = analyze_necking_point()
+
+    print("Finding Poisson's ratio...")
+
+    # ensure tracking operations previously ran on the same data in the same time range
+    if not (marker_time[0] == necking_time[0] and marker_time[-1] == necking_time[-1] and len(marker_time) == len(necking_time)):
+        msg = "Error: Found discrepancies in marker deltas output and necking point output.\n"+\
+        "please ensure that both marker tracking and necking point detection are run on the same experiment within the same time frame."
+        error_popup(msg)
+
+    time = marker_time # if passes error check, times are same
+
+    # calculate poisson's ratio, radial / longitudinal
+    poisson_ratios = []
+    for i in range(len(time)):
+        if longitudinal_strain[i] != 0:
+            v = radial_strain[i] / longitudinal_strain[i]
+        else:
+            v = 0
+        poisson_ratios.append(v)
+
+    plot_args = {
+        'title': r"Poisson's Ratio - $\mathit{v(t)}$",
+        'x_label': 'Time (s)',
+        'y_label': r"Poisson's Ratio $\mathit{v}$",
+        'data_label': '',
+        'has_legend': False
+    }
+
+    poisson_fig, poisson_ax = plot_data(time, poisson_ratios, plot_args)
+    poisson_fig.savefig("figures/poissons_ratio.png")
 
     print("Done")
 

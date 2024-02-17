@@ -116,8 +116,10 @@ class TrackingUI:
         track_btn.grid(row=0, column=0, columnspan=2, padx=32, pady=24)
         marker_deltas_btn = ttk.Button(submit_frame, text="Marker deltas analysis", command=analysis.analyze_marker_deltas, style='Regular.TButton')
         marker_deltas_btn.grid(row=1, column=0, padx=4, pady=4)
-        analyze_data_btn = ttk.Button(submit_frame, text="Necking point analysis", command=analysis.analyze_necking_point, style='Regular.TButton')
-        analyze_data_btn.grid(row=1, column=1, padx=4, pady=4)
+        necking_pt_btn = ttk.Button(submit_frame, text="Necking point analysis", command=analysis.analyze_necking_point, style='Regular.TButton')
+        necking_pt_btn.grid(row=1, column=1, padx=4, pady=4)
+        poissons_ratio_btn = ttk.Button(submit_frame, text="Poisson's ratio", command=analysis.poissons_ratio, style='Regular.TButton')
+        poissons_ratio_btn.grid(row=2, column=0, columnspan=2, padx=4, pady=4)
         exit_btn = ttk.Button(submit_frame, text='Exit', command=sys.exit, style='Regular.TButton')
         exit_btn.grid(row=10, column=0, columnspan=2, padx=32, pady=(24,12))
         submit_frame.grid(row=20, column=0)
@@ -195,6 +197,7 @@ class TrackingUI:
                                         title='Browse for video file',
                                         filetypes=[("Audio Video Interleave", "*.avi"),
                                                 ("MPEG-4 Part 14", "*.mp4"),
+                                                ("Tag Image File Format", "*.tiff"),
                                                 ("Matroska", "*.mkv"),
                                                 ("QuickTime Movie", "*.mov"),
                                                 ("Windows Media Video", "*.wmv"),

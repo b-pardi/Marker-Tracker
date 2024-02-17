@@ -7,10 +7,37 @@
     - artifacts outside the tube have edges being detected
 
 ## TODO
+Hydrogel
+- poisson's ratio over time
+
+Multi purpose
+- open a plot and click points to remove for manual outliar removal
+- plot customs json from bratadio and reading capabilities
+
+Cell Mechanics
+- cell spread area over time
+- for cell tracking:
+   - total travel distance (RMS displacement)
+   - velocity (pixels per frame)
+
 - gaussian blur before frame binarization?
-- add tiff to file selection
 
 # Changelog
+
+2/18
+- added tiff to available files for reading
+- added longitudinal strain plot for marker deltas
+- added radial strain plot to necking point analysis
+    - plots necking point length (diameter of gel at necking point) vs time
+- added button for poissons ratio
+- added error checking for poissons ratio calculations
+    - checks if tracking operations previously ran on the same data in the same time range
+- added analysis for poissons ratio
+    - first runs marker deltas and necking point
+    - error checks
+    - calculate poissons ratio (radial strain / longitudinal strain)
+    - plot
+
 
 2/16
 - frame selector works
