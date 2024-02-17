@@ -338,7 +338,7 @@ def mouse_callback(event, x, y, flags, params):
         cv2.circle(cur_frame, (scaled_x, scaled_y), int(radius*scale_factor), (255, 255, 0), 2) # draw circle where clicked
 
     cv2.imshow('Select Markers', cur_frame)
-    cv2.moveWindow('Your Window', 50, 50)
+    cv2.moveWindow('Select Markers', 50, 50)
 
 
 def select_markers(cap, bbox_size, frame_start):
@@ -354,7 +354,7 @@ def select_markers(cap, bbox_size, frame_start):
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_start)
     ret, first_frame = cap.read() # get first frame for selection
     cv2.imshow('Select Markers', first_frame) # show first frame
-    cv2.moveWindow('Your Window', 50, 50)
+    cv2.moveWindow('Select Markers', 50, 50)
 
     mouse_params = {"first_frame": first_frame.copy(), "marker_positions": [], 'bbox_size': bbox_size}
     cv2.setMouseCallback('Select Markers', mouse_callback, mouse_params) # set mouse callback function defn above
@@ -398,9 +398,13 @@ def track_markers(marker_positions, first_frame, frame_start, frame_end, cap, bb
             trackers.append(cv2.TrackerCSRT_create())
 
     # init trackers
+    scaled_first_frame, scale_factor = scale_frame(first_frame)
     for i, mark_pos in enumerate(marker_positions):
-        bbox = (mark_pos[0][0] - bbox_size//2, mark_pos[0][1] - bbox_size//2, bbox_size, bbox_size)
-        trackers[i].init(first_frame, bbox)
+        bbox = (int((mark_pos[0][0] - bbox_size // 2) * scale_factor),
+                int((mark_pos[0][1] - bbox_size // 2) * scale_factor),
+                int(bbox_size * scale_factor),
+                int(bbox_size * scale_factor))
+        trackers[i].init(scaled_first_frame, bbox)
 
     # init tracking data dict
     tracker_data = {'Frame': [], 'Time(s)': [], 'Tracker': [], 'x (px)': [], 'y (px)': []}
@@ -411,33 +415,33 @@ def track_markers(marker_positions, first_frame, frame_start, frame_end, cap, bb
         ret, frame = cap.read()
         frame_num += 1
         if not ret:
-            break # break when frame read unsuccessful (end of video or error)
-        
+            break  # break when frame read unsuccessful (end of video or error)
+
+        scaled_frame, scale_factor = scale_frame(frame)  # Use the scale_factor obtained from the current frame scaling
+
         # updating trackers and saving location
         for i, tracker in enumerate(trackers):
-            success, bbox = tracker.update(frame)
+            success, bbox = tracker.update(scaled_frame)
 
-            if success: # get coords of marker on successful frame update
-                x_bbox, y_bbox, w_bbox, h_bbox = [int(coord) for coord in bbox] # get coords of bbox
-                marker_center = (x_bbox + w_bbox // 2, y_bbox + h_bbox // 2) # get center of bbox
-                
-                # record tracker locations
+            if success:  # get coords of marker on successful frame update
+                x_bbox, y_bbox, w_bbox, h_bbox = [int(coord) for coord in bbox]  # get coords of bbox in the scaled frame
+                marker_center = (x_bbox + w_bbox // 2, y_bbox + h_bbox // 2)  # get center of bbox
+
+                # record tracker locations using original resolution
                 tracker_data['Frame'].append(frame_num)
                 tracker_data['Time(s)'].append(np.float32(frame_num / cap.get(5)))
-                tracker_data['Tracker'].append(i+1)
-                tracker_data['x (px)'].append(marker_center[0])
-                tracker_data['y (px)'].append(marker_center[1])
-                cv2.rectangle(frame, (x_bbox, y_bbox), (x_bbox + w_bbox, y_bbox + h_bbox), (0, 255, 0), 2) # update tracker rectangle
-            
-        cv2.imshow("Tracking...", frame) # show updated frame tracking
+                tracker_data['Tracker'].append(i + 1)
+                tracker_data['x (px)'].append(int((marker_center[0] / scale_factor)))  # scale back to the original frame resolution
+                tracker_data['y (px)'].append(int((marker_center[1] / scale_factor)))
+                cv2.rectangle(scaled_frame, (x_bbox, y_bbox), (x_bbox + w_bbox, y_bbox + h_bbox), (0, 255, 0), 2)  # update tracker rectangle
 
-        if cv2.waitKey(1) == 27 or frame_num == frame_end-frame_start: # cut tracking loop short if ESC hit
+        cv2.imshow("Tracking...", scaled_frame)  # show updated frame tracking
+
+        if cv2.waitKey(1) == 27 or frame_num == frame_end - frame_start:  # cut tracking loop short if ESC hit
             break
-
-    
     dist_df = pd.DataFrame(tracker_data)
     dist_df.set_index('Frame', inplace=True)
-    dist_df.to_csv("../output/Tracking_Output.csv")
+    dist_df.to_csv("output/Tracking_Output.csv")
 
     cap.release()
     cv2.destroyAllWindows()
@@ -453,8 +457,8 @@ def necking_point(cap, frame_start, frame_end, percent_crop_left=0., percent_cro
 
     Args:
         cap (cv2.VideoCapture): loaded video file for selecting markers of
-        percent_crop_left (float, optional): percentage of pixels to remove from consideration from left side of frame of necking pt detection. Defaults to 0..
-        percent_crop_right (_type_, optional): percentage of pixels to remove from consideration from right side of frame of necking pt detection. Defaults to 0..
+        percent_crop_left (float, optional): percentage of pixels to remove from consideration from the left side of the frame of necking pt detection. Defaults to 0..
+        percent_crop_right (_type_, optional): percentage of pixels to remove from consideration from the right side of the frame of necking pt detection. Defaults to 0..
         binarize_intensity_thresh (int, optional): threshold pixel intensity value for frame binarization. Defaults to 120.
         x_interval (int, optional): interval of horizontal pixels to draw vertical blue lines for visualization purposes. Defaults to 50.
     """    
@@ -462,72 +466,73 @@ def necking_point(cap, frame_start, frame_end, percent_crop_left=0., percent_cro
     dist_data = {'Frame': [], 'Time(s)': [], 'x at necking point (px)': [], 'y necking distance (px)': []}
     percent_crop_left *= 0.01
     percent_crop_right *= 0.01
-    print(percent_crop_left)
 
-    while True: # read frame by frame until end of video
+    while True:  # read frame by frame until the end of the video
         ret, frame = cap.read()
-        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_start+frame_num)
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_start + frame_num)
         frame_num += 1
-        #time.sleep(0.5)
+
         if not ret:
             break
 
-        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) # frame already gray, but not read as such
-        _, binary_frame = cv2.threshold(gray_frame, binarize_intensity_thresh, 1,cv2.THRESH_BINARY) # threshold to binarize img
-        
+        scaled_frame, scale_factor = scale_frame(frame)  # scale the frame
+
+        gray_frame = cv2.cvtColor(scaled_frame, cv2.COLOR_BGR2GRAY)  # convert frame to gray
+        _, binary_frame = cv2.threshold(gray_frame, binarize_intensity_thresh, 255, cv2.THRESH_BINARY)  # threshold to binarize image
+
         # error checking for appropriate binarization threshold
-        if np.all(binary_frame == 1):
+        if np.all(binary_frame == 255):
             msg = "Binarization threshold too low,\nfound no pixels below the threshold.\n\nPlease adjust the threshold (default is 120)"
             error_popup(msg)
         if np.all(binary_frame == 0):
             msg = "Binarization threshold too high,\nfound no pixels above the threshold.\n\nPlease adjust the threshold (default is 120)"
-            error_popup(msg)   
+            error_popup(msg)
 
-        edges = cv2.Canny(binary_frame, 0, 2) # edge detection, nums are gradient thresholds
+        edges = cv2.Canny(binary_frame, 0, 2)  # edge detection, nums are gradient thresholds
 
         x_samples = []
         y_distances = []
         y_line_values = []
 
-        frame_draw = frame.copy() 
+        frame_draw = scaled_frame.copy()
         frame_draw[edges > 0] = [0, 255, 0]  # draw edges
 
         # remove x% of edges from consideration of detection
         horizontal_pixels_left = 0
-        horizontal_pixels_right = frame.shape[1]
+        horizontal_pixels_right = scaled_frame.shape[1]
         if percent_crop_left != 0.:
-            left_pixels_removed = int(percent_crop_left*frame.shape[1])
+            left_pixels_removed = int(percent_crop_left * scaled_frame.shape[1])
             horizontal_pixels_left = max(0, left_pixels_removed)
         if percent_crop_right != 0.:
-            right_pixels_removed = int(percent_crop_right*frame.shape[1])
-            horizontal_pixels_right = min(frame.shape[1], frame.shape[1] - right_pixels_removed)
+            right_pixels_removed = int(percent_crop_right * scaled_frame.shape[1])
+            horizontal_pixels_right = min(scaled_frame.shape[1], scaled_frame.shape[1] - right_pixels_removed)
 
         for x in range(horizontal_pixels_left, horizontal_pixels_right):
-            edge_pixels = np.nonzero(edges[:,x])[0] # find y coord of edge pixels in cur column
+            edge_pixels = np.nonzero(edges[:, x])[0]  # find y coord of edge pixels in cur column
 
-            if edge_pixels.size > 0: # if edge pixels in cur column, 
-                dist = np.abs(edge_pixels[0] - edge_pixels[-1]) # find distance of top and bottom edges
+            if edge_pixels.size > 0:  # if edge pixels in cur column,
+                dist = np.abs(edge_pixels[0] - edge_pixels[-1])  # find distance of top and bottom edges
                 x_samples.append(x)
                 y_line_values.append((edge_pixels[0], edge_pixels[-1]))
                 y_distances.append(dist)
 
-                if x % x_interval == 0: # draw visualization lines at every x_interval pixels
+                if x % x_interval == 0:  # draw visualization lines at every x_interval pixels
                     # draw vertical lines connecting edges for visualization
                     cv2.line(frame_draw, (x, edge_pixels[0]), (x, edge_pixels[-1]), (200, 0, 0), 1)  
 
         # find index of smallest distance
-        # multiple mins occur in typically close together, for now just pick middle of min occurences
+        # multiple mins occur in typically close together, for now just pick middle of min occurrences
         necking_distance = np.min(y_distances)
-        necking_pt_indices = np.where(y_distances==necking_distance)[0]
+        necking_pt_indices = np.where(y_distances == necking_distance)[0]
         necking_pt_ind = int(np.median(necking_pt_indices))
-        #print(y_distances[necking_pt_ind], y_distances)
-        cv2.line(frame_draw, (x_samples[necking_pt_ind], y_line_values[necking_pt_ind][0]), (x_samples[necking_pt_ind], y_line_values[necking_pt_ind][1]), (0,0,255), 2)     
 
-        # record and save data
+        # record and save data using original resolution
         dist_data['Frame'].append(frame_num)
         dist_data['Time(s)'].append(np.float32(frame_num / cap.get(5)))
-        dist_data['x at necking point (px)'].append(x_samples[necking_pt_ind])
+        dist_data['x at necking point (px)'].append(int((x_samples[necking_pt_ind] / scale_factor)))
         dist_data['y necking distance (px)'].append(necking_distance)
+
+        cv2.line(frame_draw, (x_samples[necking_pt_ind], y_line_values[necking_pt_ind][0]), (x_samples[necking_pt_ind], y_line_values[necking_pt_ind][1]), (0, 0, 255), 2)     
 
         cv2.imshow('Necking Point Visualization', frame_draw)
         if cv2.waitKey(1) == 27 or frame_end == frame_num+frame_start:
@@ -535,7 +540,7 @@ def necking_point(cap, frame_start, frame_end, percent_crop_left=0., percent_cro
 
     dist_df = pd.DataFrame(dist_data)
     dist_df.set_index('Frame', inplace=True)
-    dist_df.to_csv("../output/Necking_Point_Output.csv")
+    dist_df.to_csv("output/Necking_Point_Output.csv")
 
     cap.release()
     cv2.destroyAllWindows()

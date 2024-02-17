@@ -8,6 +8,7 @@
 
 ## TODO
 - gaussian blur before frame binarization?
+- add tiff to file selection
 
 # Changelog
 
@@ -26,6 +27,9 @@
 - updated all first frame displays to move window to top left so it doesn't need to be moved since some is usually off screen
 - frame selections now have a label to indicate selected frames in main ui
 - indicators also in frame selections window
+- went back to old file structure (scripts in root dir)
+- fixed bug when moving window
+- all video/img windows scale to 90% of monitor resolution, but when saving data original resolution values used
 
 2/15
 - updated file structure

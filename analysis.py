@@ -92,7 +92,7 @@ def analyze_marker_deltas():
     }
 
     fig, ax = plot_data(time, marker_deltas, plot_args)
-    fig.savefig("../figures/marker_deltas.png")
+    fig.savefig("figures/marker_deltas.png")
     print("Done")
 
 
@@ -117,7 +117,7 @@ def analyze_necking_point():
     }
 
     fig, ax = plot_data(time, necking_pt_x, plot_args)
-    fig.savefig("../figures/necking_point_location.png")
+    fig.savefig("figures/necking_point_location.png")
 
     print("Done")
 
