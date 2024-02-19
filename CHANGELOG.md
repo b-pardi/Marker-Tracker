@@ -7,11 +7,12 @@
     - artifacts outside the tube have edges being detected
 
 ## TODO
+Housekeeping
+- separate main into main (ui stuff), and tracking.py
+
 Hydrogel
-- poisson's ratio over time
 
 Multi purpose
-- open a plot and click points to remove for manual outliar removal
 - plot customs json from bratadio and reading capabilities
 
 Cell Mechanics
@@ -20,7 +21,6 @@ Cell Mechanics
    - total travel distance (RMS displacement)
    - velocity (pixels per frame)
 
-- gaussian blur before frame binarization?
 
 # Changelog
 
@@ -37,6 +37,11 @@ Cell Mechanics
     - error checks
     - calculate poissons ratio (radial strain / longitudinal strain)
     - plot
+- added outlier removal class to remove outlier points manually via interactive plot
+    - when button clicked user can select which output data they want to interact with
+        - marker tracker does not work properly as it plots distances and removing points does not directly correlate to distances
+    - when clicking points they are removed from plot and plot updates, as well as from data frame
+    - also included buttons to save selections and undo them as well
 
 
 2/16

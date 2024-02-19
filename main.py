@@ -11,6 +11,9 @@ from tkinter import ttk
 from tkinter import filedialog
 import screeninfo
 from PIL import Image, ImageTk
+import matplotlib
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.pyplot as plt
 
 import os
 import sys
@@ -113,13 +116,15 @@ class TrackingUI:
         # submit buttons
         submit_frame = tk.Frame()
         track_btn = ttk.Button(submit_frame, text="Begin tracking", command=self.on_submit_tracking, style='Regular.TButton')
-        track_btn.grid(row=0, column=0, columnspan=2, padx=32, pady=24)
+        track_btn.grid(row=0, column=0, columnspan=2, padx=32, pady=(24,4))
+        remove_outliers_button = ttk.Button(submit_frame, text="Remove outliers", command=self.remove_outliers, style='Regular.TButton')
+        remove_outliers_button.grid(row=1, column=0, columnspan=2, padx=32, pady=(4,24))
         marker_deltas_btn = ttk.Button(submit_frame, text="Marker deltas analysis", command=analysis.analyze_marker_deltas, style='Regular.TButton')
-        marker_deltas_btn.grid(row=1, column=0, padx=4, pady=4)
+        marker_deltas_btn.grid(row=2, column=0, padx=4, pady=4)
         necking_pt_btn = ttk.Button(submit_frame, text="Necking point analysis", command=analysis.analyze_necking_point, style='Regular.TButton')
-        necking_pt_btn.grid(row=1, column=1, padx=4, pady=4)
+        necking_pt_btn.grid(row=2, column=1, padx=4, pady=4)
         poissons_ratio_btn = ttk.Button(submit_frame, text="Poisson's ratio", command=analysis.poissons_ratio, style='Regular.TButton')
-        poissons_ratio_btn.grid(row=2, column=0, columnspan=2, padx=4, pady=4)
+        poissons_ratio_btn.grid(row=3, column=0, columnspan=2, padx=4, pady=4)
         exit_btn = ttk.Button(submit_frame, text='Exit', command=sys.exit, style='Regular.TButton')
         exit_btn.grid(row=10, column=0, columnspan=2, padx=32, pady=(24,12))
         submit_frame.grid(row=20, column=0)
@@ -130,6 +135,9 @@ class TrackingUI:
         else:
             msg = "Select a video before opening the frame selector"
             error_popup(msg)
+
+    def remove_outliers(self):
+        OutlierRemoval(self.root)
 
     def handle_radios(self):
         """blits options for the corresponding radio button selected"""        
@@ -293,6 +301,106 @@ class FrameSelector:
         self.parent_label_var.set(f"Frame start: {self.frame_start_select}, Frame end: {self.frame_end_select}")
         print("Selections confirmed!")
 
+
+class OutlierRemoval:
+    def __init__(self, parent):
+        self.parent = parent
+        self.window = tk.Toplevel(self.parent)
+        self.parent.title("Select outlier points to remove them")
+
+        self.fig = None
+        self.canvas = None
+
+        # file options
+        self.output_files = {
+            'marker_tracking': 'output/Tracking_Output.csv',
+            'necking_point': 'output/Necking_Point_Output.csv'
+        }
+
+        self.selected_file = tk.StringVar()
+        # radio buttons for file selection
+        self.marker_radio = ttk.Radiobutton(self.window, text="Marker tracking output", variable=self.selected_file, value=self.output_files['marker_tracking'], command=self.load_plot)
+        self.marker_radio.pack()
+        self.necking_radio = ttk.Radiobutton(self.window, text="Necking point output", variable=self.selected_file, value=self.output_files['necking_point'], command=self.load_plot)
+        self.necking_radio.pack()
+
+        self.undo_removals_button = ttk.Button(self.window, text="Undo Selections", command=self.undo_selections)
+        self.undo_removals_button.pack(pady=12)
+        self.confirm_button = ttk.Button(self.window, text="Confirm Removal", comman=self.confirm)
+        self.confirm_button.pack()
+
+    def load_data(self, is_updating=False):
+        if not is_updating:
+            fp = self.selected_file.get()
+            self.df = pd.read_csv(fp)
+
+        # get appropriate columns
+        self.x_col = 'Time(s)'
+        self.x = list(self.df[self.x_col].unique())
+        self.y = None
+        if self.selected_file.get().__contains__('Tracking'):
+            _, self.y = analysis.analyze_marker_deltas(self.df, False)
+        if self.selected_file.get().__contains__('Necking'):
+            _, self.y = analysis.analyze_necking_point(self.df, False)
+
+    def create_figure(self):
+        # Create a new figure and axes
+        if not self.fig:
+            self.fig, self.ax = plt.subplots()
+
+    def plot_data(self, is_updating=False):
+        self.load_data(is_updating)
+
+        # Clear existing figure and axes
+        if self.ax:
+            self.ax.clear()
+        else:
+            self.create_figure()
+        self.plot = self.ax.scatter(self.x, self.y, picker=True)
+
+        # only draw if new canvas
+        if self.canvas:
+            self.canvas.get_tk_widget().destroy()
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.window)
+        self.canvas.get_tk_widget().pack()
+        self.fig.canvas.mpl_connect('pick_event', self.onclick)
+
+    def onclick(self, event):
+        if event.name == 'pick_event':
+            x_click = event.mouseevent.xdata
+            idx = (np.abs(self.x - x_click)).argmin() # remove closest point
+            print(idx)
+
+            # find and remove clicked pt
+            x = self.df.iloc[idx][self.x_col]
+            idx_remove = self.df[self.df[self.x_col] == x].index
+            self.df.drop(index=idx_remove, inplace=True)
+            self.df.reset_index(inplace=True, drop=True)
+            del self.y[idx_remove[0]]
+            del self.x[idx_remove[0]]
+            print(x, idx_remove, self.df)
+
+            # update plot
+            self.plot_data(True)
+            self.plot.set_offsets(list(zip(self.x, self.y)))
+            self.canvas.draw()
+
+    def undo_selections(self):
+        plt.clf()
+        self.fig = None
+        self.ax = None
+        self.plot_data()
+
+    def confirm(self):
+        #fp, ext = os.path.splitext(self.selected_file.get())
+        #self.output_fp = fp + '_outliers_removed' + ext
+        self.df.to_csv(self.selected_file.get())
+
+    def load_plot(self):
+        self.create_figure()
+        self.plot_data()
+
+
 def scale_frame(frame, scale_factor=0.9):
     monitor = screeninfo.get_monitors()[0] # get primary monitor resolution
 
@@ -305,7 +413,6 @@ def scale_frame(frame, scale_factor=0.9):
     # resize based on scale factors
     scaled_frame = cv2.resize(frame, (int(frame.shape[1] * min_scale_factor), int(frame.shape[0] * min_scale_factor)))
     return scaled_frame, min_scale_factor
-
 
 def mouse_callback(event, x, y, flags, params):
     """handle mouse clicks during software execution

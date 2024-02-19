@@ -51,13 +51,14 @@ def plot_data(x, y, plot_args):
     
     return fig, ax
 
-def analyze_marker_deltas():
+def analyze_marker_deltas(df=None, will_save_figures=True):
     """plots euclidean distance between tracked fiducial marker data
     reads data from 'output/Tracking_Output.csv' which is created in the marker tracking process
     saves plot to the 'figures' folder
     """    
     print("Analyzing tracked marker distances...")
-    df = pd.read_csv("output/Tracking_Output.csv") # open csv created/modified from marker tracking process
+    if not isinstance(df, pd.DataFrame):
+        df = pd.read_csv("output/Tracking_Output.csv") # open csv created/modified from marker tracking process
     print(df.head())
 
     # ensure only 2 markers were selected
@@ -95,28 +96,30 @@ def analyze_marker_deltas():
         'has_legend': False
     }
 
-    # plot marker distances
-    fig, ax = plot_data(time, marker_distances, plot_args)
-    fig.savefig("figures/marker_deltas.png")
+    if will_save_figures:
+        # plot marker distances
+        fig, ax = plot_data(time, marker_distances, plot_args)
+        fig.savefig("figures/marker_deltas.png")
 
-    # plot longitudinal strain
-    plot_args['title'] = r'Longitudinal strain - ${\epsilon}_{l}(t)$'
-    plot_args['y_label'] = r'${\epsilon}_{l}$'
-    longitudinal_strain_fig, longitudinal_strain_ax = plot_data(time, longitudinal_strain, plot_args)
-    longitudinal_strain_fig.savefig("figures/longitudinal_strain.png")
+        # plot longitudinal strain
+        plot_args['title'] = r'Longitudinal strain - ${\epsilon}_{l}(t)$'
+        plot_args['y_label'] = r'${\epsilon}_{l}$'
+        longitudinal_strain_fig, longitudinal_strain_ax = plot_data(time, longitudinal_strain, plot_args)
+        longitudinal_strain_fig.savefig("figures/longitudinal_strain.png")
 
     print("Done")
 
     return time, longitudinal_strain
 
 
-def analyze_necking_point():
+def analyze_necking_point(df=None, will_save_figures=True):
     """plots necking point data, x location of necking point against time, as well as diameter at necking point
     reads from 'output/Necking_Point_Output.csv' which is created in the necking point tracking process
     saves plot in 'figures' folder
     """    
     print("Analyzing necking point...")
-    df = pd.read_csv("output/Necking_Point_Output.csv") # open csv created/modified from marker tracking process
+    if not isinstance(df, pd.DataFrame):
+        df = pd.read_csv("output/Necking_Point_Output.csv") # open csv created/modified from marker tracking process
     print(df.head())
 
     time = df['Time(s)'].values
@@ -135,21 +138,22 @@ def analyze_necking_point():
         'has_legend': False
     }
 
-    # plot x location of necking point over time
-    necking_pt_loc_fig, necking_pt_loc_ax = plot_data(time, necking_pt_x, plot_args)
-    necking_pt_loc_fig.savefig("figures/necking_point_location.png")
+    if will_save_figures:
+        # plot x location of necking point over time
+        necking_pt_loc_fig, necking_pt_loc_ax = plot_data(time, necking_pt_x, plot_args)
+        necking_pt_loc_fig.savefig("figures/necking_point_location.png")
 
-    # plot diameter at necking point
-    plot_args['title'] = r'Diameter of Hydrogel at Necking Point' 
-    plot_args['y_label'] = 'Diameter (px)'
-    necking_pt_len_fig, necking_pt_len_ax = plot_data(time, necking_pt_len, plot_args)
-    necking_pt_len_fig.savefig("figures/diameter_at_necking_point.png")
+        # plot diameter at necking point
+        plot_args['title'] = r'Diameter of Hydrogel at Necking Point' 
+        plot_args['y_label'] = 'Diameter (px)'
+        necking_pt_len_fig, necking_pt_len_ax = plot_data(time, necking_pt_len, plot_args)
+        necking_pt_len_fig.savefig("figures/diameter_at_necking_point.png")
 
-    # plot radial strain
-    plot_args['title'] = r'Radial strain - ${\epsilon}_{r}(t)$'
-    plot_args['y_label'] = '${\epsilon}_{r}$'
-    radial_strain_fig, radial_strain_ax = plot_data(time, radial_strain, plot_args)
-    radial_strain_fig.savefig("figures/radial_strain.png")
+        # plot radial strain
+        plot_args['title'] = r'Radial strain - ${\epsilon}_{r}(t)$'
+        plot_args['y_label'] = '${\epsilon}_{r}$'
+        radial_strain_fig, radial_strain_ax = plot_data(time, radial_strain, plot_args)
+        radial_strain_fig.savefig("figures/radial_strain.png")
     print("Done")
 
     return time, radial_strain
@@ -161,21 +165,25 @@ def poissons_ratio():
     print("Finding Poisson's ratio...")
 
     # ensure tracking operations previously ran on the same data in the same time range
-    if not (marker_time[0] == necking_time[0] and marker_time[-1] == necking_time[-1] and len(marker_time) == len(necking_time)):
+    if not (marker_time[0] == necking_time[0] and marker_time[-1] == necking_time[-1]):
         msg = "Error: Found discrepancies in marker deltas output and necking point output.\n"+\
         "please ensure that both marker tracking and necking point detection are run on the same experiment within the same time frame."
         error_popup(msg)
 
-    time = marker_time # if passes error check, times are same
+    # align values, as time values in one may have some missing from the other (from outlier removal)
+    marker_df = pd.DataFrame({
+        'time': marker_time,
+        'long_strain': longitudinal_strain
+    })
+    necking_df = pd.DataFrame({
+        'time': necking_time,
+        'rad_strain': radial_strain
+    })
 
     # calculate poisson's ratio, radial / longitudinal
-    poisson_ratios = []
-    for i in range(len(time)):
-        if longitudinal_strain[i] != 0:
-            v = radial_strain[i] / longitudinal_strain[i]
-        else:
-            v = 0
-        poisson_ratios.append(v)
+    poissons_df = pd.merge(marker_df, necking_df, 'inner', 'time')
+    poissons_df['v'] = np.where(poissons_df['long_strain'] != 0, poissons_df['rad_strain'] / poissons_df['long_strain'], 0)
+    print(poissons_df)
 
     plot_args = {
         'title': r"Poisson's Ratio - $\mathit{v(t)}$",
@@ -185,7 +193,7 @@ def poissons_ratio():
         'has_legend': False
     }
 
-    poisson_fig, poisson_ax = plot_data(time, poisson_ratios, plot_args)
+    poisson_fig, poisson_ax = plot_data(poissons_df['time'], poissons_df['v'], plot_args)
     poisson_fig.savefig("figures/poissons_ratio.png")
 
     print("Done")
