@@ -13,7 +13,7 @@ Housekeeping
 Hydrogel
 
 Multi purpose
-- plot customs json from bratadio and reading capabilities
+- add arrow keys to frame selector for moving
 
 Cell Mechanics
 - cell spread area over time
@@ -23,6 +23,12 @@ Cell Mechanics
 
 
 # Changelog
+
+2/19
+- added plot customizations option in the form of modifiable json file that analysis.py reads before plotting
+- separated main ui code and all tracking routines to different files
+- added ability to scroll through frames with an arrow key (shift arrow for skipping 10 frames) in frame selector
+- added label to indicate this
 
 2/18
 - added tiff to available files for reading

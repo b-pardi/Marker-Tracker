@@ -1,13 +1,16 @@
 '''
 Author: Brandon Pardi
 Created 2/12/2024
+
+performs various operations and visual analysis on tracked data
 '''
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import json
 
-from exceptions import error_popup, warning_popup
+from exceptions import error_popup
 
 
 def marker_euclidean_distance(p1x, p1y, p2x, p2y):
@@ -36,6 +39,8 @@ def plot_data(x, y, plot_args):
         (plt.figure, plt.axes): the figure and axes objects created and modified in this function
     """    
     fig, ax = plt.subplots()
+    with open("plot_opts/plot_customizations.json", 'r') as plot_customs_file:
+        plot_customs = json.load(plot_customs_file)
 
     # plot data, adding legend depending on plot args
     if plot_args['has_legend']:
@@ -43,12 +48,18 @@ def plot_data(x, y, plot_args):
         ax.legend()
     else:
         ax.plot(x, y, 'o', markersize=1)
-
-    # set labels
-    ax.set_xlabel(plot_args['x_label'])
-    ax.set_ylabel(plot_args['y_label'])
-    ax.set_title(plot_args['title'])
     
+    # formatting the plot according to 'plot_customizations.json'
+    font = plot_customs['font']
+    plt.sca(ax)
+    plt.legend(loc='best', fontsize=plot_customs['legend_text_size'], prop={'family': font}, framealpha=0.3)
+    plt.xticks(fontsize=plot_customs['value_text_size'], fontfamily=font)
+    plt.yticks(fontsize=plot_customs['value_text_size'], fontfamily=font) 
+    plt.xlabel(plot_args['x_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
+    plt.ylabel(plot_args['y_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
+    plt.tick_params(axis='both', direction=plot_customs['tick_dir'])
+    plt.title(plot_args['title'], fontsize=plot_customs['title_text_size'], fontfamily=font)
+
     return fig, ax
 
 def analyze_marker_deltas(df=None, will_save_figures=True):
