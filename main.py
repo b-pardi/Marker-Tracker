@@ -121,12 +121,21 @@ class TrackingUI:
         track_btn.grid(row=0, column=0, columnspan=2, padx=32, pady=(24,4))
         remove_outliers_button = ttk.Button(submit_frame, text="Remove outliers", command=self.remove_outliers, style='Regular.TButton')
         remove_outliers_button.grid(row=1, column=0, columnspan=2, padx=32, pady=(4,24))
+        
         marker_deltas_btn = ttk.Button(submit_frame, text="Marker deltas analysis", command=analysis.analyze_marker_deltas, style='Regular.TButton')
         marker_deltas_btn.grid(row=2, column=0, padx=4, pady=4)
         necking_pt_btn = ttk.Button(submit_frame, text="Necking point analysis", command=analysis.analyze_necking_point, style='Regular.TButton')
-        necking_pt_btn.grid(row=2, column=1, padx=4, pady=4)
+        necking_pt_btn.grid(row=3, column=0, padx=4, pady=4)
         poissons_ratio_btn = ttk.Button(submit_frame, text="Poisson's ratio", command=analysis.poissons_ratio, style='Regular.TButton')
-        poissons_ratio_btn.grid(row=3, column=0, columnspan=2, padx=4, pady=4)
+        poissons_ratio_btn.grid(row=4, column=0, padx=4, pady=4)
+
+        cell_velocity_btn = ttk.Button(submit_frame, text="Marker velocity", command=analysis.single_marker_velocity, style='Regular.TButton')
+        cell_velocity_btn.grid(row=2, column=1, padx=4, pady=4)
+        cell_distance_btn = ttk.Button(submit_frame, text="Marker distance", command=analysis.single_marker_distance, style='Regular.TButton')
+        cell_distance_btn.grid(row=3, column=1, padx=4, pady=4)
+        cell_spread_btn = ttk.Button(submit_frame, text="Marker spread", command=analysis.single_marker_velocity, style='Regular.TButton')
+        cell_spread_btn.grid(row=4, column=1, padx=4, pady=4)
+
         exit_btn = ttk.Button(submit_frame, text='Exit', command=sys.exit, style='Regular.TButton')
         exit_btn.grid(row=10, column=0, columnspan=2, padx=32, pady=(24,12))
         submit_frame.grid(row=20, column=0)
@@ -331,7 +340,8 @@ class OutlierRemoval:
         # file options
         self.output_files = {
             'marker_tracking': 'output/Tracking_Output.csv',
-            'necking_point': 'output/Necking_Point_Output.csv'
+            'necking_point': 'output/Necking_Point_Output.csv',
+            'single_marker': 'output/Tracking_Output.csv'
         }
 
         self.selected_file = tk.StringVar()
@@ -340,6 +350,8 @@ class OutlierRemoval:
         self.marker_radio.pack()
         self.necking_radio = ttk.Radiobutton(self.window, text="Necking point output", variable=self.selected_file, value=self.output_files['necking_point'], command=self.load_plot)
         self.necking_radio.pack()
+        self.marker_vel_radio = ttk.Radiobutton(self.window, text="Single Marker output", variable=self.selected_file, value=self.output_files['single_marker'], command=self.load_plot)
+        self.marker_vel_radio.pack()
 
         self.undo_removals_button = ttk.Button(self.window, text="Undo Selections", command=self.undo_selections)
         self.undo_removals_button.pack(pady=12)
@@ -356,7 +368,11 @@ class OutlierRemoval:
         self.x = list(self.df[self.x_col].unique())
         self.y = None
         if self.selected_file.get().__contains__('Tracking'):
-            _, self.y = analysis.analyze_marker_deltas(self.df, False)
+            if self.df['Tracker'].unique().shape[0] > 1:
+                _, self.y = analysis.analyze_marker_deltas(self.df, False)
+            else:
+                self.x, self.y = analysis.single_marker_velocity(self.df, False)
+            
         if self.selected_file.get().__contains__('Necking'):
             _, self.y = analysis.analyze_necking_point(self.df, False)
 

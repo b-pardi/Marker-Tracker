@@ -68,7 +68,7 @@
 - selections can be saved or undone via buttons at the top, as nothing is saved until the 'Confirm Removal' button is clicked
 
 ### Data Visualization
-- Currently 3 analysis buttons are available
+- Currently 4 analysis buttons are available for tracking visualizations (2 other buttons placed but functionality not implemented yet)
 - Necking point:
     - 'necking_point_location' plots as a control the horizontal marker location of the necking point (minimum diameter)
     - 'diameter_at_necking_point' plots the length of the vertical red marker from the tracking operation
@@ -76,6 +76,12 @@
 - Marker deltas:
     - 'marker_deltas' plots the distance that 2 tracked markers are moving away from eachother
     - 'longitudinal_strain' plots the longitudinal strain ((L-L0) / L0) where L is the distance between the markers at time t and L0 is the initial distance between the markers
+- Marker velocity
+    - 'marker_velocity' plots the magnitude of the differences of x and y locations over time
+- Marker disance
+    - IN PROGRESS
+- Marker spread
+    - IN PROGRESS
 
 
 ### Plot Customizations

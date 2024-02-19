@@ -209,5 +209,52 @@ def poissons_ratio():
 
     print("Done")
 
+def single_marker_velocity(df=None, will_save_figures=True):
+    print("Finding Marker Velocity...")
+    if not isinstance(df, pd.DataFrame):
+        df = pd.read_csv("output/Tracking_Output.csv") # open csv created/modified from marker tracking process
+    print(df.head())
+
+    # grab relevant values from df
+    time = df['Time(s)'].values
+    x = df['x (px)'].values
+    y = df['y (px)'].values
+
+    # get differences
+    dx = np.diff(x)
+    dy = np.diff(y)
+    dt = np.diff(time)
+
+    # get velocities
+    vel_x = dx / dt
+    vel_y = dy / dt
+    vel_mag = np.sqrt(vel_x**2 + vel_y**2) # magnitude of velocities
+
+    # plot
+    plot_args = {
+        'title': r'Cell Velocity',
+        'x_label': 'Time (s)',
+        'y_label': r'Magnitude of Cell Velocity $\mathit{\frac{pixels}{second}}$',
+        'data_label': '',
+        'has_legend': False
+    }
+
+    if will_save_figures:
+        # plot marker distances
+        fig, ax = plot_data(time[:-1], vel_mag, plot_args)
+        fig.savefig("figures/marker_velocity.png")
+
+    print("Done")
+    return list(time[:-1]), list(vel_mag)
+
+
+def single_marker_distance():
+    print("Finding Marker Distance...")
+
+
+def single_marker_spread():
+    print("Finding Marker Spread...")
+
+
 if __name__=='__main__':
     analyze_marker_deltas()

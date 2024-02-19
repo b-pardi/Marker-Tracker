@@ -8,18 +8,18 @@
 
 ## TODO
 Housekeeping
-- separate main into main (ui stuff), and tracking.py
+- 
 
 Hydrogel
+- 
 
 Multi purpose
-- add arrow keys to frame selector for moving
+- differentiate between cell tracking and marker tracking
+- put confirmation labels on outlier removal too when changes save or undone
 
 Cell Mechanics
 - cell spread area over time
-- for cell tracking:
-   - total travel distance (RMS displacement)
-   - velocity (pixels per frame)
+- total travel distance (RMS displacement)
 
 
 # Changelog
@@ -29,6 +29,9 @@ Cell Mechanics
 - separated main ui code and all tracking routines to different files
 - added ability to scroll through frames with an arrow key (shift arrow for skipping 10 frames) in frame selector
 - added label to indicate this
+- added buttons and structure for 3 cell mechanics visualizations
+- implemented cell velocity visualizations
+- added single marker tracking as an option for outlier removal
 
 2/18
 - added tiff to available files for reading
