@@ -11,7 +11,8 @@ Housekeeping
 - 
 
 Hydrogel
-- 
+- add delta x to longitudinal strain plot (in addition to the euclidean dist)
+    - still euclidean for further calculations
 
 Multi purpose
 - differentiate between cell tracking and marker tracking
@@ -23,6 +24,11 @@ Cell Mechanics
 
 
 # Changelog
+
+2/20
+- poissons ratio negative sign
+- changed error message in poissons ration to a warning since outlier removal may have effect but still be same video on same time range 
+- added fft to marker velocity plotting
 
 2/19
 - added plot customizations option in the form of modifiable json file that analysis.py reads before plotting

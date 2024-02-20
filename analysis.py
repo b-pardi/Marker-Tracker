@@ -10,7 +10,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import json
 
-from exceptions import error_popup
+from exceptions import error_popup, warning_popup
 
 
 def marker_euclidean_distance(p1x, p1y, p2x, p2y):
@@ -162,7 +162,7 @@ def analyze_necking_point(df=None, will_save_figures=True):
 
         # plot radial strain
         plot_args['title'] = r'Radial strain - ${\epsilon}_{r}(t)$'
-        plot_args['y_label'] = '${\epsilon}_{r}$'
+        plot_args['y_label'] = r'${\epsilon}_{r}$'
         radial_strain_fig, radial_strain_ax = plot_data(time, radial_strain, plot_args)
         radial_strain_fig.savefig("figures/radial_strain.png")
     print("Done")
@@ -176,9 +176,10 @@ def poissons_ratio():
     print("Finding Poisson's ratio...")
 
     # ensure tracking operations previously ran on the same data in the same time range
-    if not (marker_time[0] == necking_time[0] and marker_time[-1] == necking_time[-1]):
-        msg = "Error: Found discrepancies in marker deltas output and necking point output.\n"+\
-        "please ensure that both marker tracking and necking point detection are run on the same experiment within the same time frame."
+    if not (marker_time[0] == necking_time[0] and marker_time[-1] == necking_time[-1] and len(marker_time) == len(necking_time)):
+        msg = "Warning: Found discrepancies in marker deltas output and necking point output.\n"+\
+        "If this is due to outlier removal in one but not the other, proceed as normal."+\
+        "Otherwise please ensure that both marker tracking and necking point detection are run on the same experiment within the same time frame."
         error_popup(msg)
 
     # align values, as time values in one may have some missing from the other (from outlier removal)
@@ -193,7 +194,7 @@ def poissons_ratio():
 
     # calculate poisson's ratio, radial / longitudinal
     poissons_df = pd.merge(marker_df, necking_df, 'inner', 'time')
-    poissons_df['v'] = np.where(poissons_df['long_strain'] != 0, poissons_df['rad_strain'] / poissons_df['long_strain'], 0)
+    poissons_df['v'] = np.where(poissons_df['long_strain'] != 0, -1 * poissons_df['rad_strain'] / poissons_df['long_strain'], 0)
     print(poissons_df)
 
     plot_args = {
@@ -230,6 +231,10 @@ def single_marker_velocity(df=None, will_save_figures=True):
     vel_y = dy / dt
     vel_mag = np.sqrt(vel_x**2 + vel_y**2) # magnitude of velocities
 
+    # fourier transform
+    vel_fft = np.abs(np.fft.fft(vel_mag)) # amplitude (pixels/Hz)
+    freqs = np.fft.fftfreq(len(vel_mag), np.mean(dt)) # frequencies
+
     # plot
     plot_args = {
         'title': r'Cell Velocity',
@@ -240,9 +245,16 @@ def single_marker_velocity(df=None, will_save_figures=True):
     }
 
     if will_save_figures:
-        # plot marker distances
-        fig, ax = plot_data(time[:-1], vel_mag, plot_args)
-        fig.savefig("figures/marker_velocity.png")
+        # plot marker velocity
+        vel_fig, vel_ax = plot_data(time[:-1], vel_mag, plot_args)
+        vel_fig.savefig("figures/marker_velocity.png")
+
+        # plot fourier transform of marker distances
+        plot_args['title'] = 'Marker Velocity FFT'
+        plot_args['y_label'] = 'Pixels/Hz'
+        plot_args['x_label'] = 'Hz'
+        fft_fig, fft_ax = plot_data(freqs, vel_fft, plot_args)
+        fft_fig.savefig("figures/marker_velocity_FFT.png")
 
     print("Done")
     return list(time[:-1]), list(vel_mag)
