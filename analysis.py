@@ -43,25 +43,47 @@ def rms_displacement(dx, dy):
 
 def plot_data(x, y, plot_args):
     """util function to handle plotting and formatting of the plots
+    can accept 1 or multiple independent variable datasets
 
     Args:
-        x (pd.Dataframe/Series, np.Array, list, etc): _description_
-        y (pd.Dataframe/Series, np.Array, list, etc): _description_
+        x (pd.Dataframe/Series, np.Array, list, etc): x points to plot
+        y (pd.Dataframe/Series, np.Array, list, etc): y points to plot
         plot_args (dict): dictionary of plot customization arguments
 
     Returns:
         (plt.figure, plt.axes): the figure and axes objects created and modified in this function
-    """    
+    """ 
     fig, ax = plt.subplots()
     with open("plot_opts/plot_customizations.json", 'r') as plot_customs_file:
         plot_customs = json.load(plot_customs_file)
 
-    # plot data, adding legend depending on plot args
-    if plot_args['has_legend']:
-        ax.plot(x, y, 'o', markersize=1, label=plot_args['data_label'])
-        ax.legend()
+    # plotting if passed in 1 dataset
+    if len(x) == len(y): # if passing in 1 dependent datset, lens will match
+        color = plot_customs['colors'][f'scatter1']
+        if plot_args['data_label'] != '':
+            label = plot_args['data_label']
+        else:
+            label = None
+        ax.plot(x, y, 'o', markersize=1, color=color, label=label)
+
+    # plotting if passed in > 1 dataset
     else:
-        ax.plot(x, y, 'o', markersize=1)
+        for i, dataset in enumerate(y):
+            if i < 5:  # only 5 colors spec'd in plot customizations
+                color = plot_customs['colors'][f'scatter{i+1}']
+            else:
+                color = f'C{i}'
+
+            if plot_args['data_label'] != '':
+                label = plot_args['data_label'][i]
+            else:
+                label = None
+            ax.plot(x, dataset, 'o', markersize=1, color=color, label=label)
+
+
+    # adding legend depending on plot args
+    if plot_args['has_legend']:
+        ax.legend()
     
     # formatting the plot according to 'plot_customizations.json'
     font = plot_customs['font']
@@ -107,7 +129,6 @@ def analyze_marker_deltas(df=None, will_save_figures=True):
         euclidean_dist = marker_euclidean_distance(m1_x[i], m1_y[i], m2_x[i], m2_y[i])
         marker_distances.append(np.abs(euclidean_dist))
     
-    print(np.mean(marker_distances), len(m1_x), len(m2_x), len(marker_distances), marker_distances[0], marker_distances[-1])
 
     # longitudinal strain (deltaL / L0)
     L0 = marker_distances[0]
@@ -123,12 +144,15 @@ def analyze_marker_deltas(df=None, will_save_figures=True):
 
     if will_save_figures:
         # plot marker distances
-        fig, ax = plot_data(time, marker_distances, plot_args)
+        print(len(time), len(marker_distances), len(np.abs(m2_x-m1_x)))
+        plot_args['data_label'] = ['Euclidean Distances', 'Horizontal Differences']
+        fig, ax = plot_data(time, [marker_distances, np.abs(m2_x-m1_x)], plot_args) # plot x distance as well for control/comparison
         fig.savefig("figures/marker_deltas.png")
 
         # plot longitudinal strain
         plot_args['title'] = r'Longitudinal strain - ${\epsilon}_{l}(t)$'
         plot_args['y_label'] = r'${\epsilon}_{l}$'
+        plot_args['data_label'] = ''
         longitudinal_strain_fig, longitudinal_strain_ax = plot_data(time, longitudinal_strain, plot_args)
         longitudinal_strain_fig.savefig("figures/longitudinal_strain.png")
 
@@ -192,7 +216,7 @@ def poissons_ratio():
     # ensure tracking operations previously ran on the same data in the same time range
     if not (marker_time[0] == necking_time[0] and marker_time[-1] == necking_time[-1] and len(marker_time) == len(necking_time)):
         msg = "Warning: Found discrepancies in marker deltas output and necking point output.\n"+\
-        "If this is due to outlier removal in one but not the other, proceed as normal."+\
+        "If this is due to outlier removal in one but not the other, proceed as normal.\n"+\
         "Otherwise please ensure that both marker tracking and necking point detection are run on the same experiment within the same time frame."
         warning_popup(msg)
 

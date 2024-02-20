@@ -2,6 +2,9 @@
     "colors": {
         "scatter1": "blue",
         "scatter2": "green",
+        "scatter3": "red",
+        "scatter4": "orange",
+        "scatter5": "purple",
         "lines": "black"
     },
     "font": "Arial",

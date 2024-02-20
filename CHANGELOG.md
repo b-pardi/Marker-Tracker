@@ -11,16 +11,16 @@ Housekeeping
 - 
 
 Hydrogel
-- add delta x to longitudinal strain plot (in addition to the euclidean dist)
-    - still euclidean for further calculations
+- 
 
 Multi purpose
+- what to show for outlier removal of marker tracker since there are x, y, points of 2 markers 
+- input field for conversion factor/axis label from pixel to unit of length
 - differentiate between cell tracking and marker tracking
 - put confirmation labels on outlier removal too when changes save or undone
 
 Cell Mechanics
 - cell spread area over time
-- total travel distance (RMS displacement)
 
 
 # Changelog
@@ -29,6 +29,9 @@ Cell Mechanics
 - poissons ratio negative sign
 - changed error message in poissons ration to a warning since outlier removal may have effect but still be same video on same time range 
 - added fft to marker velocity plotting
+- implemented single marker total travel distance (RMS displacement)
+- adjusted plot_data function to be able to plot 1 or more dependent sets passing in multiple sets as a list
+- adjusted marker deltas plot to show horizontal distances and euclidean distances
 
 2/19
 - added plot customizations option in the form of modifiable json file that analysis.py reads before plotting
