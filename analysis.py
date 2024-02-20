@@ -27,6 +27,20 @@ def marker_euclidean_distance(p1x, p1y, p2x, p2y):
     """    
     return np.sqrt((p2x - p1x)**2 + (p2y - p1y)**2)
 
+def rms_displacement(dx, dy):
+    """calculate the root mean square distance of x, y points over time from displacements
+    characterize the magnitude of fluctuations/movements of the marker
+
+    Args:
+        x (_type_): _description_
+        y (_type_): _description_
+    """    
+    dx_sq = dx**2
+    dy_sq = dy**2
+
+    rms_displacement = np.sqrt(np.cumsum(dx_sq + dy_sq) / (np.arange(len(dx))+1))
+    return rms_displacement
+
 def plot_data(x, y, plot_args):
     """util function to handle plotting and formatting of the plots
 
@@ -180,7 +194,7 @@ def poissons_ratio():
         msg = "Warning: Found discrepancies in marker deltas output and necking point output.\n"+\
         "If this is due to outlier removal in one but not the other, proceed as normal."+\
         "Otherwise please ensure that both marker tracking and necking point detection are run on the same experiment within the same time frame."
-        error_popup(msg)
+        warning_popup(msg)
 
     # align values, as time values in one may have some missing from the other (from outlier removal)
     marker_df = pd.DataFrame({
@@ -261,8 +275,28 @@ def single_marker_velocity(df=None, will_save_figures=True):
 
 
 def single_marker_distance():
-    print("Finding Marker Distance...")
+    print("Finding Marker RMS Distance...")
+    
+    df = pd.read_csv("output/Tracking_Output.csv") # open csv created/modified from marker tracking process
+    print(df.head())
+    
+    time = df['Time(s)'].values
+    x = df['x (px)'].values
+    y = df['y (px)'].values
 
+    rms_disps = rms_displacement(np.diff(x), np.diff(y))
+
+    # plot
+    plot_args = {
+        'title': 'Cell RMS Displacement',
+        'x_label': 'Time (s)',
+        'y_label': 'RMS (px)',
+        'data_label': '',
+        'has_legend': False
+    }
+    # plot marker velocity
+    vel_fig, vel_ax = plot_data(time[:-1], rms_disps, plot_args)
+    vel_fig.savefig("figures/marker_RMS_displacement.png")
 
 def single_marker_spread():
     print("Finding Marker Spread...")
