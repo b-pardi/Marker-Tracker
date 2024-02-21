@@ -8,16 +8,15 @@
 
 ## TODO
 Housekeeping
-- 
+- update documentation and readme
 
 Hydrogel
 - 
 
 Multi purpose
+- format plots in outlier removal
 - what to show for outlier removal of marker tracker since there are x, y, points of 2 markers 
-- input field for conversion factor/axis label from pixel to unit of length
 - differentiate between cell tracking and marker tracking
-- put confirmation labels on outlier removal too when changes save or undone
 
 Cell Mechanics
 - cell spread area over time
@@ -32,6 +31,10 @@ Cell Mechanics
 - implemented single marker total travel distance (RMS displacement)
 - adjusted plot_data function to be able to plot 1 or more dependent sets passing in multiple sets as a list
 - adjusted marker deltas plot to show horizontal distances and euclidean distances
+- added input fields to specify units and conversion factor from pixels to those units
+- updated all analysis functions to scale all pixel data by this factor
+- updated all plotting to have y label include the user spec'd units converting to
+- added confirmation labels on outlier removal too when changes save or undone
 
 2/19
 - added plot customizations option in the form of modifiable json file that analysis.py reads before plotting

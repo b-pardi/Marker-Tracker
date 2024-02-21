@@ -98,11 +98,13 @@ def plot_data(x, y, plot_args):
 
     return fig, ax
 
-def analyze_marker_deltas(df=None, will_save_figures=True):
+def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True):
     """plots euclidean distance between tracked fiducial marker data
     reads data from 'output/Tracking_Output.csv' which is created in the marker tracking process
     saves plot to the 'figures' folder
     """    
+    conversion_factor, conversion_units = user_unit_conversion
+
     print("Analyzing tracked marker distances...")
     if not isinstance(df, pd.DataFrame):
         df = pd.read_csv("output/Tracking_Output.csv") # open csv created/modified from marker tracking process
@@ -118,10 +120,10 @@ def analyze_marker_deltas(df=None, will_save_figures=True):
     m1_df = df[df['Tracker'] == 1]
     m2_df = df[df['Tracker'] == 2]
     time = df['Time(s)'].unique()
-    m1_x = m1_df['x (px)'].values
-    m1_y = m1_df['y (px)'].values
-    m2_x = m2_df['x (px)'].values
-    m2_y = m2_df['y (px)'].values
+    m1_x = m1_df['x (px)'].values * conversion_factor
+    m1_y = m1_df['y (px)'].values * conversion_factor
+    m2_x = m2_df['x (px)'].values * conversion_factor
+    m2_y = m2_df['y (px)'].values * conversion_factor
 
     # find euclidean distances of markers
     marker_distances = []
@@ -137,7 +139,7 @@ def analyze_marker_deltas(df=None, will_save_figures=True):
     plot_args = {
         'title': r'Marker Delta Tracking',
         'x_label': 'Time (s)',
-        'y_label': 'Marker Deltas (px)',
+        'y_label': f'Marker Deltas {conversion_units}',
         'data_label': '',
         'has_legend': False
     }
@@ -161,19 +163,21 @@ def analyze_marker_deltas(df=None, will_save_figures=True):
     return time, longitudinal_strain
 
 
-def analyze_necking_point(df=None, will_save_figures=True):
+def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True):
     """plots necking point data, x location of necking point against time, as well as diameter at necking point
     reads from 'output/Necking_Point_Output.csv' which is created in the necking point tracking process
     saves plot in 'figures' folder
     """    
+    conversion_factor, conversion_units = user_unit_conversion
+
     print("Analyzing necking point...")
     if not isinstance(df, pd.DataFrame):
         df = pd.read_csv("output/Necking_Point_Output.csv") # open csv created/modified from marker tracking process
     print(df.head())
 
     time = df['Time(s)'].values
-    necking_pt_x = df['x at necking point (px)'].values
-    necking_pt_len = df['y necking distance (px)'].values
+    necking_pt_x = df['x at necking point (px)'].values * conversion_factor
+    necking_pt_len = df['y necking distance (px)'].values * conversion_factor
 
     # radial strain (deltaR / R0)
     R0 = necking_pt_len[0]
@@ -182,7 +186,7 @@ def analyze_necking_point(df=None, will_save_figures=True):
     plot_args = {
         'title': 'Necking Point Horizontal Location',
         'x_label': 'Time (s)',
-        'y_label': 'Horizontal coordinate of necking point (px)',
+        'y_label': f'Horizontal location of necking point {conversion_units}',
         'data_label': '',
         'has_legend': False
     }
@@ -194,7 +198,7 @@ def analyze_necking_point(df=None, will_save_figures=True):
 
         # plot diameter at necking point
         plot_args['title'] = r'Diameter of Hydrogel at Necking Point' 
-        plot_args['y_label'] = 'Diameter (px)'
+        plot_args['y_label'] = f'Diameter {conversion_units}'
         necking_pt_len_fig, necking_pt_len_ax = plot_data(time, necking_pt_len, plot_args)
         necking_pt_len_fig.savefig("figures/diameter_at_necking_point.png")
 
@@ -207,9 +211,10 @@ def analyze_necking_point(df=None, will_save_figures=True):
 
     return time, radial_strain
 
-def poissons_ratio():
-    marker_time, longitudinal_strain = analyze_marker_deltas()
-    necking_time, radial_strain = analyze_necking_point()
+def poissons_ratio(user_unit_conversion):
+    conversion_factor, conversion_units = user_unit_conversion
+    marker_time, longitudinal_strain = analyze_marker_deltas(user_unit_conversion)
+    necking_time, radial_strain = analyze_necking_point(user_unit_conversion)
 
     print("Finding Poisson's ratio...")
 
@@ -248,16 +253,18 @@ def poissons_ratio():
 
     print("Done")
 
-def single_marker_velocity(df=None, will_save_figures=True):
+def single_marker_velocity(user_unit_conversion, df=None, will_save_figures=True):
     print("Finding Marker Velocity...")
+    conversion_factor, conversion_units = user_unit_conversion
+    
     if not isinstance(df, pd.DataFrame):
         df = pd.read_csv("output/Tracking_Output.csv") # open csv created/modified from marker tracking process
     print(df.head())
 
     # grab relevant values from df
     time = df['Time(s)'].values
-    x = df['x (px)'].values
-    y = df['y (px)'].values
+    x = df['x (px)'].values * conversion_factor
+    y = df['y (px)'].values * conversion_factor
 
     # get differences
     dx = np.diff(x)
@@ -277,7 +284,7 @@ def single_marker_velocity(df=None, will_save_figures=True):
     plot_args = {
         'title': r'Cell Velocity',
         'x_label': 'Time (s)',
-        'y_label': r'Magnitude of Cell Velocity $\mathit{\frac{pixels}{second}}$',
+        'y_label': f'Magnitude of Cell Velocity {conversion_units}',
         'data_label': '',
         'has_legend': False
     }
@@ -289,7 +296,7 @@ def single_marker_velocity(df=None, will_save_figures=True):
 
         # plot fourier transform of marker distances
         plot_args['title'] = 'Marker Velocity FFT'
-        plot_args['y_label'] = 'Pixels/Hz'
+        plot_args['y_label'] = f'{conversion_units}/Hz'
         plot_args['x_label'] = 'Hz'
         fft_fig, fft_ax = plot_data(freqs, vel_fft, plot_args)
         fft_fig.savefig("figures/marker_velocity_FFT.png")
@@ -298,15 +305,15 @@ def single_marker_velocity(df=None, will_save_figures=True):
     return list(time[:-1]), list(vel_mag)
 
 
-def single_marker_distance():
+def single_marker_distance(user_unit_conversion):
     print("Finding Marker RMS Distance...")
-    
+    conversion_factor, conversion_units = user_unit_conversion
     df = pd.read_csv("output/Tracking_Output.csv") # open csv created/modified from marker tracking process
     print(df.head())
     
     time = df['Time(s)'].values
-    x = df['x (px)'].values
-    y = df['y (px)'].values
+    x = df['x (px)'].values * conversion_factor
+    y = df['y (px)'].values * conversion_factor
 
     rms_disps = rms_displacement(np.diff(x), np.diff(y))
 
@@ -314,7 +321,7 @@ def single_marker_distance():
     plot_args = {
         'title': 'Cell RMS Displacement',
         'x_label': 'Time (s)',
-        'y_label': 'RMS (px)',
+        'y_label': f'RMS {conversion_units}',
         'data_label': '',
         'has_legend': False
     }
@@ -322,9 +329,9 @@ def single_marker_distance():
     vel_fig, vel_ax = plot_data(time[:-1], rms_disps, plot_args)
     vel_fig.savefig("figures/marker_RMS_displacement.png")
 
-def single_marker_spread():
+def single_marker_spread(user_unit_conversion):
     print("Finding Marker Spread...")
-
+    conversion_factor, conversion_units = user_unit_conversion
 
 if __name__=='__main__':
     analyze_marker_deltas()

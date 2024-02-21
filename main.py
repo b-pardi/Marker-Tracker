@@ -115,30 +115,41 @@ class TrackingUI:
         self.binarize_intensity_thresh_entry.insert(0, "120")
         self.binarize_intensity_thresh_entry.grid(row=2, column=1, columnspan=2, padx=4, pady=8)
 
-        # submit buttons
-        submit_frame = tk.Frame()
-        track_btn = ttk.Button(submit_frame, text="Begin tracking", command=self.on_submit_tracking, style='Regular.TButton')
+        # submission fields/buttons
+        submission_frame = tk.Frame()
+        track_btn = ttk.Button(submission_frame, text="Begin tracking", command=self.on_submit_tracking, style='Regular.TButton')
         track_btn.grid(row=0, column=0, columnspan=2, padx=32, pady=(24,4))
-        remove_outliers_button = ttk.Button(submit_frame, text="Remove outliers", command=self.remove_outliers, style='Regular.TButton')
+        remove_outliers_button = ttk.Button(submission_frame, text="Remove outliers", command=self.remove_outliers, style='Regular.TButton')
         remove_outliers_button.grid(row=1, column=0, columnspan=2, padx=32, pady=(4,24))
         
-        marker_deltas_btn = ttk.Button(submit_frame, text="Marker deltas analysis", command=analysis.analyze_marker_deltas, style='Regular.TButton')
-        marker_deltas_btn.grid(row=2, column=0, padx=4, pady=4)
-        necking_pt_btn = ttk.Button(submit_frame, text="Necking point analysis", command=analysis.analyze_necking_point, style='Regular.TButton')
-        necking_pt_btn.grid(row=3, column=0, padx=4, pady=4)
-        poissons_ratio_btn = ttk.Button(submit_frame, text="Poisson's ratio", command=analysis.poissons_ratio, style='Regular.TButton')
-        poissons_ratio_btn.grid(row=4, column=0, padx=4, pady=4)
+        conversion_factor_label = ttk.Label(submission_frame, text="Enter the conversion factor\nto convert pixels to\nyour desired units: ")
+        conversion_factor_label.grid(row=2, column=0)
+        self.conversion_factor_entry = ttk.Entry(submission_frame)
+        self.conversion_factor_entry.insert(0, "1.0")
+        self.conversion_factor_entry.grid(row=2, column=1)
+        conversion_units_label = ttk.Label(submission_frame, text="Enter the units that result\nfrom this conversion\n(mm, µm, nm, etc.): ")
+        conversion_units_label.grid(row=3, column=0, pady=(0,16))
+        self.conversion_units_entry = ttk.Entry(submission_frame)
+        self.conversion_units_entry.insert(0, "pixels")
+        self.conversion_units_entry.grid(row=3, column=1)
 
-        cell_velocity_btn = ttk.Button(submit_frame, text="Marker velocity", command=analysis.single_marker_velocity, style='Regular.TButton')
-        cell_velocity_btn.grid(row=2, column=1, padx=4, pady=4)
-        cell_distance_btn = ttk.Button(submit_frame, text="Marker distance", command=analysis.single_marker_distance, style='Regular.TButton')
-        cell_distance_btn.grid(row=3, column=1, padx=4, pady=4)
-        cell_spread_btn = ttk.Button(submit_frame, text="Marker spread", command=analysis.single_marker_velocity, style='Regular.TButton')
-        cell_spread_btn.grid(row=4, column=1, padx=4, pady=4)
+        marker_deltas_btn = ttk.Button(submission_frame, text="Marker deltas analysis", command=lambda: analysis.analyze_marker_deltas((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
+        marker_deltas_btn.grid(row=4, column=0, padx=4, pady=4)
+        necking_pt_btn = ttk.Button(submission_frame, text="Necking point analysis", command=lambda: analysis.analyze_necking_point((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
+        necking_pt_btn.grid(row=5, column=0, padx=4, pady=4)
+        poissons_ratio_btn = ttk.Button(submission_frame, text="Poisson's ratio", command=lambda: analysis.poissons_ratio((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
+        poissons_ratio_btn.grid(row=6, column=0, padx=4, pady=4)
 
-        exit_btn = ttk.Button(submit_frame, text='Exit', command=sys.exit, style='Regular.TButton')
+        cell_velocity_btn = ttk.Button(submission_frame, text="Marker velocity", command=lambda: analysis.single_marker_velocity((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
+        cell_velocity_btn.grid(row=4, column=1, padx=4, pady=4)
+        cell_distance_btn = ttk.Button(submission_frame, text="Marker distance", command=lambda: analysis.single_marker_distance((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
+        cell_distance_btn.grid(row=5, column=1, padx=4, pady=4)
+        cell_spread_btn = ttk.Button(submission_frame, text="Marker spread", command=lambda: analysis.single_marker_velocity((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
+        cell_spread_btn.grid(row=6, column=1, padx=4, pady=4)
+
+        exit_btn = ttk.Button(submission_frame, text='Exit', command=sys.exit, style='Regular.TButton')
         exit_btn.grid(row=10, column=0, columnspan=2, padx=32, pady=(24,12))
-        submit_frame.grid(row=20, column=0)
+        submission_frame.grid(row=20, column=0)
         
     def select_frames(self):
         if self.video_path != "":
@@ -148,7 +159,7 @@ class TrackingUI:
             error_popup(msg)
 
     def remove_outliers(self):
-        OutlierRemoval(self.root)
+        OutlierRemoval(self.root, (float(self.conversion_factor_entry.get()), self.conversion_units_entry.get()))
 
     def handle_radios(self):
         """blits options for the corresponding radio button selected"""        
@@ -329,13 +340,15 @@ class FrameSelector:
 
 
 class OutlierRemoval:
-    def __init__(self, parent):
+    def __init__(self, parent, user_units):
         self.parent = parent
+        self.user_units = user_units
         self.window = tk.Toplevel(self.parent)
         self.parent.title("Select outlier points to remove them")
 
         self.fig = None
         self.canvas = None
+        self.labels = []
 
         # file options
         self.output_files = {
@@ -358,6 +371,9 @@ class OutlierRemoval:
         self.confirm_button = ttk.Button(self.window, text="Confirm Removal", comman=self.confirm)
         self.confirm_button.pack()
 
+        self.confirm_label = ttk.Label(self.window, text="Points removed!")
+        self.removed_label = ttk.Label(self.window, text="Selections undone")
+
     def load_data(self, is_updating=False):
         if not is_updating:
             fp = self.selected_file.get()
@@ -369,12 +385,12 @@ class OutlierRemoval:
         self.y = None
         if self.selected_file.get().__contains__('Tracking'):
             if self.df['Tracker'].unique().shape[0] > 1:
-                _, self.y = analysis.analyze_marker_deltas(self.df, False)
+                _, self.y = analysis.analyze_marker_deltas(self.user_units, self.df, False)
             else:
-                self.x, self.y = analysis.single_marker_velocity(self.df, False)
+                self.x, self.y = analysis.single_marker_velocity(self.user_units, self.df, False)
             
         if self.selected_file.get().__contains__('Necking'):
-            _, self.y = analysis.analyze_necking_point(self.df, False)
+            _, self.y = analysis.analyze_necking_point(self.user_units, self.df, False)
 
     def create_figure(self):
         # Create a new figure and axes
@@ -419,15 +435,20 @@ class OutlierRemoval:
             self.canvas.draw()
 
     def undo_selections(self):
+        self.removed_label.pack()
+        self.window.after(5000, lambda: self.removed_label.pack_forget())
         plt.clf()
         self.fig = None
         self.ax = None
         self.plot_data()
+        
 
     def confirm(self):
         #fp, ext = os.path.splitext(self.selected_file.get())
         #self.output_fp = fp + '_outliers_removed' + ext
-        self.df.to_csv(self.selected_file.get())
+        self.confirm_label.pack()
+        self.window.after(5000, lambda: self.confirm_label.pack_forget())
+        self.df.to_csv(self.selected_file.get(), index=None)
 
     def load_plot(self):
         self.create_figure()
