@@ -140,11 +140,11 @@ class TrackingUI:
         poissons_ratio_btn = ttk.Button(submission_frame, text="Poisson's ratio", command=lambda: analysis.poissons_ratio((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
         poissons_ratio_btn.grid(row=6, column=0, padx=4, pady=4)
 
-        cell_velocity_btn = ttk.Button(submission_frame, text="Marker velocity", command=lambda: analysis.single_marker_velocity((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
+        cell_velocity_btn = ttk.Button(submission_frame, text="Marker velocity", command=lambda: analysis.marker_velocity((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
         cell_velocity_btn.grid(row=4, column=1, padx=4, pady=4)
-        cell_distance_btn = ttk.Button(submission_frame, text="Marker distance", command=lambda: analysis.single_marker_distance((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
+        cell_distance_btn = ttk.Button(submission_frame, text="Marker distance", command=lambda: analysis.marker_distance((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
         cell_distance_btn.grid(row=5, column=1, padx=4, pady=4)
-        cell_spread_btn = ttk.Button(submission_frame, text="Marker spread", command=lambda: analysis.single_marker_velocity((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
+        cell_spread_btn = ttk.Button(submission_frame, text="Marker spread", command=lambda: analysis.single_marker_spread((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
         cell_spread_btn.grid(row=6, column=1, padx=4, pady=4)
 
         exit_btn = ttk.Button(submission_frame, text='Exit', command=sys.exit, style='Regular.TButton')
@@ -387,7 +387,7 @@ class OutlierRemoval:
             if self.df['Tracker'].unique().shape[0] > 1:
                 _, self.y = analysis.analyze_marker_deltas(self.user_units, self.df, False)
             else:
-                self.x, self.y = analysis.single_marker_velocity(self.user_units, self.df, False)
+                self.x, self.y = analysis.marker_velocity(self.user_units, self.df, False)
             
         if self.selected_file.get().__contains__('Necking'):
             _, self.y = analysis.analyze_necking_point(self.user_units, self.df, False)

@@ -1,14 +1,11 @@
 ## ISSUES
-- for necking point:
-    - distances only differ by a few pixels, meaning many locations share a min (usually consecutively)
-        - currently take median of these locations
-    - at end of video seems to jump to far right as it is the min area, but might be camera issue
-        - exclude x% edges of frames?
-    - artifacts outside the tube have edges being detected
+- outlier removal for marker tracking when points clicked they do not remove the correct ones
+    - this is due to the fact that points shown in in the tool are from calculations based on the points being removed, need to plot something different here
 
 ## TODO
 Housekeeping
 - update documentation and readme
+- scrollbar to ui
 
 Hydrogel
 - 
@@ -19,10 +16,25 @@ Multi purpose
 - differentiate between cell tracking and marker tracking
 
 Cell Mechanics
+- bar graph for cells
+- refactor plotting code st if is_multiple_datasets is false then just put the datasets into a list and remove the first if code that plots single dataset
+- cell distance adapt for multiple trackers
 - cell spread area over time
 
 
 # Changelog
+
+2/26
+- plot_avgs_bar_data function complete
+    - refactored for a simpler approach to variable number of trackers (ensure list is passed in regardless of if 1 or more trackers)
+- refactored scatter plotting function to same
+- refactored all functions that call these functions appropriately
+- added saved dfs for intermediate calculations of cell velocity, cell rms displacement and poissons ratio
+- adapted cell displacement to work for multiple trackers
+
+2/23
+- adapted cell velocity to work with multiple trackers
+- plot function can now take multiple indep and dep datasets (previously only multiple indep datasets)
 
 2/20
 - poissons ratio negative sign

@@ -41,7 +41,7 @@ def rms_displacement(dx, dy):
     rms_displacement = np.sqrt(np.cumsum(dx_sq + dy_sq) / (np.arange(len(dx))+1))
     return rms_displacement
 
-def plot_data(x, y, plot_args):
+def plot_scatter_data(x, y, plot_args, n_datasets, fig=None, ax=None):
     """util function to handle plotting and formatting of the plots
     can accept 1 or multiple independent variable datasets
 
@@ -53,33 +53,23 @@ def plot_data(x, y, plot_args):
     Returns:
         (plt.figure, plt.axes): the figure and axes objects created and modified in this function
     """ 
-    fig, ax = plt.subplots()
+    if fig is None and ax is None:
+        fig, ax = plt.subplots()
     with open("plot_opts/plot_customizations.json", 'r') as plot_customs_file:
         plot_customs = json.load(plot_customs_file)
 
-    # plotting if passed in 1 dataset
-    if len(x) == len(y): # if passing in 1 dependent datset, lens will match
-        color = plot_customs['colors'][f'scatter1']
-        if plot_args['data_label'] != '':
-            label = plot_args['data_label']
+    print(len(x), len(y))
+    for i in range(n_datasets):
+        if i < 5:  # only 5 colors spec'd in plot customizations
+            color = plot_customs['colors'][f'scatter{i+1}']
+        else:
+            color = f'C{i}'
+
+        if plot_args['data_label'] is not None:
+            label = plot_args['data_label'][i]
         else:
             label = None
-        ax.plot(x, y, 'o', markersize=1, color=color, label=label)
-
-    # plotting if passed in > 1 dataset
-    else:
-        for i, dataset in enumerate(y):
-            if i < 5:  # only 5 colors spec'd in plot customizations
-                color = plot_customs['colors'][f'scatter{i+1}']
-            else:
-                color = f'C{i}'
-
-            if plot_args['data_label'] != '':
-                label = plot_args['data_label'][i]
-            else:
-                label = None
-            ax.plot(x, dataset, 'o', markersize=1, color=color, label=label)
-
+        ax.plot(x, y[i], 'o', markersize=1, color=color, label=label)      
 
     # adding legend depending on plot args
     if plot_args['has_legend']:
@@ -95,6 +85,59 @@ def plot_data(x, y, plot_args):
     plt.ylabel(plot_args['y_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
     plt.tick_params(axis='both', direction=plot_customs['tick_dir'])
     plt.title(plot_args['title'], fontsize=plot_customs['title_text_size'], fontfamily=font)
+
+    return fig, ax
+
+def plot_avgs_bar_data(n_ranges, x, y, plot_args, n_trackers=1):
+    fig, ax = plt.subplots()
+    with open("plot_opts/plot_customizations.json", 'r') as plot_customs_file:
+        plot_customs = json.load(plot_customs_file)
+
+    intervals = np.linspace(min(x), max(x), n_ranges+1) 
+    averages = []
+
+    for i in range(n_ranges):
+        # find averages of each range interval
+        range_start = intervals[i]
+        range_end = intervals[i+1]
+        range_idxs = (x >= range_start) & (x < range_end)
+        averages.append([cur_y[range_idxs].mean() for cur_y in y])
+    averages = np.array(averages)
+
+    bar_width = 0.8 / n_trackers
+    for i in range(n_trackers):
+        if i < 5:  # only 5 colors spec'd in plot customizations
+            color = plot_customs['colors'][f'scatter{i+1}']
+        else:
+            color = f'C{i}'
+
+        if plot_args['data_label'] is not None:
+            print(plot_args['data_label'])
+            label = plot_args['data_label'][i]
+            print(label)
+        else:
+            label = None
+        bar_pos = np.arange(n_ranges) - (0.4 - bar_width/2) + (i * bar_width)
+        ax.bar(bar_pos, averages[:,i], width=bar_width, label=label, color=color)
+
+    # adding legend depending on plot args
+    if plot_args['has_legend']:
+        ax.legend()
+    
+    # formatting the plot according to 'plot_customizations.json'
+    font = plot_customs['font']
+    plt.sca(ax)
+    plt.legend(loc='best', fontsize=plot_customs['legend_text_size'], prop={'family': font}, framealpha=0.3)
+    plt.xticks(fontsize=plot_customs['value_text_size'], fontfamily=font)
+    plt.yticks(fontsize=plot_customs['value_text_size'], fontfamily=font) 
+    plt.xlabel(plot_args['x_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
+    plt.ylabel(plot_args['y_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
+    plt.tick_params(axis='both', direction=plot_customs['tick_dir'])
+    plt.title(plot_args['title'], fontsize=plot_customs['title_text_size'], fontfamily=font)
+    ax.set_xticks(np.arange(n_ranges))
+    ax.set_xticklabels([f"{intervals[i]:.2f}-{intervals[i+1]:.2f}s" for i in range(n_ranges)])
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+    plt.tight_layout()
 
     return fig, ax
 
@@ -131,7 +174,6 @@ def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True)
         euclidean_dist = marker_euclidean_distance(m1_x[i], m1_y[i], m2_x[i], m2_y[i])
         marker_distances.append(np.abs(euclidean_dist))
     
-
     # longitudinal strain (deltaL / L0)
     L0 = marker_distances[0]
     longitudinal_strain = [(L-L0) / L0 for L in marker_distances]
@@ -140,7 +182,7 @@ def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True)
         'title': r'Marker Delta Tracking',
         'x_label': 'Time (s)',
         'y_label': f'Marker Deltas {conversion_units}',
-        'data_label': '',
+        'data_label': None,
         'has_legend': False
     }
 
@@ -148,14 +190,14 @@ def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True)
         # plot marker distances
         print(len(time), len(marker_distances), len(np.abs(m2_x-m1_x)))
         plot_args['data_label'] = ['Euclidean Distances', 'Horizontal Differences']
-        fig, ax = plot_data(time, [marker_distances, np.abs(m2_x-m1_x)], plot_args) # plot x distance as well for control/comparison
+        fig, ax = plot_scatter_data(time, [marker_distances, np.abs(m2_x-m1_x)], plot_args, n_datasets=2) # plot x distance as well for control/comparison
         fig.savefig("figures/marker_deltas.png")
 
         # plot longitudinal strain
         plot_args['title'] = r'Longitudinal strain - ${\epsilon}_{l}(t)$'
         plot_args['y_label'] = r'${\epsilon}_{l}$'
-        plot_args['data_label'] = ''
-        longitudinal_strain_fig, longitudinal_strain_ax = plot_data(time, longitudinal_strain, plot_args)
+        plot_args['data_label'] = None
+        longitudinal_strain_fig, longitudinal_strain_ax = plot_scatter_data(time, [longitudinal_strain], plot_args, n_datasets=1)
         longitudinal_strain_fig.savefig("figures/longitudinal_strain.png")
 
     print("Done")
@@ -187,25 +229,25 @@ def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True)
         'title': 'Necking Point Horizontal Location',
         'x_label': 'Time (s)',
         'y_label': f'Horizontal location of necking point {conversion_units}',
-        'data_label': '',
+        'data_label': None,
         'has_legend': False
     }
 
     if will_save_figures:
         # plot x location of necking point over time
-        necking_pt_loc_fig, necking_pt_loc_ax = plot_data(time, necking_pt_x, plot_args)
+        necking_pt_loc_fig, necking_pt_loc_ax = plot_scatter_data(time, [necking_pt_x], plot_args, n_datasets=1)
         necking_pt_loc_fig.savefig("figures/necking_point_location.png")
 
         # plot diameter at necking point
         plot_args['title'] = r'Diameter of Hydrogel at Necking Point' 
         plot_args['y_label'] = f'Diameter {conversion_units}'
-        necking_pt_len_fig, necking_pt_len_ax = plot_data(time, necking_pt_len, plot_args)
+        necking_pt_len_fig, necking_pt_len_ax = plot_scatter_data(time, [necking_pt_len], plot_args, n_datasets=1)
         necking_pt_len_fig.savefig("figures/diameter_at_necking_point.png")
 
         # plot radial strain
         plot_args['title'] = r'Radial strain - ${\epsilon}_{r}(t)$'
         plot_args['y_label'] = r'${\epsilon}_{r}$'
-        radial_strain_fig, radial_strain_ax = plot_data(time, radial_strain, plot_args)
+        radial_strain_fig, radial_strain_ax = plot_scatter_data(time, [radial_strain], plot_args, n_datasets=1)
         radial_strain_fig.savefig("figures/radial_strain.png")
     print("Done")
 
@@ -239,21 +281,22 @@ def poissons_ratio(user_unit_conversion):
     poissons_df = pd.merge(marker_df, necking_df, 'inner', 'time')
     poissons_df['v'] = np.where(poissons_df['long_strain'] != 0, -1 * poissons_df['rad_strain'] / poissons_df['long_strain'], 0)
     print(poissons_df)
+    poissons_df.to_csv("output/poissons_ratio")
 
     plot_args = {
         'title': r"Poisson's Ratio - $\mathit{v(t)}$",
         'x_label': 'Time (s)',
         'y_label': r"Poisson's Ratio $\mathit{v}$",
-        'data_label': '',
+        'data_label': None,
         'has_legend': False
     }
 
-    poisson_fig, poisson_ax = plot_data(poissons_df['time'], poissons_df['v'], plot_args)
+    poisson_fig, poisson_ax = plot_scatter_data(poissons_df['time'], [poissons_df['v']], plot_args, n_datasets=1)
     poisson_fig.savefig("figures/poissons_ratio.png")
 
     print("Done")
 
-def single_marker_velocity(user_unit_conversion, df=None, will_save_figures=True):
+def marker_velocity(user_unit_conversion, df=None, will_save_figures=True):
     print("Finding Marker Velocity...")
     conversion_factor, conversion_units = user_unit_conversion
     
@@ -261,56 +304,87 @@ def single_marker_velocity(user_unit_conversion, df=None, will_save_figures=True
         df = pd.read_csv("output/Tracking_Output.csv") # open csv created/modified from marker tracking process
     print(df.head())
 
+    n_trackers = df['Tracker'].unique().shape[0] # get number of trackers
+    times = []
+    tracker_velocities = []
+    tracker_amplitudes = []
+    tracker_frequencies = []
+
     # grab relevant values from df
-    time = df['Time(s)'].values
-    x = df['x (px)'].values * conversion_factor
-    y = df['y (px)'].values * conversion_factor
+    vel_df = pd.DataFrame({'time': df['Time(s)'].unique()[:-1]})
+    for tracker in range(n_trackers):
+        cur_df = df[df['Tracker'] == tracker+1]
+        time = cur_df['Time(s)'].values
+        x = cur_df['x (px)'].values * conversion_factor
+        y = cur_df['y (px)'].values * conversion_factor
 
-    # get differences
-    dx = np.diff(x)
-    dy = np.diff(y)
-    dt = np.diff(time)
+        # get differences
+        dx = np.diff(x)
+        dy = np.diff(y)
+        dt = np.diff(time)
+        print(dx.shape, dy.shape, dt.shape)
 
-    # get velocities
-    vel_x = dx / dt
-    vel_y = dy / dt
-    vel_mag = np.sqrt(vel_x**2 + vel_y**2) # magnitude of velocities
+        # get velocities
+        vel_x = dx / dt
+        vel_y = dy / dt
+        vel_mag = np.sqrt(vel_x**2 + vel_y**2) # magnitude of velocities
+        times.append(time[:-1])
+        tracker_velocities.append(vel_mag)
+        print(vel_x.shape)
+        vel_df[f'x_velocity_tracker{tracker+1}'] = vel_x
+        vel_df[f'y_velocity_tracker{tracker+1}'] = vel_y
+        vel_df[f'magnitude_velocity_tracker{tracker+1}'] = vel_mag
 
-    # fourier transform
-    vel_fft = np.abs(np.fft.fft(vel_mag)) # amplitude (pixels/Hz)
-    freqs = np.fft.fftfreq(len(vel_mag), np.mean(dt)) # frequencies
+        # fourier transform
+        vel_fft = np.abs(np.fft.fft(vel_mag)) # amplitude (pixels/Hz)
+        freqs = np.fft.fftfreq(len(vel_mag), np.mean(dt)) # frequencies
+        tracker_amplitudes.append(vel_fft)
+        tracker_frequencies.append(freqs)
+
+    # save intermediate calculations
+    vel_df.to_csv("output/marker_velocity.csv", index=False)
 
     # plot
     plot_args = {
         'title': r'Cell Velocity',
         'x_label': 'Time (s)',
         'y_label': f'Magnitude of Cell Velocity {conversion_units}',
-        'data_label': '',
-        'has_legend': False
+        'data_label': [f"Tracker {i+1}" for i in range(n_trackers)],
+        'has_legend': False,
     }
 
     if will_save_figures:
         # plot marker velocity
-        vel_fig, vel_ax = plot_data(time[:-1], vel_mag, plot_args)
+        vel_fig, vel_ax = plot_scatter_data(times[0], tracker_velocities, plot_args, n_datasets=2)
         vel_fig.savefig("figures/marker_velocity.png")
+
+        # plot bar graph of average cell velocities in time range
+        n_ranges = 5
+        avg_vel_fig, avg_vel_ax = plot_avgs_bar_data(n_ranges, times[0], tracker_velocities, plot_args, n_trackers)
+        avg_vel_fig.savefig("figures/average_marker_velocity.png")
 
         # plot fourier transform of marker distances
         plot_args['title'] = 'Marker Velocity FFT'
         plot_args['y_label'] = f'{conversion_units}/Hz'
         plot_args['x_label'] = 'Hz'
-        fft_fig, fft_ax = plot_data(freqs, vel_fft, plot_args)
+        fft_fig, fft_ax = plt.subplots()
+        for i in range(n_trackers):
+            plot_scatter_data(tracker_frequencies[i], [tracker_amplitudes[i]], plot_args, 1, fft_fig, fft_ax)
         fft_fig.savefig("figures/marker_velocity_FFT.png")
+
 
     print("Done")
     return list(time[:-1]), list(vel_mag)
 
 
-def single_marker_distance(user_unit_conversion):
+def marker_distance(user_unit_conversion):
     print("Finding Marker RMS Distance...")
     conversion_factor, conversion_units = user_unit_conversion
     df = pd.read_csv("output/Tracking_Output.csv") # open csv created/modified from marker tracking process
     print(df.head())
     
+    n_trackers = df['Tracker'].unique().shape[0] # get number of trackers
+
     time = df['Time(s)'].values
     x = df['x (px)'].values * conversion_factor
     y = df['y (px)'].values * conversion_factor
@@ -322,12 +396,12 @@ def single_marker_distance(user_unit_conversion):
         'title': 'Cell RMS Displacement',
         'x_label': 'Time (s)',
         'y_label': f'RMS {conversion_units}',
-        'data_label': '',
+        'data_label': None,
         'has_legend': False
     }
     # plot marker velocity
-    vel_fig, vel_ax = plot_data(time[:-1], rms_disps, plot_args)
-    vel_fig.savefig("figures/marker_RMS_displacement.png")
+    disp_fig, disp_ax = plot_scatter_data(time[:-1], rms_disps, plot_args)
+    disp_fig.savefig("figures/marker_RMS_displacement.png")
 
 def single_marker_spread(user_unit_conversion):
     print("Finding Marker Spread...")
