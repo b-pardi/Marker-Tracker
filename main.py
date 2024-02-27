@@ -64,6 +64,22 @@ class TrackingUI:
         self.frame_selector_btn.grid(row=2, pady=(12,4))
         self.frame_label.grid(row=3, column=0, pady=(0,8))
 
+        # frame interval input
+        self.frame_interval = 0
+        self.time_units = 's'
+        self.is_timelapse_var = tk.IntVar()
+        is_timelapse_check = ttk.Checkbutton(self.root, text="Is this video a timelapse? ", variable=self.is_timelapse_var, onvalue=1, offvalue=0, command=self.handle_checkbuttons)
+        is_timelapse_check.grid(row=4, column=0)
+        self.frame_interval_frame = tk.Frame()
+        time_units_label = ttk.Label(self.frame_interval_frame, text="Units of time: \n(s, min, hr)")
+        time_units_label.grid(row=0, column=0)
+        self.time_units_entry = ttk.Entry(self.frame_interval_frame, width=10)
+        self.time_units_entry.grid(row=0, column=1)
+        frame_interval_label = ttk.Label(self.frame_interval_frame, text="Frame interval: \n(in units spec'd above)")
+        frame_interval_label.grid(row=1, column=0)
+        self.frame_interval_entry = ttk.Entry(self.frame_interval_frame, width=10)
+        self.frame_interval_entry.grid(row=1, column=1)
+
         # radios for selecting operation
         self.operation_intvar = tk.IntVar()
         self.operation_intvar.set(0)
@@ -72,9 +88,9 @@ class TrackingUI:
         operation_tracking_radio.grid(row=0, column=0, padx=4, pady=16)
         operation_necking_radio = ttk.Radiobutton(operation_frame, text="Necking point detection", variable=self.operation_intvar, value=2, command=self.handle_radios, width=25, style='Outline.TButton')
         operation_necking_radio.grid(row=0, column=1, padx=4, pady=16)
-        operation_frame.grid(row=4, column=0)
+        operation_frame.grid(row=6, column=0)
         self.select_msg = ttk.Label(self.root, text="Select from above for more customizable parameters")
-        self.select_msg.grid(row=5, column=0)
+        self.select_msg.grid(row=7, column=0)
 
         # options for marker tracking
         self.tracking_frame = tk.Frame(self.root)
@@ -161,6 +177,12 @@ class TrackingUI:
     def remove_outliers(self):
         OutlierRemoval(self.root, (float(self.conversion_factor_entry.get()), self.conversion_units_entry.get()))
 
+    def handle_checkbuttons(self):
+        if self.is_timelapse_var.get() == 1:
+            self.frame_interval_frame.grid(row=5, column=0)
+        else:
+            self.frame_interval_frame.grid_forget()
+
     def handle_radios(self):
         """blits options for the corresponding radio button selected"""        
         option = self.operation_intvar.get()
@@ -168,11 +190,11 @@ class TrackingUI:
             case 1:
                 self.select_msg.grid_forget()
                 self.necking_frame.grid_forget()
-                self.tracking_frame.grid(row=6, column=0)
+                self.tracking_frame.grid(row=8, column=0)
             case 2:
                 self.select_msg.grid_forget()
                 self.tracking_frame.grid_forget()
-                self.necking_frame.grid(row=6, column=0)
+                self.necking_frame.grid(row=8, column=0)
 
     def on_submit_tracking(self):
         """calls the appropriate functions with user spec'd args when tracking start button clicked"""        
@@ -190,8 +212,18 @@ class TrackingUI:
                 self.frame_start = self.child.frame_start_select
             if self.child.end_selection_flag: # if an end frame sel made,
                 self.frame_end = self.child.frame_end_select   
-
         print(f"frame start: {self.frame_start}, frame end: {self.frame_end}")
+
+        # handle if is timelapse inputs
+        if self.is_timelapse_var.get() == 1:
+            if self.frame_interval_entry.get() == '' or self.time_units == '':
+                msg = "ERROR: User indicated video is a timelapse, but did not specify time interval and/or time units"
+                error_popup(msg)
+            self.frame_interval = float(self.frame_interval_entry.get())
+            self.time_units = self.time_units_entry.get()
+        else:
+            self.frame_interval = 0
+            self.time_units = 's'
 
         match option:
             case 0:
@@ -208,14 +240,32 @@ class TrackingUI:
                 selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start) # prompt to select markers
                 print(f"marker locs: {selected_markers}")
                 if not selected_markers.__contains__((-1,-1)): # select_markers returns list of -1 if selections cancelled
-                    tracking.track_markers(selected_markers, first_frame, self.frame_start, self.frame_end, cap, bbox_size, tracker_choice)
+                    tracking.track_markers(
+                        selected_markers,
+                        first_frame,
+                        self.frame_start,
+                        self.frame_end,
+                        cap,
+                        bbox_size,
+                        tracker_choice,
+                        self.frame_interval,
+                        self.time_units
+                    )
             case 2:
                 percent_crop_right = float(self.percent_crop_right_entry.get())
                 percent_crop_left = float(self.percent_crop_left_entry.get())
                 binarize_intensity_thresh = int(self.binarize_intensity_thresh_entry.get())
 
                 print("Beginning Necking Point")
-                tracking.necking_point(cap, self.frame_start, self.frame_end, percent_crop_left, percent_crop_right, binarize_intensity_thresh)
+                tracking.necking_point(
+                    cap,
+                    self.frame_start,
+                    self.frame_end, percent_crop_left,
+                    percent_crop_right,
+                    binarize_intensity_thresh,
+                    self.frame_interval,
+                    self.time_units
+                )
 
     def get_file(self):
         """util function to prompt a file browser to select the video file that will be tracked

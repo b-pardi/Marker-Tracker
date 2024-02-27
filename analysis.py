@@ -41,6 +41,16 @@ def rms_displacement(dx, dy):
     rms_displacement = np.sqrt(np.cumsum(dx_sq + dy_sq) / (np.arange(len(dx))+1))
     return rms_displacement
 
+def get_time_labels(df):
+    time_col = df.filter(like='Time').columns[0]
+    time_label = 'Time (s)'
+    if time_col.__contains__('min'):
+        time_label = 'Time (min)'
+    if time_col.__contains__('hr'):
+        time_label = 'Time (hr)'
+
+    return time_col, time_label
+
 def plot_scatter_data(x, y, plot_args, n_datasets, fig=None, ax=None):
     """util function to handle plotting and formatting of the plots
     can accept 1 or multiple independent variable datasets
@@ -158,11 +168,12 @@ def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True)
         msg = "Found more/less than 2 markers.\n\nPlease ensure exactly 2 markers are tracked"
         error_popup(msg)
         return
-
+    
+    time_col, time_label = get_time_labels(df)
     # grab relevant data and put into np array
     m1_df = df[df['Tracker'] == 1]
     m2_df = df[df['Tracker'] == 2]
-    time = df['Time(s)'].unique()
+    time = df[time_col].unique()
     m1_x = m1_df['x (px)'].values * conversion_factor
     m1_y = m1_df['y (px)'].values * conversion_factor
     m2_x = m2_df['x (px)'].values * conversion_factor
@@ -180,7 +191,7 @@ def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True)
 
     plot_args = {
         'title': r'Marker Delta Tracking',
-        'x_label': 'Time (s)',
+        'x_label': time_label,
         'y_label': f'Marker Deltas {conversion_units}',
         'data_label': None,
         'has_legend': False
@@ -216,8 +227,9 @@ def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True)
     if not isinstance(df, pd.DataFrame):
         df = pd.read_csv("output/Necking_Point_Output.csv") # open csv created/modified from marker tracking process
     print(df.head())
+    time_col, time_label = get_time_labels(df)
 
-    time = df['Time(s)'].values
+    time = df[time_col].values
     necking_pt_x = df['x at necking point (px)'].values * conversion_factor
     necking_pt_len = df['y necking distance (px)'].values * conversion_factor
 
@@ -227,7 +239,7 @@ def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True)
 
     plot_args = {
         'title': 'Necking Point Horizontal Location',
-        'x_label': 'Time (s)',
+        'x_label': time_label,
         'y_label': f'Horizontal location of necking point {conversion_units}',
         'data_label': None,
         'has_legend': False
@@ -280,12 +292,13 @@ def poissons_ratio(user_unit_conversion):
     # calculate poisson's ratio, radial / longitudinal
     poissons_df = pd.merge(marker_df, necking_df, 'inner', 'time')
     poissons_df['v'] = np.where(poissons_df['long_strain'] != 0, -1 * poissons_df['rad_strain'] / poissons_df['long_strain'], 0)
+    time_col, time_label = get_time_labels(pd.read_csv("output/Necking_Point_Output.csv"))
     print(poissons_df)
     poissons_df.to_csv("output/poissons_ratio")
 
     plot_args = {
         'title': r"Poisson's Ratio - $\mathit{v(t)}$",
-        'x_label': 'Time (s)',
+        'x_label': time_label,
         'y_label': r"Poisson's Ratio $\mathit{v}$",
         'data_label': None,
         'has_legend': False
@@ -304,6 +317,7 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True):
         df = pd.read_csv("output/Tracking_Output.csv") # open csv created/modified from marker tracking process
     print(df.head())
 
+    time_col, time_label = get_time_labels(df)
     n_trackers = df['Tracker'].unique().shape[0] # get number of trackers
     times = []
     tracker_velocities = []
@@ -311,10 +325,10 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True):
     tracker_frequencies = []
 
     # grab relevant values from df
-    vel_df = pd.DataFrame({'time': df['Time(s)'].unique()[:-1]})
+    vel_df = pd.DataFrame({time_col: df[time_col].unique()[:-1]})
     for tracker in range(n_trackers):
         cur_df = df[df['Tracker'] == tracker+1]
-        time = cur_df['Time(s)'].values
+        time = cur_df[time_col].values
         x = cur_df['x (px)'].values * conversion_factor
         y = cur_df['y (px)'].values * conversion_factor
 
@@ -347,15 +361,15 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True):
     # plot
     plot_args = {
         'title': r'Cell Velocity',
-        'x_label': 'Time (s)',
+        'x_label': time_label,
         'y_label': f'Magnitude of Cell Velocity {conversion_units}',
         'data_label': [f"Tracker {i+1}" for i in range(n_trackers)],
         'has_legend': True,
     }
-
+    print(plot_args['data_label'])
     if will_save_figures:
         # plot marker velocity
-        vel_fig, vel_ax = plot_scatter_data(times[0], tracker_velocities, plot_args, n_datasets=2)
+        vel_fig, vel_ax = plot_scatter_data(times[0], tracker_velocities, plot_args, n_trackers)
         vel_fig.savefig("figures/marker_velocity.png")
 
         # plot bar graph of average cell velocities in time range
@@ -383,9 +397,10 @@ def marker_distance(user_unit_conversion):
     df = pd.read_csv("output/Tracking_Output.csv") # open csv created/modified from marker tracking process
     print(df.head())
     
+    time_col, time_label = get_time_labels(df)
     n_trackers = df['Tracker'].unique().shape[0] # get number of trackers
     rms_disps = []
-    time = df['Time(s)'].unique()
+    time = df[time_col].unique()
     for tracker in range(n_trackers):
         cur_df = df[df['Tracker'] == tracker+1]
         x = cur_df['x (px)'].values * conversion_factor
@@ -395,7 +410,7 @@ def marker_distance(user_unit_conversion):
 
     plot_args = {
         'title': 'Cell RMS Displacement',
-        'x_label': 'Time (s)',
+        'x_label': time_label,
         'y_label': f'RMS {conversion_units}',
         'data_label': [f"Tracker {i+1}" for i in range(n_trackers)],
         'has_legend': True

@@ -101,7 +101,7 @@ def select_markers(cap, bbox_size, frame_start):
     return mouse_params['marker_positions'], first_frame
 
 
-def track_markers(marker_positions, first_frame, frame_start, frame_end, cap, bbox_size, tracker_choice):
+def track_markers(marker_positions, first_frame, frame_start, frame_end, cap, bbox_size, tracker_choice, frame_interval=0, time_units='s'):
     """main tracking loop of markers selected using marker selections from select_markers()
     saves distances of each mark each frame update to 'output/Tracking_Output.csv'
 
@@ -131,7 +131,7 @@ def track_markers(marker_positions, first_frame, frame_start, frame_end, cap, bb
         trackers[i].init(scaled_first_frame, bbox)
 
     # init tracking data dict
-    tracker_data = {'Frame': [], 'Time(s)': [], 'Tracker': [], 'x (px)': [], 'y (px)': []}
+    tracker_data = {'Frame': [], f'Time({time_units})': [], 'Tracker': [], 'x (px)': [], 'y (px)': []}
     frame_num = 0
 
     # tracking loop
@@ -152,8 +152,11 @@ def track_markers(marker_positions, first_frame, frame_start, frame_end, cap, bb
                 marker_center = (x_bbox + w_bbox // 2, y_bbox + h_bbox // 2)  # get center of bbox
 
                 # record tracker locations using original resolution
+                if frame_interval == 0:
+                    tracker_data[f'Time({time_units})'].append(np.float32(frame_num / cap.get(5)))
+                else:
+                    tracker_data[f'Time({time_units})'].append(np.float16(frame_num * frame_interval))
                 tracker_data['Frame'].append(frame_num)
-                tracker_data['Time(s)'].append(np.float32(frame_num / cap.get(5)))
                 tracker_data['Tracker'].append(i + 1)
                 tracker_data['x (px)'].append(int((marker_center[0] / scale_factor)))  # scale back to the original frame resolution
                 tracker_data['y (px)'].append(int((marker_center[1] / scale_factor)))
@@ -171,7 +174,7 @@ def track_markers(marker_positions, first_frame, frame_start, frame_end, cap, bb
     cv2.destroyAllWindows()
 
 
-def necking_point(cap, frame_start, frame_end, percent_crop_left=0., percent_crop_right=0., binarize_intensity_thresh=120, x_interval=50):
+def necking_point(cap, frame_start, frame_end, percent_crop_left=0., percent_crop_right=0., binarize_intensity_thresh=120, frame_interval=0, time_units='s'):
     """necking point detection loop
     necking point defined as the most shortest vertical line between two horizontal edges
     frames are preprocessed and then edges are detected, top and bottom most edges are singled out
@@ -186,8 +189,9 @@ def necking_point(cap, frame_start, frame_end, percent_crop_left=0., percent_cro
         binarize_intensity_thresh (int, optional): threshold pixel intensity value for frame binarization. Defaults to 120.
         x_interval (int, optional): interval of horizontal pixels to draw vertical blue lines for visualization purposes. Defaults to 50.
     """    
+    x_interval = 50 # interval for how many blue line visuals to display
     frame_num = 0
-    dist_data = {'Frame': [], 'Time(s)': [], 'x at necking point (px)': [], 'y necking distance (px)': []}
+    dist_data = {'Frame': [], f'Time({time_units})': [], 'x at necking point (px)': [], 'y necking distance (px)': []}
     percent_crop_left *= 0.01
     percent_crop_right *= 0.01
 
@@ -251,8 +255,11 @@ def necking_point(cap, frame_start, frame_end, percent_crop_left=0., percent_cro
         necking_pt_ind = int(np.median(necking_pt_indices))
 
         # record and save data using original resolution
+        if frame_interval == 0:
+            dist_data[f'Time({time_units})'].append(np.float32(frame_num / cap.get(5)))
+        else:
+            dist_data[f'Time({time_units})'].append(np.float16(frame_num * frame_interval))
         dist_data['Frame'].append(frame_num)
-        dist_data['Time(s)'].append(np.float32(frame_num / cap.get(5)))
         dist_data['x at necking point (px)'].append(int((x_samples[necking_pt_ind] / scale_factor)))
         dist_data['y necking distance (px)'].append(necking_distance)
 

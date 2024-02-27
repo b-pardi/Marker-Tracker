@@ -13,12 +13,21 @@ Hydrogel
 Multi purpose
 - format plots in outlier removal
 - what to show for outlier removal of marker tracker since there are x, y, points of 2 markers 
-- differentiate between cell tracking and marker tracking
+- account for timelapses (framerate does not directly correlate to time)
+    - add to ui checkbox for if is timelapse
+    - if yes, prompt for input of time units and frame interval
+    - default these to '0' and 's'
+    - in tracking routines, when recording time, if frame interval 0:
+        - time still just frame_num / fps
+    - else:
+        - time is frame_num * frame_interval
+    - time column in df should reflect time units (f string in column header)
+    - adjust analysis functions to get time values from time column by looking for column headers that contain 'Time' instead of an exact match of 'Time(s)'
+    - grab time units for plots from this column header
+    - adjust all plot_args definitions so the x label contains these units
+    - add err msg for if is timelapse box checked and no inputs entered
 
 Cell Mechanics
-- bar graph for cells
-- refactor plotting code st if is_multiple_datasets is false then just put the datasets into a list and remove the first if code that plots single dataset
-- cell distance adapt for multiple trackers
 - cell spread area over time
 
 
@@ -31,6 +40,16 @@ Cell Mechanics
 - refactored all functions that call these functions appropriately
 - added saved dfs for intermediate calculations of cell velocity, cell rms displacement and poissons ratio
 - adapted cell displacement to work for multiple trackers
+- account for timelapses (framerate does not directly correlate to time)
+    - add to ui checkbox for if is timelapse
+    - if yes, prompt for input of time units and frame interval
+        - if no, stay default (s)
+    - df time column will correspond to this user selection
+    - time column in df reflects time units (f string in column header)
+    - adjusted analysis functions to get time values from time column by looking for column headers that contain 'Time' instead of an exact match of 'Time(s)'
+    - grab time units for plots from this column header
+    - adjust all plot_args definitions so the x label contains these units
+    - add err msg for if is timelapse box checked and no inputs entered
 
 2/23
 - adapted cell velocity to work with multiple trackers
