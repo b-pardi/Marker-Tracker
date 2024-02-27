@@ -350,7 +350,7 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True):
         'x_label': 'Time (s)',
         'y_label': f'Magnitude of Cell Velocity {conversion_units}',
         'data_label': [f"Tracker {i+1}" for i in range(n_trackers)],
-        'has_legend': False,
+        'has_legend': True,
     }
 
     if will_save_figures:
@@ -384,23 +384,24 @@ def marker_distance(user_unit_conversion):
     print(df.head())
     
     n_trackers = df['Tracker'].unique().shape[0] # get number of trackers
+    rms_disps = []
+    time = df['Time(s)'].unique()
+    for tracker in range(n_trackers):
+        cur_df = df[df['Tracker'] == tracker+1]
+        x = cur_df['x (px)'].values * conversion_factor
+        y = cur_df['y (px)'].values * conversion_factor
 
-    time = df['Time(s)'].values
-    x = df['x (px)'].values * conversion_factor
-    y = df['y (px)'].values * conversion_factor
+        rms_disps.append(rms_displacement(np.diff(x), np.diff(y)))
 
-    rms_disps = rms_displacement(np.diff(x), np.diff(y))
-
-    # plot
     plot_args = {
         'title': 'Cell RMS Displacement',
         'x_label': 'Time (s)',
         'y_label': f'RMS {conversion_units}',
-        'data_label': None,
-        'has_legend': False
+        'data_label': [f"Tracker {i+1}" for i in range(n_trackers)],
+        'has_legend': True
     }
     # plot marker velocity
-    disp_fig, disp_ax = plot_scatter_data(time[:-1], rms_disps, plot_args)
+    disp_fig, disp_ax = plot_scatter_data(time[:-1], rms_disps, plot_args, n_trackers)
     disp_fig.savefig("figures/marker_RMS_displacement.png")
 
 def single_marker_spread(user_unit_conversion):
