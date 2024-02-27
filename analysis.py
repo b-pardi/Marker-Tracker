@@ -145,7 +145,7 @@ def plot_avgs_bar_data(n_ranges, x, y, plot_args, n_trackers=1):
     plt.tick_params(axis='both', direction=plot_customs['tick_dir'])
     plt.title(plot_args['title'], fontsize=plot_customs['title_text_size'], fontfamily=font)
     ax.set_xticks(np.arange(n_ranges))
-    ax.set_xticklabels([f"{intervals[i]:.2f}-{intervals[i+1]:.2f}s" for i in range(n_ranges)])
+    ax.set_xticklabels([f"{intervals[i]:.2f}-{intervals[i+1]:.2f}" for i in range(n_ranges)])
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
     plt.tight_layout()
 
@@ -311,7 +311,7 @@ def poissons_ratio(user_unit_conversion):
 
 def marker_velocity(user_unit_conversion, df=None, will_save_figures=True):
     print("Finding Marker Velocity...")
-    conversion_factor, conversion_units = user_unit_conversion
+    conversion_factor, conversion_units, n_ranges = user_unit_conversion
     
     if not isinstance(df, pd.DataFrame):
         df = pd.read_csv("output/Tracking_Output.csv") # open csv created/modified from marker tracking process
@@ -373,7 +373,6 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True):
         vel_fig.savefig("figures/marker_velocity.png")
 
         # plot bar graph of average cell velocities in time range
-        n_ranges = 5
         avg_vel_fig, avg_vel_ax = plot_avgs_bar_data(n_ranges, times[0], tracker_velocities, plot_args, n_trackers)
         avg_vel_fig.savefig("figures/average_marker_velocity.png")
 

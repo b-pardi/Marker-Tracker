@@ -40,6 +40,7 @@ Cell Mechanics
 - refactored all functions that call these functions appropriately
 - added saved dfs for intermediate calculations of cell velocity, cell rms displacement and poissons ratio
 - adapted cell displacement to work for multiple trackers
+- for cell velocity added ui input to specify number of ranges for bar graph
 - account for timelapses (framerate does not directly correlate to time)
     - add to ui checkbox for if is timelapse
     - if yes, prompt for input of time units and frame interval
