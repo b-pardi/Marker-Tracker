@@ -8,18 +8,14 @@ Housekeeping
 - scrollbar to ui
 
 Hydrogel
-- marker deltas outliar removal:
-    - save euc distances to df to associate the calculated (and plotted) points with their original values to remove
+
 - plot difference between euclidean and horizontal distances over time
 - plot derivative of poissons, long, and rad strains over time (dot over variable)
 
 Multi purpose
-- format plots in outlier removal
-- what to show for outlier removal of marker tracker since there are x, y, points of 2 markers 
 
 
 Cell Mechanics
-- plotting cell stuff handle error if one marker doesn't track as long as the other
 - cell spread area over time
 
 

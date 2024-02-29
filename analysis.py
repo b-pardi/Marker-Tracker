@@ -54,6 +54,18 @@ def get_time_labels(df):
 
     return time_col, time_label, time_unit
 
+def check_tracker_data_lengths(df, n_trackers):
+    tracker_shapes  = []
+    for tracker in range(n_trackers):
+        cur_df = df[df['Tracker'] == tracker+1]
+        tracker_shapes.append(cur_df.shape[0])
+    min_len, max_len = min(tracker_shapes), max(tracker_shapes)
+    if min_len != max_len:
+        msg = "ERROR: Length of data entries for trackers are different.\n\n"+\
+            "Please reattempt tracking"
+        error_popup(msg)
+
+
 def plot_scatter_data(x, y, plot_args, n_datasets, fig=None, ax=None):
     """util function to handle plotting and formatting of the plots
     can accept 1 or multiple independent variable datasets
@@ -342,6 +354,9 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True):
 
     time_col, time_label, time_unit = get_time_labels(df)
     n_trackers = df['Tracker'].unique().shape[0] # get number of trackers
+    # account for mismatch lengths of tracker information (if 1 tracker fell off before the other)
+    check_tracker_data_lengths(df, n_trackers)
+
     times = []
     tracker_velocities = []
     tracker_amplitudes = []
@@ -419,9 +434,12 @@ def marker_distance(user_unit_conversion):
     conversion_factor, conversion_units = user_unit_conversion
     df = pd.read_csv("output/Tracking_Output.csv") # open csv created/modified from marker tracking process
     print(df.head())
-    
     time_col, time_label, _ = get_time_labels(df)
     n_trackers = df['Tracker'].unique().shape[0] # get number of trackers
+
+    # account for mismatch lengths of tracker information (if 1 tracker fell off before the other)
+    check_tracker_data_lengths(df, n_trackers)
+
     rms_disps = []
     time = df[time_col].unique()
     for tracker in range(n_trackers):
