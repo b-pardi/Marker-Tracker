@@ -43,13 +43,16 @@ def rms_displacement(dx, dy):
 
 def get_time_labels(df):
     time_col = df.filter(like='Time').columns[0]
-    time_label = 'Time (s)'
+    time_label = r'Time, $\mathit{t}$ (s)'
+    time_unit = 's'
     if time_col.__contains__('min'):
-        time_label = 'Time (min)'
+        time_label = r'Time, $\mathit{t}$ (min)'
+        time_unit = 'min'
     if time_col.__contains__('hr'):
-        time_label = 'Time (hr)'
+        time_label = r'Time, $\mathit{t}$ (hr)'
+        time_unit = 'hr'
 
-    return time_col, time_label
+    return time_col, time_label, time_unit
 
 def plot_scatter_data(x, y, plot_args, n_datasets, fig=None, ax=None):
     """util function to handle plotting and formatting of the plots
@@ -95,6 +98,7 @@ def plot_scatter_data(x, y, plot_args, n_datasets, fig=None, ax=None):
     plt.ylabel(plot_args['y_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
     plt.tick_params(axis='both', direction=plot_customs['tick_dir'])
     plt.title(plot_args['title'], fontsize=plot_customs['title_text_size'], fontfamily=font)
+    plt.tight_layout()
 
     return fig, ax
 
@@ -151,6 +155,21 @@ def plot_avgs_bar_data(n_ranges, x, y, plot_args, n_trackers=1):
 
     return fig, ax
 
+def get_marker_data(user_unit_conversion, df):
+    print("Grabbing tracker data...")
+    conversion_factor, conversion_units = user_unit_conversion
+
+    n_trackers = df['Tracker'].unique().shape[0] # get number of trackers
+    x_locations = []
+    y_locations = []
+
+    for tracker in range(n_trackers):
+        cur_df = df[df['Tracker'] == tracker+1]
+        x_locations.append(cur_df['x (px)'].values * conversion_factor)
+        y_locations.append(cur_df['y (px)'].values * conversion_factor)
+
+    return list(x_locations), list(y_locations)
+
 def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True):
     """plots euclidean distance between tracked fiducial marker data
     reads data from 'output/Tracking_Output.csv' which is created in the marker tracking process
@@ -169,7 +188,7 @@ def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True)
         error_popup(msg)
         return
     
-    time_col, time_label = get_time_labels(df)
+    time_col, time_label, _ = get_time_labels(df)
     # grab relevant data and put into np array
     m1_df = df[df['Tracker'] == 1]
     m2_df = df[df['Tracker'] == 2]
@@ -190,30 +209,29 @@ def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True)
     longitudinal_strain = [(L-L0) / L0 for L in marker_distances]
 
     plot_args = {
-        'title': r'Marker Delta Tracking',
+        'title': r'Longitudinal Strain of Hydrogel$',
         'x_label': time_label,
-        'y_label': f'Marker Deltas {conversion_units}',
+        'y_label': r'Longitudinal Strain, ${\epsilon}_{l}$',
         'data_label': None,
         'has_legend': False
     }
 
     if will_save_figures:
+        # plot longitudinal strain
+        longitudinal_strain_fig, longitudinal_strain_ax = plot_scatter_data(time, [longitudinal_strain], plot_args, n_datasets=1)
+        longitudinal_strain_fig.savefig("figures/longitudinal_strain.png")
+
         # plot marker distances
+        plot_args['title'] = 'Marker Delta Tracking'
+        plot_args['y_label'] = rf'Marker elongation, $\mathit{{\Delta {conversion_units}}}$'
         print(len(time), len(marker_distances), len(np.abs(m2_x-m1_x)))
         plot_args['data_label'] = ['Euclidean Distances', 'Horizontal Differences']
         fig, ax = plot_scatter_data(time, [marker_distances, np.abs(m2_x-m1_x)], plot_args, n_datasets=2) # plot x distance as well for control/comparison
         fig.savefig("figures/marker_deltas.png")
 
-        # plot longitudinal strain
-        plot_args['title'] = r'Longitudinal strain - ${\epsilon}_{l}(t)$'
-        plot_args['y_label'] = r'${\epsilon}_{l}$'
-        plot_args['data_label'] = None
-        longitudinal_strain_fig, longitudinal_strain_ax = plot_scatter_data(time, [longitudinal_strain], plot_args, n_datasets=1)
-        longitudinal_strain_fig.savefig("figures/longitudinal_strain.png")
-
     print("Done")
 
-    return time, longitudinal_strain
+    return list(time), longitudinal_strain, plot_args
 
 
 def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True):
@@ -227,7 +245,7 @@ def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True)
     if not isinstance(df, pd.DataFrame):
         df = pd.read_csv("output/Necking_Point_Output.csv") # open csv created/modified from marker tracking process
     print(df.head())
-    time_col, time_label = get_time_labels(df)
+    time_col, time_label, _ = get_time_labels(df)
 
     time = df[time_col].values
     necking_pt_x = df['x at necking point (px)'].values * conversion_factor
@@ -238,37 +256,38 @@ def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True)
     radial_strain = [(R - R0) / R0 for R in necking_pt_len]
 
     plot_args = {
-        'title': 'Necking Point Horizontal Location',
+        'title': 'Radial Strain of Hydrogel',
         'x_label': time_label,
-        'y_label': f'Horizontal location of necking point {conversion_units}',
+        'y_label': r'Radial strain, ${\epsilon}_{r}$',
         'data_label': None,
         'has_legend': False
     }
 
     if will_save_figures:
+        # plot radial strain
+        radial_strain_fig, radial_strain_ax = plot_scatter_data(time, [radial_strain], plot_args, n_datasets=1)
+        radial_strain_fig.savefig("figures/radial_strain.png")
+
         # plot x location of necking point over time
+        plot_args['title'] = 'Necking Point Horizontal Location'
+        plot_args['y_label'] = f'Horizontal location of necking point ({conversion_units})'
         necking_pt_loc_fig, necking_pt_loc_ax = plot_scatter_data(time, [necking_pt_x], plot_args, n_datasets=1)
         necking_pt_loc_fig.savefig("figures/necking_point_location.png")
 
         # plot diameter at necking point
         plot_args['title'] = r'Diameter of Hydrogel at Necking Point' 
-        plot_args['y_label'] = f'Diameter {conversion_units}'
+        plot_args['y_label'] = f'Diameter ({conversion_units})'
         necking_pt_len_fig, necking_pt_len_ax = plot_scatter_data(time, [necking_pt_len], plot_args, n_datasets=1)
         necking_pt_len_fig.savefig("figures/diameter_at_necking_point.png")
 
-        # plot radial strain
-        plot_args['title'] = r'Radial strain - ${\epsilon}_{r}(t)$'
-        plot_args['y_label'] = r'${\epsilon}_{r}$'
-        radial_strain_fig, radial_strain_ax = plot_scatter_data(time, [radial_strain], plot_args, n_datasets=1)
-        radial_strain_fig.savefig("figures/radial_strain.png")
     print("Done")
 
-    return time, radial_strain
+    return list(time), radial_strain, plot_args
 
 def poissons_ratio(user_unit_conversion):
     conversion_factor, conversion_units = user_unit_conversion
-    marker_time, longitudinal_strain = analyze_marker_deltas(user_unit_conversion)
-    necking_time, radial_strain = analyze_necking_point(user_unit_conversion)
+    marker_time, longitudinal_strain, _ = analyze_marker_deltas(user_unit_conversion)
+    necking_time, radial_strain, _ = analyze_necking_point(user_unit_conversion)
 
     print("Finding Poisson's ratio...")
 
@@ -292,14 +311,14 @@ def poissons_ratio(user_unit_conversion):
     # calculate poisson's ratio, radial / longitudinal
     poissons_df = pd.merge(marker_df, necking_df, 'inner', 'time')
     poissons_df['v'] = np.where(poissons_df['long_strain'] != 0, -1 * poissons_df['rad_strain'] / poissons_df['long_strain'], 0)
-    time_col, time_label = get_time_labels(pd.read_csv("output/Necking_Point_Output.csv"))
+    time_col, time_label, _ = get_time_labels(pd.read_csv("output/Necking_Point_Output.csv"))
     print(poissons_df)
-    poissons_df.to_csv("output/poissons_ratio")
+    poissons_df.to_csv("output/poissons_ratio.csv")
 
     plot_args = {
-        'title': r"Poisson's Ratio - $\mathit{v(t)}$",
+        'title': r"Poisson's Ratio - $\mathit{\nu(t)}$",
         'x_label': time_label,
-        'y_label': r"Poisson's Ratio $\mathit{v}$",
+        'y_label': r"Poisson's ratio, $\mathit{\nu}$",
         'data_label': None,
         'has_legend': False
     }
@@ -311,13 +330,17 @@ def poissons_ratio(user_unit_conversion):
 
 def marker_velocity(user_unit_conversion, df=None, will_save_figures=True):
     print("Finding Marker Velocity...")
-    conversion_factor, conversion_units, n_ranges = user_unit_conversion
-    
+    if len(user_unit_conversion) == 3:
+        conversion_factor, conversion_units, n_ranges = user_unit_conversion
+    else:
+        conversion_factor, conversion_units = user_unit_conversion
+        n_ranges = 5
+
     if not isinstance(df, pd.DataFrame):
         df = pd.read_csv("output/Tracking_Output.csv") # open csv created/modified from marker tracking process
     print(df.head())
 
-    time_col, time_label = get_time_labels(df)
+    time_col, time_label, time_unit = get_time_labels(df)
     n_trackers = df['Tracker'].unique().shape[0] # get number of trackers
     times = []
     tracker_velocities = []
@@ -345,6 +368,7 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True):
         times.append(time[:-1])
         tracker_velocities.append(vel_mag)
         print(vel_x.shape)
+
         vel_df[f'x_velocity_tracker{tracker+1}'] = vel_x
         vel_df[f'y_velocity_tracker{tracker+1}'] = vel_y
         vel_df[f'magnitude_velocity_tracker{tracker+1}'] = vel_mag
@@ -362,11 +386,11 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True):
     plot_args = {
         'title': r'Cell Velocity',
         'x_label': time_label,
-        'y_label': f'Magnitude of Cell Velocity {conversion_units}',
+        'y_label': rf'Magnitude of cell velocity, |$\frac{{v}}{{{time_unit}}}$| ({conversion_units})',
         'data_label': [f"Tracker {i+1}" for i in range(n_trackers)],
         'has_legend': True,
+
     }
-    print(plot_args['data_label'])
     if will_save_figures:
         # plot marker velocity
         vel_fig, vel_ax = plot_scatter_data(times[0], tracker_velocities, plot_args, n_trackers)
@@ -378,7 +402,7 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True):
 
         # plot fourier transform of marker distances
         plot_args['title'] = 'Marker Velocity FFT'
-        plot_args['y_label'] = f'{conversion_units}/Hz'
+        plot_args['y_label'] = f'({conversion_units}/Hz)'
         plot_args['x_label'] = 'Hz'
         fft_fig, fft_ax = plt.subplots()
         for i in range(n_trackers):
@@ -387,7 +411,7 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True):
 
 
     print("Done")
-    return list(time[:-1]), list(vel_mag)
+    return times, tracker_velocities, plot_args, n_trackers
 
 
 def marker_distance(user_unit_conversion):
@@ -396,7 +420,7 @@ def marker_distance(user_unit_conversion):
     df = pd.read_csv("output/Tracking_Output.csv") # open csv created/modified from marker tracking process
     print(df.head())
     
-    time_col, time_label = get_time_labels(df)
+    time_col, time_label, _ = get_time_labels(df)
     n_trackers = df['Tracker'].unique().shape[0] # get number of trackers
     rms_disps = []
     time = df[time_col].unique()
@@ -410,7 +434,7 @@ def marker_distance(user_unit_conversion):
     plot_args = {
         'title': 'Cell RMS Displacement',
         'x_label': time_label,
-        'y_label': f'RMS {conversion_units}',
+        'y_label': f'RMS ({conversion_units})',
         'data_label': [f"Tracker {i+1}" for i in range(n_trackers)],
         'has_legend': True
     }

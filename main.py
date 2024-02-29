@@ -407,18 +407,18 @@ class OutlierRemoval:
 
         # file options
         self.output_files = {
-            'marker_tracking': 'output/Tracking_Output.csv',
+            'marker_deltas': 'output/Tracking_Output.csv',
             'necking_point': 'output/Necking_Point_Output.csv',
-            'single_marker': 'output/Tracking_Output.csv'
+            'marker_tracking': 'output/Tracking_Output.csv'
         }
 
-        self.selected_file = tk.StringVar()
+        self.selected_data = tk.StringVar()
         # radio buttons for file selection
-        self.marker_radio = ttk.Radiobutton(self.window, text="Marker tracking output", variable=self.selected_file, value=self.output_files['marker_tracking'], command=self.load_plot)
+        self.marker_radio = ttk.Radiobutton(self.window, text="Marker deltas", variable=self.selected_data, value='marker_deltas', command=self.load_plot)
         self.marker_radio.pack()
-        self.necking_radio = ttk.Radiobutton(self.window, text="Necking point output", variable=self.selected_file, value=self.output_files['necking_point'], command=self.load_plot)
+        self.necking_radio = ttk.Radiobutton(self.window, text="Necking point", variable=self.selected_data, value='necking_point', command=self.load_plot)
         self.necking_radio.pack()
-        self.marker_vel_radio = ttk.Radiobutton(self.window, text="Single Marker output", variable=self.selected_file, value=self.output_files['single_marker'], command=self.load_plot)
+        self.marker_vel_radio = ttk.Radiobutton(self.window, text="Marker velocities", variable=self.selected_data, value='marker_tracking', command=self.load_plot)
         self.marker_vel_radio.pack()
 
         self.undo_removals_button = ttk.Button(self.window, text="Undo Selections", command=self.undo_selections)
@@ -431,21 +431,24 @@ class OutlierRemoval:
 
     def load_data(self, is_updating=False):
         if not is_updating:
-            fp = self.selected_file.get()
+            self.data_type = self.selected_data.get()
+            fp = self.output_files[self.selected_data.get()]
             self.df = pd.read_csv(fp)
 
         # get appropriate columns
-        self.x_col = 'Time(s)'
-        self.x = list(self.df[self.x_col].unique())
-        self.y = None
-        if self.selected_file.get().__contains__('Tracking'):
-            if self.df['Tracker'].unique().shape[0] > 1:
-                _, self.y = analysis.analyze_marker_deltas(self.user_units, self.df, False)
-            else:
-                self.x, self.y = analysis.marker_velocity(self.user_units, self.df, False)
-            
-        if self.selected_file.get().__contains__('Necking'):
-            _, self.y = analysis.analyze_necking_point(self.user_units, self.df, False)
+        self.x_col, self.x_label, _ = analysis.get_time_labels(self.df)
+        self.x, self.y = None, None
+        if self.data_type == 'marker_deltas':
+            # time and marker distances
+            self.x, self.y, self.plot_args = analysis.analyze_marker_deltas(self.user_units, self.df, False)
+            self.n_trackers = 2
+        elif self.data_type == 'necking_point':
+            # time and necking radial strain (necking pt length as a ratio)
+            self.x, self.y, self.plot_args = analysis.analyze_necking_point(self.user_units, self.df, False)
+            self.n_trackers = 1
+        elif self.data_type == 'marker_tracking':
+            # time and velocity of marker
+            self.x, self.y, self.plot_args, self.n_trackers = analysis.marker_velocity(self.user_units, self.df, False)
 
     def create_figure(self):
         # Create a new figure and axes
@@ -454,13 +457,24 @@ class OutlierRemoval:
 
     def plot_data(self, is_updating=False):
         self.load_data(is_updating)
-
         # Clear existing figure and axes
         if self.ax:
             self.ax.clear()
         else:
             self.create_figure()
-        self.plot = self.ax.scatter(self.x, self.y, picker=True)
+
+        # check if list 1D or 2D and plot accordingly   
+        if all(isinstance(item, list) for item in self.y) or all(isinstance(item, np.ndarray) for item in self.y):
+            for i, (self.cur_x, self.cur_y) in enumerate(zip(self.x, self.y)):
+                self.plot = self.ax.plot(self.cur_x, self.cur_y, 'o', label=f"Tracker {i}", picker=True)
+            self.ax.legend(loc='best')
+
+        elif all(not isinstance(item, list) for item in self.y):
+            self.plot = self.ax.plot(self.x, self.y, 'o', label=None, picker=True)
+
+        plt.xlabel(self.plot_args['x_label'])
+        plt.ylabel(self.plot_args['y_label'])
+        plt.title(f"Outlier Removal for {self.data_type}")
 
         # only draw if new canvas
         if self.canvas:
@@ -472,21 +486,18 @@ class OutlierRemoval:
     def onclick(self, event):
         if event.name == 'pick_event':
             x_click = event.mouseevent.xdata
-            idx = (np.abs(self.x - x_click)).argmin() # remove closest point
-            print(idx)
+            # n_trackers entries for each time point
+            idx = (np.abs(self.x - x_click)).argmin() * self.n_trackers
 
             # find and remove clicked pt
             x = self.df.iloc[idx][self.x_col]
             idx_remove = self.df[self.df[self.x_col] == x].index
+            print(idx_remove)
             self.df.drop(index=idx_remove, inplace=True)
             self.df.reset_index(inplace=True, drop=True)
-            del self.y[idx_remove[0]]
-            del self.x[idx_remove[0]]
-            print(x, idx_remove, self.df)
 
             # update plot
             self.plot_data(True)
-            self.plot.set_offsets(list(zip(self.x, self.y)))
             self.canvas.draw()
 
     def undo_selections(self):
@@ -497,13 +508,10 @@ class OutlierRemoval:
         self.ax = None
         self.plot_data()
         
-
     def confirm(self):
-        #fp, ext = os.path.splitext(self.selected_file.get())
-        #self.output_fp = fp + '_outliers_removed' + ext
         self.confirm_label.pack()
         self.window.after(5000, lambda: self.confirm_label.pack_forget())
-        self.df.to_csv(self.selected_file.get(), index=None)
+        self.df.to_csv(self.output_files[self.data_type], index=None)
 
     def load_plot(self):
         self.create_figure()

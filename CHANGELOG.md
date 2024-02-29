@@ -8,30 +8,34 @@ Housekeeping
 - scrollbar to ui
 
 Hydrogel
-- 
+- marker deltas outliar removal:
+    - save euc distances to df to associate the calculated (and plotted) points with their original values to remove
+- plot difference between euclidean and horizontal distances over time
+- plot derivative of poissons, long, and rad strains over time (dot over variable)
 
 Multi purpose
 - format plots in outlier removal
 - what to show for outlier removal of marker tracker since there are x, y, points of 2 markers 
-- account for timelapses (framerate does not directly correlate to time)
-    - add to ui checkbox for if is timelapse
-    - if yes, prompt for input of time units and frame interval
-    - default these to '0' and 's'
-    - in tracking routines, when recording time, if frame interval 0:
-        - time still just frame_num / fps
-    - else:
-        - time is frame_num * frame_interval
-    - time column in df should reflect time units (f string in column header)
-    - adjust analysis functions to get time values from time column by looking for column headers that contain 'Time' instead of an exact match of 'Time(s)'
-    - grab time units for plots from this column header
-    - adjust all plot_args definitions so the x label contains these units
-    - add err msg for if is timelapse box checked and no inputs entered
+
 
 Cell Mechanics
+- plotting cell stuff handle error if one marker doesn't track as long as the other
 - cell spread area over time
 
 
 # Changelog
+
+2/28
+- whole heap of plot formatting
+- major adjustments to outlier removal
+    - separate plots generated for marker deltas and marker tracking
+    - marker tracking outliers use marker velocity calculations
+    - fixed issue where when removing points from marker deltas, it would not remove where clicked
+        - this was due to marker deltas points not directly corresponding to tracked marker points (intermediate calculations)
+        - multiplying index by n_trackers fixes this
+    - applied this fix to marker velocity so multiple markers can be plotted and have outliers removed
+    - can now plot multiple markers tracked at once and removing one marker's outlier removes that same time point of the others as well, so no time points have na values
+    - formatted plots using plot args from the analysis functions that generate them
 
 2/26
 - plot_avgs_bar_data function complete
