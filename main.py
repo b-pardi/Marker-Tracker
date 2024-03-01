@@ -85,9 +85,11 @@ class TrackingUI:
         self.operation_intvar.set(0)
         operation_frame = tk.Frame(self.root)
         operation_tracking_radio = ttk.Radiobutton(operation_frame, text="Marker tracking", variable=self.operation_intvar, value=1, command=self.handle_radios, width=25, style='Outline.TButton')
-        operation_tracking_radio.grid(row=0, column=0, padx=4, pady=16)
+        operation_tracking_radio.grid(row=0, column=0, padx=4, pady=(16, 4))
         operation_necking_radio = ttk.Radiobutton(operation_frame, text="Necking point detection", variable=self.operation_intvar, value=2, command=self.handle_radios, width=25, style='Outline.TButton')
-        operation_necking_radio.grid(row=0, column=1, padx=4, pady=16)
+        operation_necking_radio.grid(row=0, column=1, padx=4, pady=(16, 4))
+        operation_area_radio = ttk.Radiobutton(operation_frame, text="Surface area tracking", variable=self.operation_intvar, value=3, command=self.handle_radios, width=25, style='Outline.TButton')
+        operation_area_radio.grid(row=1, column=0, columnspan=2, padx=4, pady=(4, 16))
         operation_frame.grid(row=6, column=0)
         self.select_msg = ttk.Label(self.root, text="Select from above for more customizable parameters")
         self.select_msg.grid(row=7, column=0)
@@ -131,13 +133,18 @@ class TrackingUI:
         self.binarize_intensity_thresh_entry.insert(0, "120")
         self.binarize_intensity_thresh_entry.grid(row=2, column=1, columnspan=2, padx=4, pady=8)
 
+        # options for surface area tracking
+        self.area_frame = tk.Frame(self.root)
+        self.are_label = ttk.Label(self.area_frame, text="TEMP")
+        self.are_label.grid(row=0, column=0)
+
         # submission fields/buttons
         submission_frame = tk.Frame()
         track_btn = ttk.Button(submission_frame, text="Begin tracking", command=self.on_submit_tracking, style='Regular.TButton')
         track_btn.grid(row=0, column=0, columnspan=2, padx=32, pady=(24,4))
         remove_outliers_button = ttk.Button(submission_frame, text="Remove outliers", command=self.remove_outliers, style='Regular.TButton')
         remove_outliers_button.grid(row=1, column=0, columnspan=2, padx=32, pady=(4,24))
-        
+
         conversion_factor_label = ttk.Label(submission_frame, text="Enter the conversion factor\nto convert pixels to\nyour desired units: ")
         conversion_factor_label.grid(row=2, column=0)
         self.conversion_factor_entry = ttk.Entry(submission_frame)
@@ -195,11 +202,18 @@ class TrackingUI:
             case 1:
                 self.select_msg.grid_forget()
                 self.necking_frame.grid_forget()
+                self.area_frame.grid_forget()
                 self.tracking_frame.grid(row=8, column=0)
             case 2:
                 self.select_msg.grid_forget()
                 self.tracking_frame.grid_forget()
+                self.area_frame.grid_forget()
                 self.necking_frame.grid(row=8, column=0)
+            case 3:
+                self.select_msg.grid_forget()
+                self.necking_frame.grid_forget()
+                self.tracking_frame.grid_forget()
+                self.area_frame.grid(row=8, column=0)
 
     def on_submit_tracking(self):
         """calls the appropriate functions with user spec'd args when tracking start button clicked"""        
@@ -271,6 +285,13 @@ class TrackingUI:
                     self.frame_interval,
                     self.time_units
                 )
+
+            case 3:
+                tracking.track_area(cap,
+                    self.frame_start,
+                    self.frame_end,
+                    self.frame_interval,
+                    self.time_units)
 
     def get_file(self):
         """util function to prompt a file browser to select the video file that will be tracked

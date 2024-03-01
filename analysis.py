@@ -241,6 +241,13 @@ def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True)
         fig, ax = plot_scatter_data(time, [marker_distances, np.abs(m2_x-m1_x)], plot_args, n_datasets=2) # plot x distance as well for control/comparison
         fig.savefig("figures/marker_deltas.png")
 
+        # plot difference between euclidean and horizontal differences
+        plot_args['title'] = 'Euclidean and Horizontal Differences'
+        plot_args['y_label'] = rf'Marker elongation, $\mathit{{{conversion_units}}}$'
+        plot_args['data_label'] = None
+        fig, ax = plot_scatter_data(time, [np.abs(marker_distances - np.abs(m2_x-m1_x))], plot_args, n_datasets=1) # plot x distance as well for control/comparison
+        fig.savefig("figures/marker_euclidean_horizontal_differences.png")
+
     print("Done")
 
     return list(time), longitudinal_strain, plot_args
@@ -324,6 +331,11 @@ def poissons_ratio(user_unit_conversion):
     poissons_df = pd.merge(marker_df, necking_df, 'inner', 'time')
     poissons_df['v'] = np.where(poissons_df['long_strain'] != 0, -1 * poissons_df['rad_strain'] / poissons_df['long_strain'], 0)
     time_col, time_label, _ = get_time_labels(pd.read_csv("output/Necking_Point_Output.csv"))
+    
+    poissons_df['d(long_strain)/dt'] = poissons_df['long_strain'].diff() / poissons_df['time']
+    poissons_df['d(rad_strain)/dt'] = poissons_df['rad_strain'].diff() / poissons_df['time']
+    poissons_df['d(v)/dt'] = poissons_df['v'].diff() / poissons_df['time']
+    
     print(poissons_df)
     poissons_df.to_csv("output/poissons_ratio.csv")
 
@@ -335,8 +347,25 @@ def poissons_ratio(user_unit_conversion):
         'has_legend': False
     }
 
+    # plot poissons ratio against time
     poisson_fig, poisson_ax = plot_scatter_data(poissons_df['time'], [poissons_df['v']], plot_args, n_datasets=1)
     poisson_fig.savefig("figures/poissons_ratio.png")
+
+    # plot derivatives
+    plot_args['title'] = r"Derivative of Poissons Ratio - $\dot{\nu} (t)$"
+    plot_args['y_label'] = r"$\dot{\nu}(t)$"
+    poisson_prime_fig, poisson_prime_ax = plot_scatter_data(poissons_df['time'], [poissons_df['d(v)/dt']], plot_args, n_datasets=1)
+    poisson_prime_fig.savefig("figures/poissons_ratio_prime.png")
+
+    plot_args['title'] = r"Derivative of Longitudinal Strain - $\dot{\epsilon}_l (t)$"
+    plot_args['y_label'] = r"$\dot{\epsilon}_l (t)$"
+    long_strain_prime_fig, long_strain_prime_ax = plot_scatter_data(poissons_df['time'], [poissons_df['d(long_strain)/dt']], plot_args, n_datasets=1)
+    long_strain_prime_fig.savefig("figures/long_strain_prime.png")
+
+    plot_args['title'] = r"Derivative of Radial Strain - $\dot{\epsilon}_r (t)$"
+    plot_args['y_label'] = r"$\dot{\epsilon}_r (t)$"
+    rad_strain_prime_fig, rad_strain_prime_ax = plot_scatter_data(poissons_df['time'], [poissons_df['d(rad_strain)/dt']], plot_args, n_datasets=1)
+    rad_strain_prime_fig.savefig("figures/rad_strain_prime.png")
 
     print("Done")
 

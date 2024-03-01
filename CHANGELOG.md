@@ -8,8 +8,6 @@ Housekeeping
 - scrollbar to ui
 
 Hydrogel
-
-- plot difference between euclidean and horizontal distances over time
 - plot derivative of poissons, long, and rad strains over time (dot over variable)
 
 Multi purpose
@@ -20,6 +18,12 @@ Cell Mechanics
 
 
 # Changelog
+
+2/29
+- plot difference between euclidean and horizontal distances over time
+- plot derivative of poissons ratio over time
+- plot derivative of longitudinal strain over time
+- plot derivative of radial strain over time
 
 2/28
 - whole heap of plot formatting
@@ -32,6 +36,7 @@ Cell Mechanics
     - applied this fix to marker velocity so multiple markers can be plotted and have outliers removed
     - can now plot multiple markers tracked at once and removing one marker's outlier removes that same time point of the others as well, so no time points have na values
     - formatted plots using plot args from the analysis functions that generate them
+- err catch for if len of tracker data is different
 
 2/26
 - plot_avgs_bar_data function complete
