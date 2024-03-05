@@ -275,15 +275,58 @@ def necking_point(cap, frame_start, frame_end, percent_crop_left=0., percent_cro
     cv2.destroyAllWindows()
 
 
+def track_area_new(cap, frame_start, frame_end, frame_interval, time_units):
+    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_start)
+    frame_num = frame_start
+
+    while frame_num < frame_end:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        # Frame preprocessing
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        blur_frame = cv2.GaussianBlur(gray_frame, (5, 5), 0)
+
+        # Thresholding
+        _, binary_frame = cv2.threshold(blur_frame, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+        # Morphological Operations for noise reduction
+        kernel = np.ones((3,3),np.uint8)
+        opening = cv2.morphologyEx(binary_frame, cv2.MORPH_OPEN, kernel, iterations = 2)
+
+        # Segment frame
+        contours, _ = cv2.findContours(opening, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        for i, contour in enumerate(contours):
+            area = cv2.contourArea(contour)
+            if area > 100:  # Filter out small contours that are not cells
+                M = cv2.moments(contour)
+                if M["m00"] != 0:
+                    cx = int(M["m10"] / M["m00"])
+                    cy = int(M["m01"] / M["m00"])
+                    cv2.drawContours(frame, [contour], -1, (255, 0, 0), 2)
+                    cv2.putText(frame, str(i+1), (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                    # Here you could add code to store the area and position data.
+
+        cv2.imshow('Surface Area Tracking', frame)
+        if cv2.waitKey(1) == 27:
+            break
+
+        frame_num += 1
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+
 def track_area(cap, frame_start, frame_end, frame_interval, time_units):
-    dist_data = {'Frame': [], f'Time({time_units})': [], 'x at necking point (px)': [], 'y necking distance (px)': []}
     frame_num = frame_start
 
     while True:  # read frame by frame until the end of the video
         ret, frame = cap.read()
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_start + frame_num)
         frame_num += 1
-        time.sleep(0.25)
+        #time.sleep(0.25)
 
         if not ret:
             break

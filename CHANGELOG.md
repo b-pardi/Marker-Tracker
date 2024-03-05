@@ -5,19 +5,21 @@
 ## TODO
 Housekeeping
 - update documentation and readme
-- scrollbar to ui
 
 Hydrogel
-- plot derivative of poissons, long, and rad strains over time (dot over variable)
+- 
 
 Multi purpose
-
+- 
 
 Cell Mechanics
 - cell spread area over time
 
 
 # Changelog
+
+3/4
+- added a scrollbar to ui
 
 2/29
 - plot difference between euclidean and horizontal distances over time

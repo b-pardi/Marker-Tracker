@@ -42,15 +42,32 @@ class TrackingUI:
                 background=[('selected', 'blue'), ('!selected', 'white')])
         radio_btn_style.configure("Outline.TButton", width=20)
         
+        # scrollbar
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
+        self.scrollbar_frame = tk.Frame(self.root)
+        self.scrollbar_frame.grid(row=0, column=1, sticky="ns")
+        self.scrollbar_frame.grid_rowconfigure(0, weight=1)
+        self.scrollbar_frame.grid_columnconfigure(0, weight=1)
+        self.canvas = tk.Canvas(self.scrollbar_frame)
+        self.canvas.grid(row=0, column=0, sticky="nsew")
+        self.scrollbar = ttk.Scrollbar(self.scrollbar_frame, orient="vertical", command=self.canvas.yview)
+        self.scrollbar.grid(row=0, column=1, sticky="ns")
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        self.scrollable_frame = ttk.Frame(self.canvas)
+        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        #self.scrollable_frame.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
+        self.scrollable_frame.bind("<Configure>", self.on_frame_configure)
+        
         # file browse button
         self.video_path = ""
-        file_btn = ttk.Button(self.root, text="Browse for video file", command=self.get_file, style='Regular.TButton')
+        file_btn = ttk.Button(self.scrollable_frame, text="Browse for video file", command=self.get_file, style='Regular.TButton')
         file_btn.grid(row=0, column=0, padx=32, pady=24)
 
         # file name label
         self.data_label_var = tk.StringVar()
         self.data_label_var.set("File not selected")
-        data_label = ttk.Label(self.root, textvariable=self.data_label_var)
+        data_label = ttk.Label(self.scrollable_frame, textvariable=self.data_label_var)
         data_label.grid(row=1, column=0, pady=(0,8))
 
         # frame selection button
@@ -59,8 +76,8 @@ class TrackingUI:
         self.child = None
         self.frame_label_var = tk.StringVar()
         self.frame_label_var.set("Frame range: FULL")
-        self.frame_label = ttk.Label(self.root, textvariable=self.frame_label_var)
-        self.frame_selector_btn = ttk.Button(self.root, text="Select start/end frames", command=self.select_frames, style='Regular.TButton')
+        self.frame_label = ttk.Label(self.scrollable_frame, textvariable=self.frame_label_var)
+        self.frame_selector_btn = ttk.Button(self.scrollable_frame, text="Select start/end frames", command=self.select_frames, style='Regular.TButton')
         self.frame_selector_btn.grid(row=2, pady=(12,4))
         self.frame_label.grid(row=3, column=0, pady=(0,8))
 
@@ -68,7 +85,7 @@ class TrackingUI:
         self.frame_interval = 0
         self.time_units = 's'
         self.is_timelapse_var = tk.IntVar()
-        is_timelapse_check = ttk.Checkbutton(self.root, text="Is this video a timelapse? ", variable=self.is_timelapse_var, onvalue=1, offvalue=0, command=self.handle_checkbuttons)
+        is_timelapse_check = ttk.Checkbutton(self.scrollable_frame, text="Is this video a timelapse? ", variable=self.is_timelapse_var, onvalue=1, offvalue=0, command=self.handle_checkbuttons)
         is_timelapse_check.grid(row=4, column=0)
         self.frame_interval_frame = tk.Frame()
         time_units_label = ttk.Label(self.frame_interval_frame, text="Units of time: \n(s, min, hr)")
@@ -83,7 +100,7 @@ class TrackingUI:
         # radios for selecting operation
         self.operation_intvar = tk.IntVar()
         self.operation_intvar.set(0)
-        operation_frame = tk.Frame(self.root)
+        operation_frame = tk.Frame(self.scrollable_frame)
         operation_tracking_radio = ttk.Radiobutton(operation_frame, text="Marker tracking", variable=self.operation_intvar, value=1, command=self.handle_radios, width=25, style='Outline.TButton')
         operation_tracking_radio.grid(row=0, column=0, padx=4, pady=(16, 4))
         operation_necking_radio = ttk.Radiobutton(operation_frame, text="Necking point detection", variable=self.operation_intvar, value=2, command=self.handle_radios, width=25, style='Outline.TButton')
@@ -91,11 +108,11 @@ class TrackingUI:
         operation_area_radio = ttk.Radiobutton(operation_frame, text="Surface area tracking", variable=self.operation_intvar, value=3, command=self.handle_radios, width=25, style='Outline.TButton')
         operation_area_radio.grid(row=1, column=0, columnspan=2, padx=4, pady=(4, 16))
         operation_frame.grid(row=6, column=0)
-        self.select_msg = ttk.Label(self.root, text="Select from above for more customizable parameters")
+        self.select_msg = ttk.Label(self.scrollable_frame, text="Select from above for more customizable parameters")
         self.select_msg.grid(row=7, column=0)
 
         # options for marker tracking
-        self.tracking_frame = tk.Frame(self.root)
+        self.tracking_frame = tk.Frame(self.scrollable_frame)
         bbox_size_label = ttk.Label(self.tracking_frame, text="Tracker bounding box size (px)")
         bbox_size_label.grid(row=0, column=0, padx=4, pady=8)
         self.bbox_size_entry = ttk.Entry(self.tracking_frame, width=10)
@@ -112,7 +129,7 @@ class TrackingUI:
         tracker_CSRT_radio.grid(row=2, column=1, padx=4)
 
         # options for necking point
-        self.necking_frame = tk.Frame(self.root)
+        self.necking_frame = tk.Frame(self.scrollable_frame)
         percent_crop_label = ttk.Label(self.necking_frame, text="% of video width to\nexclude outter edges of\n(0 for none)")
         percent_crop_label.grid(row=0, column=0, rowspan=2, padx=4, pady=8)
         percent_crop_left_label = ttk.Label(self.necking_frame, text="left edge") 
@@ -134,12 +151,12 @@ class TrackingUI:
         self.binarize_intensity_thresh_entry.grid(row=2, column=1, columnspan=2, padx=4, pady=8)
 
         # options for surface area tracking
-        self.area_frame = tk.Frame(self.root)
+        self.area_frame = tk.Frame(self.scrollable_frame)
         self.are_label = ttk.Label(self.area_frame, text="TEMP")
         self.are_label.grid(row=0, column=0)
 
         # submission fields/buttons
-        submission_frame = tk.Frame()
+        submission_frame = tk.Frame(self.scrollable_frame)
         track_btn = ttk.Button(submission_frame, text="Begin tracking", command=self.on_submit_tracking, style='Regular.TButton')
         track_btn.grid(row=0, column=0, columnspan=2, padx=32, pady=(24,4))
         remove_outliers_button = ttk.Button(submission_frame, text="Remove outliers", command=self.remove_outliers, style='Regular.TButton')
@@ -178,16 +195,65 @@ class TrackingUI:
         exit_btn = ttk.Button(submission_frame, text='Exit', command=sys.exit, style='Regular.TButton')
         exit_btn.grid(row=20, column=0, columnspan=2, padx=32, pady=(24,12))
         submission_frame.grid(row=20, column=0)
-        
+
+        self.adjust_window_size()        
+        self.scrollable_frame.bind("<Enter>", lambda e: self.scrollable_frame.bind_all("<MouseWheel>", self.on_mousewheel))
+        self.scrollable_frame.bind("<Leave>", lambda e: self.scrollable_frame.unbind_all("<MouseWheel>"))
+
+    def on_frame_configure(self, event):
+        '''Reset the scroll region to encompass the inner frame and adjust window size if necessary'''
+        # Update the canvas's scrollregion
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+        # Check if the frame width has increased and adjust the canvas and window size
+        frame_width = self.scrollable_frame.winfo_reqwidth()
+        canvas_width = self.canvas.winfo_width()
+        if frame_width > canvas_width:
+            self.canvas.config(width=frame_width)
+            self.root.geometry(f"{frame_width}x{self.root.winfo_height()}")
+
+    def adjust_window_size(self):
+        # Ensure Tkinter processes all geometry changes
+        self.root.update_idletasks()
+
+        # Get the required size of the scrollable_frame
+        required_width = self.scrollable_frame.winfo_reqwidth()
+        required_height = self.scrollable_frame.winfo_reqheight()
+
+        # Adjust the canvas size to match the required size
+        self.canvas.config(width=required_width, height=required_height)
+
+        # Update the scrollregion to match the new size of scrollable_frame
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+        # Now, adjust the window size if necessary
+        self.update_window_size(required_width, required_height)
+
+    def update_window_size(self, required_width, required_height):
+        # Get the current window size
+        window_width = self.root.winfo_width()
+        window_height = self.root.winfo_height()
+
+        # Determine the new window size needed to accommodate the content
+        new_width = max(window_width, required_width + 20) # Adding 20 for some padding
+        new_height = max(window_height, required_height + 20) # Same reason
+
+        # Configure the root window's size
+        self.root.geometry(f"{new_width}x{new_height}")
+
+
     def select_frames(self):
         if self.video_path != "":
-            self.child = FrameSelector(self.root, self.video_path, self.frame_label_var)
+            self.child = FrameSelector(self.scrollable_frame, self.video_path, self.frame_label_var)
         else:
             msg = "Select a video before opening the frame selector"
             error_popup(msg)
 
     def remove_outliers(self):
-        OutlierRemoval(self.root, (float(self.conversion_factor_entry.get()), self.conversion_units_entry.get()))
+        OutlierRemoval(self.scrollable_frame, (float(self.conversion_factor_entry.get()), self.conversion_units_entry.get()))
+
+    def on_mousewheel(self, event):
+        self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
 
     def handle_checkbuttons(self):
         if self.is_timelapse_var.get() == 1:
@@ -196,7 +262,7 @@ class TrackingUI:
             self.frame_interval_frame.grid_forget()
 
     def handle_radios(self):
-        """blits options for the corresponding radio button selected"""        
+        """blits options for the corresponding radio button selected"""  
         option = self.operation_intvar.get()
         match option:
             case 1:
