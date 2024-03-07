@@ -14,12 +14,19 @@ Multi purpose
 
 Cell Mechanics
 - cell spread area over time
+    - close gaps of contours?
+    - only look at contour closest to marker?
+    
+- parameters to add to ui for surface tracking
+    - minimum contour area
+    - distance from marker threshold
 
 
 # Changelog
 
 3/4
 - added a scrollbar to ui
+- surface tracking progress
 
 2/29
 - plot difference between euclidean and horizontal distances over time

@@ -275,28 +275,81 @@ def necking_point(cap, frame_start, frame_end, percent_crop_left=0., percent_cro
     cv2.destroyAllWindows()
 
 
-def track_area_new(cap, frame_start, frame_end, frame_interval, time_units):
+def improve_binarization(frame):    
+    # Apply CLAHE (Contrast Limited Adaptive Histogram Equalization)
+    # boosts contrast
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(12, 12))
+    equalized = clahe.apply(frame)
+    
+    # Perform Background Subtraction
+    # (Assuming a relatively uniform background)
+    background = cv2.medianBlur(equalized, 13)
+    subtracted = cv2.subtract(equalized, background)
+    
+    # Use morphological closing to close small holes inside the foreground
+    kernel = np.ones((5, 5), np.uint8)
+    closing = cv2.morphologyEx(subtracted, cv2.MORPH_CLOSE, kernel, iterations=2)
+    
+    # Use Canny edge detector to find edges and use it as a mask
+    edges = cv2.Canny(subtracted, 50, 150)
+    edges_dilated = cv2.dilate(edges, kernel, iterations=1)
+    result = cv2.bitwise_or(closing, edges_dilated)
+
+    # if edges too fine after result
+    #result = cv2.dilate(result, kernel, iterations=1)
+    # if edges too thick after result
+    kernel = np.ones((3, 3), np.uint8)
+    result = cv2.erode(result, kernel, iterations=1)
+
+    return result
+
+
+def track_area(cap, marker_positions, first_frame, bbox_size, frame_start, frame_end, frame_interval, time_units):
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_start)
     frame_num = frame_start
+    distance_from_marker_thresh = 100
+    
+    # init trackers
+    trackers = []
+    for _ in range(len(marker_positions)):
+        trackers.append(cv2.TrackerCSRT_create())
+
+    # init trackers
+    scaled_first_frame, scale_factor = scale_frame(first_frame)
+    for i, mark_pos in enumerate(marker_positions):
+        bbox = (int((mark_pos[0][0] - bbox_size // 2) * scale_factor),
+                int((mark_pos[0][1] - bbox_size // 2) * scale_factor),
+                int(bbox_size * scale_factor),
+                int(bbox_size * scale_factor))
+        trackers[i].init(scaled_first_frame, bbox)
 
     while frame_num < frame_end:
         ret, frame = cap.read()
+        time.sleep(0.05)
         if not ret:
             break
 
         # Frame preprocessing
-        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        blur_frame = cv2.GaussianBlur(gray_frame, (5, 5), 0)
+        scaled_frame, scale_factor = scale_frame(frame)  # scale the frame
+        gray_frame = cv2.cvtColor(scaled_frame, cv2.COLOR_BGR2GRAY)
+        blur_frame = cv2.GaussianBlur(gray_frame, (9, 9), 0)
+
+        # update tracker position
+        success, bbox = trackers[0].update(scaled_frame) # currently only 1 tracker will work for testing
+        if success:
+            x_bbox, y_bbox, w_bbox, h_bbox = [int(coord) for coord in bbox]  # get coords of bbox in the scaled frame
+            marker_center = (x_bbox + w_bbox // 2, y_bbox + h_bbox // 2)  # get center of bbox
+            cv2.rectangle(scaled_frame, (x_bbox, y_bbox), (x_bbox + w_bbox, y_bbox + h_bbox), (0, 255, 0), 2)  # update tracker rectangle
 
         # Thresholding
-        _, binary_frame = cv2.threshold(blur_frame, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        #_, binary_frame = cv2.threshold(blur_frame, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        binary_frame = improve_binarization(gray_frame)
 
         # Morphological Operations for noise reduction
-        kernel = np.ones((3,3),np.uint8)
-        opening = cv2.morphologyEx(binary_frame, cv2.MORPH_OPEN, kernel, iterations = 2)
-
+        adaptive_thresh = cv2.adaptiveThreshold(binary_frame, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
+        
         # Segment frame
-        contours, _ = cv2.findContours(opening, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(adaptive_thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         for i, contour in enumerate(contours):
             area = cv2.contourArea(contour)
@@ -305,11 +358,12 @@ def track_area_new(cap, frame_start, frame_end, frame_interval, time_units):
                 if M["m00"] != 0:
                     cx = int(M["m10"] / M["m00"])
                     cy = int(M["m01"] / M["m00"])
-                    cv2.drawContours(frame, [contour], -1, (255, 0, 0), 2)
-                    cv2.putText(frame, str(i+1), (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-                    # Here you could add code to store the area and position data.
+                    if np.abs(marker_center[0] - cx) < distance_from_marker_thresh and np.abs(marker_center[1] - cy) < distance_from_marker_thresh:
+                        cv2.drawContours(scaled_frame, [contour], -1, (255, 0, 0), 2)
+                        cv2.putText(scaled_frame, str(i+1), (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
-        cv2.imshow('Surface Area Tracking', frame)
+        #cv2.imshow('Surface Area Tracking', adaptive_thresh)
+        cv2.imshow('Surface Area Tracking', scaled_frame)
         if cv2.waitKey(1) == 27:
             break
 
@@ -319,7 +373,7 @@ def track_area_new(cap, frame_start, frame_end, frame_interval, time_units):
     cv2.destroyAllWindows()
 
 
-def track_area(cap, frame_start, frame_end, frame_interval, time_units):
+def track_area_og(cap, frame_start, frame_end, frame_interval, time_units):
     frame_num = frame_start
 
     while True:  # read frame by frame until the end of the video

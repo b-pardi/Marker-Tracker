@@ -244,13 +244,13 @@ class TrackingUI:
 
     def select_frames(self):
         if self.video_path != "":
-            self.child = FrameSelector(self.scrollable_frame, self.video_path, self.frame_label_var)
+            self.child = FrameSelector(self.root, self.video_path, self.frame_label_var)
         else:
             msg = "Select a video before opening the frame selector"
             error_popup(msg)
 
     def remove_outliers(self):
-        OutlierRemoval(self.scrollable_frame, (float(self.conversion_factor_entry.get()), self.conversion_units_entry.get()))
+        OutlierRemoval(self.root, (float(self.conversion_factor_entry.get()), self.conversion_units_entry.get()))
 
     def on_mousewheel(self, event):
         self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
@@ -353,11 +353,19 @@ class TrackingUI:
                 )
 
             case 3:
-                tracking.track_area(cap,
-                    self.frame_start,
-                    self.frame_end,
-                    self.frame_interval,
-                    self.time_units)
+                bbox_size = int(self.bbox_size_entry.get())
+                selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start) # prompt to select markers
+                print(f"marker locs: {selected_markers}")
+                if not selected_markers.__contains__((-1,-1)): # select_markers returns list of -1 if selections cancelled
+                    tracking.track_area(cap,
+                        selected_markers,
+                        first_frame,
+                        bbox_size,
+                        self.frame_start,
+                        self.frame_end,
+                        self.frame_interval,
+                        self.time_units
+                    )
 
     def get_file(self):
         """util function to prompt a file browser to select the video file that will be tracked
