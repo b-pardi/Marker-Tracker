@@ -383,6 +383,7 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True):
 
     time_col, time_label, time_unit = get_time_labels(df)
     n_trackers = df['Tracker'].unique().shape[0] # get number of trackers
+
     # account for mismatch lengths of tracker information (if 1 tracker fell off before the other)
     check_tracker_data_lengths(df, n_trackers)
 
@@ -489,9 +490,36 @@ def marker_distance(user_unit_conversion):
     disp_fig, disp_ax = plot_scatter_data(time[:-1], rms_disps, plot_args, n_trackers)
     disp_fig.savefig("figures/marker_RMS_displacement.png")
 
-def single_marker_spread(user_unit_conversion):
+def single_marker_spread(user_unit_conversion, df=None, will_save_figures=True):
     print("Finding Marker Spread...")
     conversion_factor, conversion_units = user_unit_conversion
+    #n_trackers = df['Tracker'].unique().shape[0] # get number of trackers
+    n_trackers = 1
+
+
+    if not isinstance(df, pd.DataFrame):
+        df = pd.read_csv("output/Surface_Area_Output.csv") # open csv created/modified from marker tracking process
+    print(df.head())
+
+    time_col, time_label, time_unit = get_time_labels(df)
+    time = df[time_col].values
+    surface_area = df['cell surface area (px^2)'].values * conversion_factor
+
+    # plot
+    plot_args = {
+        'title': r'Cell Surface Area Spread',
+        'x_label': time_label,
+        'y_label': rf'Surface area, ({conversion_units})',
+        'data_label': [f"Tracker {i+1}" for i in range(n_trackers)],
+        'has_legend': True,
+
+    }
+    if will_save_figures:
+        # plot marker velocity
+        area_fig, area_ax = plot_scatter_data(time, [surface_area], plot_args, n_trackers)
+        area_fig.savefig("figures/marker_surface_area.png")
+
+    return time, surface_area, plot_args, n_trackers
 
 if __name__=='__main__':
     analyze_marker_deltas()

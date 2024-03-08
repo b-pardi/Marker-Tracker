@@ -258,8 +258,8 @@ def necking_point(cap, frame_start, frame_end, percent_crop_left=0., percent_cro
         else:
             dist_data[f'Time({time_units})'].append(np.float16(frame_num * frame_interval))
         dist_data['Frame'].append(frame_num)
-        dist_data['x at necking point (px)'].append(int((x_samples[necking_pt_ind] / scale_factor)))
-        dist_data['y necking distance (px)'].append(necking_distance)
+        dist_data['x at necking point (px)'].append(int(x_samples[necking_pt_ind] / scale_factor))
+        dist_data['y necking distance (px)'].append(int(necking_distance / scale_factor))
 
         cv2.line(frame_draw, (x_samples[necking_pt_ind], y_line_values[necking_pt_ind][0]), (x_samples[necking_pt_ind], y_line_values[necking_pt_ind][1]), (0, 0, 255), 2)     
 
@@ -287,11 +287,11 @@ def improve_binarization(frame):
     subtracted = cv2.subtract(equalized, background)
     
     # Use morphological closing to close small holes inside the foreground
-    kernel = np.ones((5, 5), np.uint8)
+    kernel = np.ones((3, 3), np.uint8)
     closing = cv2.morphologyEx(subtracted, cv2.MORPH_CLOSE, kernel, iterations=2)
     
     # Use Canny edge detector to find edges and use it as a mask
-    edges = cv2.Canny(subtracted, 50, 150)
+    edges = cv2.Canny(closing, 30, 140)
     edges_dilated = cv2.dilate(edges, kernel, iterations=1)
     result = cv2.bitwise_or(closing, edges_dilated)
 
@@ -308,6 +308,7 @@ def track_area(cap, marker_positions, first_frame, bbox_size, frame_start, frame
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_start)
     frame_num = frame_start
     distance_from_marker_thresh = 100
+    area_data = {'Frame': [], f'Time({time_units})': [], 'x cell location': [], 'y cell location': [], 'cell surface area (px^2)': []}
     
     # init trackers
     trackers = []
@@ -332,7 +333,7 @@ def track_area(cap, marker_positions, first_frame, bbox_size, frame_start, frame
         # Frame preprocessing
         scaled_frame, scale_factor = scale_frame(frame)  # scale the frame
         gray_frame = cv2.cvtColor(scaled_frame, cv2.COLOR_BGR2GRAY)
-        blur_frame = cv2.GaussianBlur(gray_frame, (9, 9), 0)
+        #blur_frame = cv2.GaussianBlur(gray_frame, (9, 9), 0)
 
         # update tracker position
         success, bbox = trackers[0].update(scaled_frame) # currently only 1 tracker will work for testing
@@ -345,22 +346,51 @@ def track_area(cap, marker_positions, first_frame, bbox_size, frame_start, frame
         #_, binary_frame = cv2.threshold(blur_frame, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         binary_frame = improve_binarization(gray_frame)
 
-        # Morphological Operations for noise reduction
+        # threshold frame again with localized kernel, adds a bit of noise but strengthens contours (idk why this helps but it does)
         adaptive_thresh = cv2.adaptiveThreshold(binary_frame, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
         
         # Segment frame
         contours, _ = cv2.findContours(adaptive_thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        for i, contour in enumerate(contours):
+        '''for i, contour in enumerate(contours):
             area = cv2.contourArea(contour)
-            if area > 100:  # Filter out small contours that are not cells
+            if area > 100:  # Filter out small contours that are small blobs
                 M = cv2.moments(contour)
                 if M["m00"] != 0:
                     cx = int(M["m10"] / M["m00"])
                     cy = int(M["m01"] / M["m00"])
                     if np.abs(marker_center[0] - cx) < distance_from_marker_thresh and np.abs(marker_center[1] - cy) < distance_from_marker_thresh:
                         cv2.drawContours(scaled_frame, [contour], -1, (255, 0, 0), 2)
-                        cv2.putText(scaled_frame, str(i+1), (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                        cv2.putText(scaled_frame, str(i+1), (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)'''
+
+        # choose optimal contour (largest and near marker)
+        max_area, max_area_idx = 0, 0
+        for i, contour in enumerate(contours):
+            area = cv2.contourArea(contour)
+            M = cv2.moments(contour)
+            if M["m00"] != 0:
+                cx = int(M["m10"] / M["m00"])
+                cy = int(M["m01"] / M["m00"])
+                if np.abs(marker_center[0] - cx) < distance_from_marker_thresh and np.abs(marker_center[1] - cy) < distance_from_marker_thresh:
+                    if area > max_area:
+                        max_area = area
+                        max_area_idx = i
+
+        # draw the chosen contour
+        contour = contours[max_area_idx]
+        cv2.drawContours(scaled_frame, [contour], -1, (255, 0, 0), 2)
+        cv2.putText(scaled_frame, str(i+1), (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+
+        # record data
+        area_data['Frame'].append(frame_num)
+        if frame_interval == 0:
+            area_data[f'Time({time_units})'].append(np.float32(frame_num / cap.get(5)))
+        else:
+            area_data[f'Time({time_units})'].append(np.float16(frame_num * frame_interval))
+        area_data['x cell location'].append(int((marker_center[0] / scale_factor)))
+        area_data['y cell location'].append(int((marker_center[1] / scale_factor)))
+        area_data['cell surface area (px^2)'].append(max_area)
+        
 
         #cv2.imshow('Surface Area Tracking', adaptive_thresh)
         cv2.imshow('Surface Area Tracking', scaled_frame)
@@ -368,6 +398,10 @@ def track_area(cap, marker_positions, first_frame, bbox_size, frame_start, frame
             break
 
         frame_num += 1
+
+    area_df = pd.DataFrame(area_data)
+    area_df.set_index('Frame', inplace=True)
+    area_df.to_csv("output/Surface_Area_Output.csv")
 
     cap.release()
     cv2.destroyAllWindows()

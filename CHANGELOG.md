@@ -13,10 +13,11 @@ Multi purpose
 - 
 
 Cell Mechanics
+- ability to append to dataset for cells from different videos
 - cell spread area over time
     - close gaps of contours?
     - only look at contour closest to marker?
-    
+
 - parameters to add to ui for surface tracking
     - minimum contour area
     - distance from marker threshold
