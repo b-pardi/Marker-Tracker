@@ -14,16 +14,25 @@ Multi purpose
 
 Cell Mechanics
 - ability to append to dataset for cells from different videos
-- cell spread area over time
-    - close gaps of contours?
-    - only look at contour closest to marker?
-
-- parameters to add to ui for surface tracking
-    - minimum contour area
-    - distance from marker threshold
 
 
 # Changelog
+
+3/7
+- refined cell surface area tracking
+    - improved binarization function
+        - contrast limited adaptive histogram equalization
+        - background subtraction
+        - morphological closing
+        - edge detection mask (1 iter edge dilation)
+        - erosion
+    - adaptive thresholding after binarization (helps somehow)
+    - track specifically the largest contour that is within a threshold distance from the marker center
+- record data for surface area
+- plot surface area data over time
+- added parameters to ui for tweaking surface area
+    - bbox size (same as for regular marker tracking)
+    - distance from marker threshold for how far to look from the marker for contours
 
 3/4
 - added a scrollbar to ui

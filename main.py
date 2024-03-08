@@ -87,7 +87,7 @@ class TrackingUI:
         self.is_timelapse_var = tk.IntVar()
         is_timelapse_check = ttk.Checkbutton(self.scrollable_frame, text="Is this video a timelapse? ", variable=self.is_timelapse_var, onvalue=1, offvalue=0, command=self.handle_checkbuttons)
         is_timelapse_check.grid(row=4, column=0)
-        self.frame_interval_frame = tk.Frame()
+        self.frame_interval_frame = tk.Frame(self.scrollable_frame)
         time_units_label = ttk.Label(self.frame_interval_frame, text="Units of time: \n(s, min, hr)")
         time_units_label.grid(row=0, column=0)
         self.time_units_entry = ttk.Entry(self.frame_interval_frame, width=10)
@@ -113,11 +113,11 @@ class TrackingUI:
 
         # options for marker tracking
         self.tracking_frame = tk.Frame(self.scrollable_frame)
-        bbox_size_label = ttk.Label(self.tracking_frame, text="Tracker bounding box size (px)")
-        bbox_size_label.grid(row=0, column=0, padx=4, pady=8)
-        self.bbox_size_entry = ttk.Entry(self.tracking_frame, width=10)
-        self.bbox_size_entry.insert(0, "20")
-        self.bbox_size_entry.grid(row=0, column=1, padx=4, pady=8)
+        bbox_tracking_size_label = ttk.Label(self.tracking_frame, text="Tracker bounding box size (px)")
+        bbox_tracking_size_label.grid(row=0, column=0, padx=4, pady=8)
+        self.bbox_size_tracking_entry = ttk.Entry(self.tracking_frame, width=10)
+        self.bbox_size_tracking_entry.insert(0, "100")
+        self.bbox_size_tracking_entry.grid(row=0, column=1, padx=4, pady=8)
 
         self.tracker_choice_intvar = tk.IntVar()
         self.tracker_choice_intvar.set(0)
@@ -152,8 +152,17 @@ class TrackingUI:
 
         # options for surface area tracking
         self.area_frame = tk.Frame(self.scrollable_frame)
-        self.are_label = ttk.Label(self.area_frame, text="TEMP")
-        self.are_label.grid(row=0, column=0)
+        bbox_area_size_label = ttk.Label(self.area_frame, text="Tracker bounding box size (px)")
+        bbox_area_size_label.grid(row=0, column=0, padx=4, pady=8)
+        self.bbox_size_area_entry = ttk.Entry(self.area_frame, width=10)
+        self.bbox_size_area_entry.insert(0, "100")
+        self.bbox_size_area_entry.grid(row=0, column=1, padx=4, pady=8)
+
+        distance_from_marker_thresh_label = ttk.Label(self.area_frame, text="Max distance from marker to find contours (px)")
+        distance_from_marker_thresh_label.grid(row=1, column=0, padx=4, pady=8)
+        self.distance_from_marker_thresh_entry = ttk.Entry(self.area_frame, width=10)
+        self.distance_from_marker_thresh_entry.insert(0, "150")
+        self.distance_from_marker_thresh_entry.grid(row=1, column=1, padx=4, pady=8)
 
         # submission fields/buttons
         submission_frame = tk.Frame(self.scrollable_frame)
@@ -316,7 +325,7 @@ class TrackingUI:
                 error_popup(msg)
             case 1:
                 print("Beginning Marker Tracking Process...")
-                bbox_size = int(self.bbox_size_entry.get())
+                bbox_size = int(self.bbox_size_tracking_entry.get())
                 if self.tracker_choice_intvar.get() == 0:
                     tracker_choice = 'KCF'
                 elif self.tracker_choice_intvar.get() == 1:
@@ -353,7 +362,8 @@ class TrackingUI:
                 )
 
             case 3:
-                bbox_size = int(self.bbox_size_entry.get())
+                bbox_size = int(self.bbox_size_area_entry.get())
+                distance_from_marker_thresh = int(self.distance_from_marker_thresh_entry.get())
                 selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start) # prompt to select markers
                 print(f"marker locs: {selected_markers}")
                 if not selected_markers.__contains__((-1,-1)): # select_markers returns list of -1 if selections cancelled
@@ -364,7 +374,8 @@ class TrackingUI:
                         self.frame_start,
                         self.frame_end,
                         self.frame_interval,
-                        self.time_units
+                        self.time_units,
+                        distance_from_marker_thresh
                     )
 
     def get_file(self):

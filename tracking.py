@@ -304,10 +304,9 @@ def improve_binarization(frame):
     return result
 
 
-def track_area(cap, marker_positions, first_frame, bbox_size, frame_start, frame_end, frame_interval, time_units):
+def track_area(cap, marker_positions, first_frame, bbox_size, frame_start, frame_end, frame_interval, time_units, distance_from_marker_thresh):
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_start)
     frame_num = frame_start
-    distance_from_marker_thresh = 100
     area_data = {'Frame': [], f'Time({time_units})': [], 'x cell location': [], 'y cell location': [], 'cell surface area (px^2)': []}
     
     # init trackers
