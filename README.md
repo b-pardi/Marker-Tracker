@@ -33,6 +33,10 @@
             - This is how often a picture was taken to make the timelapse
             - i.e. if you have a 24 hour timelapse and a picture was taken every 30 minutes, you could specify the desired time units as minutes and put 30 for the frame interval, or use hours and put 0.5 for the interval (every half hour) 
 
+- Indicate if the tracking you are about to run will overwrite or append to existing tracking data
+    - This will allow you to analyze tracked markers from multiple different videos in the same plot
+    - **Do Not** Use append mode for the first tracking operation of your set of videos, only for subsequent videos
+
 - Select either marker tracking or necking point detection
 - Specify parameters (detailed below)
 - Click submit, each option's process is described below

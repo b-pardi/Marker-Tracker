@@ -4,19 +4,28 @@
 
 ## TODO
 Housekeeping
-- update documentation and readme
+- switch possible options to Enums
+
 
 Hydrogel
 - 
 
 Multi purpose
-- 
+- undo previous appending operation button in ui
+- adjust data analysis to work with new append method
 
 Cell Mechanics
 - ability to append to dataset for cells from different videos
-
+- see about surface tracking on the lighter videos
 
 # Changelog
+
+3/8
+- added ui widgets to indicate if overwriting or appending existing tracking data
+- recorded data now also includes original video data originates from
+- added ability to append data from separate tracking videos to existing data
+    - this ability has been added to all 3 available tracking operations performing the same way
+    - each column of new data gets prepended a number incr by 1 from number of previous tracked entities
 
 3/7
 - refined cell surface area tracking

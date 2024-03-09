@@ -20,9 +20,9 @@ import os
 import sys
 
 from exceptions import error_popup, warning_popup
+from enums import *
 import analysis
 import tracking
-
 
 class TrackingUI:
     """class for handling Tkinter window and its functionalities"""    
@@ -97,6 +97,18 @@ class TrackingUI:
         self.frame_interval_entry = ttk.Entry(self.frame_interval_frame, width=10)
         self.frame_interval_entry.grid(row=1, column=1)
 
+        # indicate if appending data
+        self.append_or_overwrite_frame = tk.Frame(self.scrollable_frame)
+        self.append_or_overwrite_var = tk.IntVar()
+        self.append_or_overwrite_var.set(0)
+        append_or_overwrite_label = ttk.Label(self.append_or_overwrite_frame, text="Append or overwrite existing tracking data?\n")
+        append_or_overwrite_label.grid(row=0, column=0, columnspan=2)
+        self.append_radio = ttk.Radiobutton(self.append_or_overwrite_frame, text="Append", variable=self.append_or_overwrite_var, value=1)
+        self.append_radio.grid(row=1, column=0)
+        self.overwrite_radio = ttk.Radiobutton(self.append_or_overwrite_frame, text="Overwrite", variable=self.append_or_overwrite_var, value=2)
+        self.overwrite_radio.grid(row=1, column=1)
+        self.append_or_overwrite_frame.grid(row=5, column=0, pady=12)
+
         # radios for selecting operation
         self.operation_intvar = tk.IntVar()
         self.operation_intvar.set(0)
@@ -107,9 +119,9 @@ class TrackingUI:
         operation_necking_radio.grid(row=0, column=1, padx=4, pady=(16, 4))
         operation_area_radio = ttk.Radiobutton(operation_frame, text="Surface area tracking", variable=self.operation_intvar, value=3, command=self.handle_radios, width=25, style='Outline.TButton')
         operation_area_radio.grid(row=1, column=0, columnspan=2, padx=4, pady=(4, 16))
-        operation_frame.grid(row=6, column=0)
+        operation_frame.grid(row=7, column=0)
         self.select_msg = ttk.Label(self.scrollable_frame, text="Select from above for more customizable parameters")
-        self.select_msg.grid(row=7, column=0)
+        self.select_msg.grid(row=8, column=0)
 
         # options for marker tracking
         self.tracking_frame = tk.Frame(self.scrollable_frame)
@@ -266,7 +278,7 @@ class TrackingUI:
 
     def handle_checkbuttons(self):
         if self.is_timelapse_var.get() == 1:
-            self.frame_interval_frame.grid(row=5, column=0)
+            self.frame_interval_frame.grid(row=6, column=0)
         else:
             self.frame_interval_frame.grid_forget()
 
@@ -278,17 +290,17 @@ class TrackingUI:
                 self.select_msg.grid_forget()
                 self.necking_frame.grid_forget()
                 self.area_frame.grid_forget()
-                self.tracking_frame.grid(row=8, column=0)
+                self.tracking_frame.grid(row=9, column=0)
             case 2:
                 self.select_msg.grid_forget()
                 self.tracking_frame.grid_forget()
                 self.area_frame.grid_forget()
-                self.necking_frame.grid(row=8, column=0)
+                self.necking_frame.grid(row=9, column=0)
             case 3:
                 self.select_msg.grid_forget()
                 self.necking_frame.grid_forget()
                 self.tracking_frame.grid_forget()
-                self.area_frame.grid(row=8, column=0)
+                self.area_frame.grid(row=9, column=0)
 
     def on_submit_tracking(self):
         """calls the appropriate functions with user spec'd args when tracking start button clicked"""        
@@ -297,6 +309,8 @@ class TrackingUI:
             msg = "Error: Couldn't open video file.\nPlease ensure one was selected, and it is not corrupted."
             error_popup(msg)
         option = self.operation_intvar.get()
+
+        video_name = os.path.basename(self.video_path)
 
         # set frame start/end
         self.frame_start = 0
@@ -318,6 +332,15 @@ class TrackingUI:
         else:
             self.frame_interval = 0
             self.time_units = 's'
+
+        # handle overwrite/append selection
+        if self.append_or_overwrite_var.get() == 1:
+            file_mode = FileMode.APPEND
+        elif self.append_or_overwrite_var.get() == 2:
+            file_mode = FileMode.OVERWRITE
+        else:
+            msg = "ERROR: Please indicate if this tracking operation will append or overwrite existing tracking data"
+            error_popup(msg)
 
         match option:
             case 0:
@@ -343,7 +366,9 @@ class TrackingUI:
                         bbox_size,
                         tracker_choice,
                         self.frame_interval,
-                        self.time_units
+                        self.time_units,
+                        file_mode,
+                        video_name
                     )
             case 2:
                 percent_crop_right = float(self.percent_crop_right_entry.get())
@@ -354,11 +379,14 @@ class TrackingUI:
                 tracking.necking_point(
                     cap,
                     self.frame_start,
-                    self.frame_end, percent_crop_left,
+                    self.frame_end,
+                    percent_crop_left,
                     percent_crop_right,
                     binarize_intensity_thresh,
                     self.frame_interval,
-                    self.time_units
+                    self.time_units,
+                    file_mode,
+                    video_name
                 )
 
             case 3:
@@ -375,7 +403,9 @@ class TrackingUI:
                         self.frame_end,
                         self.frame_interval,
                         self.time_units,
-                        distance_from_marker_thresh
+                        distance_from_marker_thresh,
+                        file_mode,
+                        video_name
                     )
 
     def get_file(self):
