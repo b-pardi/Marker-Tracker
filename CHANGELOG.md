@@ -12,13 +12,27 @@ Hydrogel
 
 Multi purpose
 - undo previous appending operation button in ui
+- outlier removal for surface area
+- adjust outlier removal to work with multiple dataset readings
+    - text field to enter either number or 'all'
 - adjust data analysis to work with new append method
+- identifier for plot legend labels
 
 Cell Mechanics
 - ability to append to dataset for cells from different videos
 - see about surface tracking on the lighter videos
 
 # Changelog
+
+3/10
+- reworked how data is recorded for all tracking operations s.t. initial columns have a 1 prepended to all column headers, instead of renaming column headers to 1 if appending
+- surface area tracking now can plot the appended data
+- added a checking function to determine if data has multiple appeneded videos tracked or 1 video with multiple trackers
+    - cannot handle multiple appended videos with multiple trackers each
+- marker distance reworked to handle either multiple trackers 1 video or multiple videos 1 tracker each
+- marker velocity reworked same as marker distance
+- all poissons ratio related analysis has error checks in place to ensure only 1 tracked video
+
 
 3/8
 - added ui widgets to indicate if overwriting or appending existing tracking data

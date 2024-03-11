@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import json
 
 from exceptions import error_popup, warning_popup
+from enums import *
 
 
 def marker_euclidean_distance(p1x, p1y, p2x, p2y):
@@ -54,16 +55,31 @@ def get_time_labels(df):
 
     return time_col, time_label, time_unit
 
-def check_tracker_data_lengths(df, n_trackers):
+def check_tracker_data_lengths(df, n_trackers, num_tracker_datasets):
     tracker_shapes  = []
-    for tracker in range(n_trackers):
-        cur_df = df[df['Tracker'] == tracker+1]
-        tracker_shapes.append(cur_df.shape[0])
-    min_len, max_len = min(tracker_shapes), max(tracker_shapes)
+    for dataset in range(num_tracker_datasets):
+        for tracker in range(n_trackers):
+            cur_df = df[df[f'{dataset+1}-Tracker'] == tracker+1]
+            tracker_shapes.append(cur_df.shape[0])
+        min_len, max_len = min(tracker_shapes), max(tracker_shapes)
     if min_len != max_len:
         msg = "ERROR: Length of data entries for trackers are different.\n\n"+\
             "Please reattempt tracking"
         error_popup(msg)
+
+def check_num_trackers_with_num_datasets(n_trackers, num_tracker_datasets):
+    data_multiplicity_type = 0
+    if num_tracker_datasets > 1 and n_trackers > 1:
+        msg = "ERROR: When using the append feature, only use one tracker per tracking operation.\n"+\
+        "If using multiple trackers, only use one video tracking at a time for analysis\n"
+        error_popup(msg)
+        data_multiplicity_type = DataMultiplicity.BOTH
+    elif num_tracker_datasets > 1 and n_trackers == 1:
+        data_multiplicity_type = DataMultiplicity.VIDEOS
+    elif n_trackers > 1 and num_tracker_datasets == 1:
+        data_multiplicity_type = DataMultiplicity.TRACKERS
+
+    return data_multiplicity_type
 
 
 def plot_scatter_data(x, y, plot_args, n_datasets, fig=None, ax=None):
@@ -195,8 +211,12 @@ def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True)
     print(df.head())
 
     # ensure only 2 markers were selected
-    if df['Tracker'].unique().shape[0] != 2:
+    if df['1-Tracker'].unique().shape[0] != 2:
         msg = "Found more/less than 2 markers.\n\nPlease ensure exactly 2 markers are tracked"
+        error_popup(msg)
+        return
+    if int(df.columns[-1][0]) != 1:
+        msg = "Found more than 1 tracked video dataset.\nPlease ensure overwrite is selected instead of append for Poissons ratio related tracking"
         error_popup(msg)
         return
     
@@ -264,8 +284,13 @@ def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True)
     if not isinstance(df, pd.DataFrame):
         df = pd.read_csv("output/Necking_Point_Output.csv") # open csv created/modified from marker tracking process
     print(df.head())
-    time_col, time_label, _ = get_time_labels(df)
 
+    if int(df.columns[-1][0]) != 1:
+        msg = "Found more than 1 tracked video dataset.\nPlease ensure overwrite is selected instead of append for Poissons ratio related tracking"
+        error_popup(msg)
+        return
+
+    time_col, time_label, _ = get_time_labels(df)
     time = df[time_col].values
     necking_pt_x = df['x at necking point (px)'].values * conversion_factor
     necking_pt_len = df['y necking distance (px)'].values * conversion_factor
@@ -382,23 +407,41 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True):
     print(df.head())
 
     time_col, time_label, time_unit = get_time_labels(df)
-    n_trackers = df['Tracker'].unique().shape[0] # get number of trackers
-
-    # account for mismatch lengths of tracker information (if 1 tracker fell off before the other)
-    check_tracker_data_lengths(df, n_trackers)
-
+    num_tracker_datasets = int(df.columns[-1][0]) # get num datasets
+    n_trackers = df['1-Tracker'].unique().shape[0] # get number of trackers
+    n_plots = 0
+    label = ''
     times = []
     tracker_velocities = []
     tracker_amplitudes = []
     tracker_frequencies = []
 
+    # determine if there are multiple trackers and 1 video, or multiple videos and 1 tracker
+    data_multiplicity_type = check_num_trackers_with_num_datasets(n_trackers, num_tracker_datasets)
+    
+    if data_multiplicity_type == DataMultiplicity.TRACKERS or data_multiplicity_type == DataMultiplicity.SINGLE:
+        # account for mismatch lengths of tracker information (if 1 tracker fell off before the other)
+        check_tracker_data_lengths(df, n_trackers, num_tracker_datasets)
+        n_plots = n_trackers
+        label = 'Tracker'
+        num_sets = n_trackers
+    elif data_multiplicity_type == DataMultiplicity.VIDEOS:
+        n_plots = num_tracker_datasets
+        label = 'Video'
+        num_sets = num_tracker_datasets
+
     # grab relevant values from df
     vel_df = pd.DataFrame({time_col: df[time_col].unique()[:-1]})
-    for tracker in range(n_trackers):
-        cur_df = df[df['Tracker'] == tracker+1]
-        time = cur_df[time_col].values
-        x = cur_df['x (px)'].values * conversion_factor
-        y = cur_df['y (px)'].values * conversion_factor
+    for n in range(num_sets):
+        if data_multiplicity_type == DataMultiplicity.TRACKERS or data_multiplicity_type == DataMultiplicity.SINGLE:
+            cur_df = df[df['Tracker'] == n+1]
+            x = cur_df['1-x (px)'].values * conversion_factor
+            y = cur_df['1-y (px)'].values * conversion_factor
+            time = cur_df[time_col].values
+        elif data_multiplicity_type == DataMultiplicity.VIDEOS:
+            x = df[f'{n+1}-x (px)'].values * conversion_factor
+            y = df[f'{n+1}-y (px)'].values * conversion_factor
+            time = df[time_col].values
 
         # get differences
         dx = np.diff(x)
@@ -414,9 +457,9 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True):
         tracker_velocities.append(vel_mag)
         print(vel_x.shape)
 
-        vel_df[f'x_velocity_tracker{tracker+1}'] = vel_x
-        vel_df[f'y_velocity_tracker{tracker+1}'] = vel_y
-        vel_df[f'magnitude_velocity_tracker{tracker+1}'] = vel_mag
+        vel_df[f'x_velocity_tracker{n+1}'] = vel_x
+        vel_df[f'y_velocity_tracker{n+1}'] = vel_y
+        vel_df[f'magnitude_velocity_tracker{n+1}'] = vel_mag
 
         # fourier transform
         vel_fft = np.abs(np.fft.fft(vel_mag)) # amplitude (pixels/Hz)
@@ -432,17 +475,17 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True):
         'title': r'Cell Velocity',
         'x_label': time_label,
         'y_label': rf'Magnitude of cell velocity, |$\frac{{v}}{{{time_unit}}}$| ({conversion_units})',
-        'data_label': [f"Tracker {i+1}" for i in range(n_trackers)],
+        'data_label': [f"{label} {i+1}" for i in range(n_plots)],
         'has_legend': True,
 
     }
     if will_save_figures:
         # plot marker velocity
-        vel_fig, vel_ax = plot_scatter_data(times[0], tracker_velocities, plot_args, n_trackers)
+        vel_fig, vel_ax = plot_scatter_data(times[0], tracker_velocities, plot_args, n_plots)
         vel_fig.savefig("figures/marker_velocity.png")
 
         # plot bar graph of average cell velocities in time range
-        avg_vel_fig, avg_vel_ax = plot_avgs_bar_data(n_ranges, times[0], tracker_velocities, plot_args, n_trackers)
+        avg_vel_fig, avg_vel_ax = plot_avgs_bar_data(n_ranges, times[0], tracker_velocities, plot_args, n_plots)
         avg_vel_fig.savefig("figures/average_marker_velocity.png")
 
         # plot fourier transform of marker distances
@@ -450,13 +493,13 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True):
         plot_args['y_label'] = f'({conversion_units}/Hz)'
         plot_args['x_label'] = 'Hz'
         fft_fig, fft_ax = plt.subplots()
-        for i in range(n_trackers):
+        for i in range(n_plots):
             plot_scatter_data(tracker_frequencies[i], [tracker_amplitudes[i]], plot_args, 1, fft_fig, fft_ax)
         fft_fig.savefig("figures/marker_velocity_FFT.png")
 
 
     print("Done")
-    return times, tracker_velocities, plot_args, n_trackers
+    return times, tracker_velocities, plot_args, n_plots
 
 
 def marker_distance(user_unit_conversion):
@@ -464,62 +507,85 @@ def marker_distance(user_unit_conversion):
     conversion_factor, conversion_units = user_unit_conversion
     df = pd.read_csv("output/Tracking_Output.csv") # open csv created/modified from marker tracking process
     print(df.head())
+
     time_col, time_label, _ = get_time_labels(df)
-    n_trackers = df['Tracker'].unique().shape[0] # get number of trackers
-
-    # account for mismatch lengths of tracker information (if 1 tracker fell off before the other)
-    check_tracker_data_lengths(df, n_trackers)
-
+    num_tracker_datasets = int(df.columns[-1][0]) # get num datasets
+    n_trackers = df['1-Tracker'].unique().shape[0] # get number of trackers
     rms_disps = []
     time = df[time_col].unique()
-    for tracker in range(n_trackers):
-        cur_df = df[df['Tracker'] == tracker+1]
-        x = cur_df['x (px)'].values * conversion_factor
-        y = cur_df['y (px)'].values * conversion_factor
+    print(n_trackers, num_tracker_datasets)
+    n_plots = 0
+    label = ''
 
-        rms_disps.append(rms_displacement(np.diff(x), np.diff(y)))
+    # determine if there are multiple trackers and 1 video, or multiple videos and 1 tracker
+    data_multiplicity_type = check_num_trackers_with_num_datasets(n_trackers, num_tracker_datasets)
+
+    if data_multiplicity_type == DataMultiplicity.TRACKERS or data_multiplicity_type == DataMultiplicity.SINGLE:
+        # account for mismatch lengths of tracker information (if 1 tracker fell off before the other)
+        check_tracker_data_lengths(df, n_trackers, num_tracker_datasets)
+        n_plots = n_trackers
+        label = 'Tracker'
+        num_sets = n_trackers
+        for tracker in range(n_trackers):
+            cur_df = df[df['1-Tracker'] == tracker+1]
+            x = cur_df['1-x (px)'].values * conversion_factor
+            y = cur_df['1-y (px)'].values * conversion_factor
+
+            rms_disps.append(rms_displacement(np.diff(x), np.diff(y)))
+
+    elif data_multiplicity_type == DataMultiplicity.VIDEOS:
+        n_plots = num_tracker_datasets
+        label = 'Video'
+        num_sets = num_tracker_datasets
+        for dataset in range(num_tracker_datasets):
+            x = df[f'{dataset+1}-x (px)'].values * conversion_factor
+            y = df[f'{dataset+1}-y (px)'].values * conversion_factor
+
+            rms_disps.append(rms_displacement(np.diff(x), np.diff(y)))
 
     plot_args = {
         'title': 'Cell RMS Displacement',
         'x_label': time_label,
         'y_label': f'RMS ({conversion_units})',
-        'data_label': [f"Tracker {i+1}" for i in range(n_trackers)],
+        'data_label': [f"{label} {i+1}" for i in range(n_plots)],
         'has_legend': True
     }
     # plot marker velocity
-    disp_fig, disp_ax = plot_scatter_data(time[:-1], rms_disps, plot_args, n_trackers)
+    disp_fig, disp_ax = plot_scatter_data(time[:-1], rms_disps, plot_args, n_plots)
     disp_fig.savefig("figures/marker_RMS_displacement.png")
 
 def single_marker_spread(user_unit_conversion, df=None, will_save_figures=True):
     print("Finding Marker Spread...")
     conversion_factor, conversion_units = user_unit_conversion
-    #n_trackers = df['Tracker'].unique().shape[0] # get number of trackers
-    n_trackers = 1
-
 
     if not isinstance(df, pd.DataFrame):
         df = pd.read_csv("output/Surface_Area_Output.csv") # open csv created/modified from marker tracking process
     print(df.head())
 
+    num_tracker_datasets = int(df.columns[-1][0])
     time_col, time_label, time_unit = get_time_labels(df)
+
+    surface_areas = []
     time = df[time_col].values
-    surface_area = df['cell surface area (px^2)'].values * conversion_factor
+    for i in range(num_tracker_datasets):
+        surface_area = df[f'{i+1}-cell surface area (px^2)'].values * conversion_factor
+        surface_areas.append(surface_area)
 
     # plot
     plot_args = {
         'title': r'Cell Surface Area Spread',
         'x_label': time_label,
         'y_label': rf'Surface area, ({conversion_units})',
-        'data_label': [f"Tracker {i+1}" for i in range(n_trackers)],
+        'data_label': [f"Video {i+1}" for i in range(num_tracker_datasets)],
         'has_legend': True,
 
     }
     if will_save_figures:
         # plot marker velocity
-        area_fig, area_ax = plot_scatter_data(time, [surface_area], plot_args, n_trackers)
-        area_fig.savefig("figures/marker_surface_area.png")
+        area_fig, area_ax = plot_scatter_data(time, surface_areas, plot_args, num_tracker_datasets)
+        area_fig.savefig("figures/marker_surface_area.png", dpi=400)
 
-    return time, surface_area, plot_args, n_trackers
+    return time, surface_area, plot_args, num_tracker_datasets
 
 if __name__=='__main__':
     analyze_marker_deltas()

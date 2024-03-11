@@ -36,6 +36,10 @@
 - Indicate if the tracking you are about to run will overwrite or append to existing tracking data
     - This will allow you to analyze tracked markers from multiple different videos in the same plot
     - **Do Not** Use append mode for the first tracking operation of your set of videos, only for subsequent videos
+    - **Note** Use only 1 marker per video tracked if using the append feature
+        - You can either use multiple markers within 1 video for analysis, or multiple videos with 1 marker each
+        - The software will let you record multiple videos each with multiple markers, but will not be able to handle analysis
+        - If you need to record data for multiple videos each with multiple markers, you can rerun the tracking operation on the same video and selecting a different object to track, essentially 1 marker per tracking operation, but multiple tracking operations are done on the same video.
 
 - Select either marker tracking or necking point detection
 - Specify parameters (detailed below)

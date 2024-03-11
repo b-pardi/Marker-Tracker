@@ -141,7 +141,7 @@ def track_markers(
         trackers[i].init(scaled_first_frame, bbox)
 
     # init tracking data dict
-    tracker_data = {'Frame': [], f'Time({time_units})': [], 'Tracker': [], 'x (px)': [], 'y (px)': [], 'video_file_name': video_file_name}
+    tracker_data = {'Frame': [], f'Time({time_units})': [], '1-Tracker': [], '1-x (px)': [], '1-y (px)': [], '1-video_file_name': video_file_name}
     frame_num = 0
 
     # tracking loop
@@ -167,9 +167,9 @@ def track_markers(
                 else:
                     tracker_data[f'Time({time_units})'].append(np.float16(frame_num * frame_interval))
                 tracker_data['Frame'].append(frame_num)
-                tracker_data['Tracker'].append(i + 1)
-                tracker_data['x (px)'].append(int((marker_center[0] / scale_factor)))  # scale back to the original frame resolution
-                tracker_data['y (px)'].append(int((marker_center[1] / scale_factor)))
+                tracker_data['1-Tracker'].append(i + 1)
+                tracker_data['1-x (px)'].append(int((marker_center[0] / scale_factor)))  # scale back to the original frame resolution
+                tracker_data['1-y (px)'].append(int((marker_center[1] / scale_factor)))
                 cv2.rectangle(scaled_frame, (x_bbox, y_bbox), (x_bbox + w_bbox, y_bbox + h_bbox), (0, 255, 0), 2)  # update tracker rectangle
 
         cv2.imshow("Tracking...", scaled_frame)  # show updated frame tracking
@@ -183,19 +183,7 @@ def track_markers(
         tracker_df.to_csv("output/Tracking_Output.csv")
     elif file_mode == FileMode.APPEND:
         tracker_df = pd.read_csv("output/Tracking_Output.csv")
-        
-        try: # rename existing columns to plan for appending, if this is the first append mode since last overwrite
-            num_prev_trackers = int(tracker_df.columns[-1][0])
-        except ValueError:
-            print("First append mode since last overwrite")
-            tracker_df.rename(columns={
-                'Tracker': '1-Tracker',
-                'x (px)': '1-x (px)',
-                'y (px)': '1-y (px)',
-                'video_file_name' : '1-video_file_name'
-            }, inplace=True)
-            num_prev_trackers = 1
-
+        num_prev_trackers = int(tracker_df.columns[-1][0])
         print(f"Num previous tracked entities: {num_prev_trackers}")
 
         # create new df of current tracking data and merge into previous
@@ -206,10 +194,10 @@ def track_markers(
 
         # rename df to indicate which num tracker this is
         cur_df.rename(columns={
-                'Tracker': f'{num_prev_trackers+1}-Tracker',
-                'x (px)': f'{num_prev_trackers+1}-x (px)',
-                'y (px)': f'{num_prev_trackers+1}-y (px)',
-                'video_file_name' : f'{num_prev_trackers+1}-video_file_name'
+                '1-Tracker': f'{num_prev_trackers+1}-Tracker',
+                '1-x (px)': f'{num_prev_trackers+1}-x (px)',
+                '1-y (px)': f'{num_prev_trackers+1}-y (px)',
+                '1-video_file_name' : f'{num_prev_trackers+1}-video_file_name'
             }, inplace=True)
         
         tracker_df_merged = pd.merge(tracker_df, cur_df, on='Frame', how='outer')
@@ -248,7 +236,7 @@ def necking_point(
     """    
     x_interval = 50 # interval for how many blue line visuals to display
     frame_num = 0
-    dist_data = {'Frame': [], f'Time({time_units})': [], 'x at necking point (px)': [], 'y necking distance (px)': [], 'video_file_name': video_file_name}
+    dist_data = {'Frame': [], f'Time({time_units})': [], '1-x at necking point (px)': [], '1-y necking distance (px)': [], '1-video_file_name': video_file_name}
     percent_crop_left *= 0.01
     percent_crop_right *= 0.01
 
@@ -317,8 +305,8 @@ def necking_point(
         else:
             dist_data[f'Time({time_units})'].append(np.float16(frame_num * frame_interval))
         dist_data['Frame'].append(frame_num)
-        dist_data['x at necking point (px)'].append(int(x_samples[necking_pt_ind] / scale_factor))
-        dist_data['y necking distance (px)'].append(int(necking_distance / scale_factor))
+        dist_data['1-x at necking point (px)'].append(int(x_samples[necking_pt_ind] / scale_factor))
+        dist_data['1-y necking distance (px)'].append(int(necking_distance / scale_factor))
 
         cv2.line(frame_draw, (x_samples[necking_pt_ind], y_line_values[necking_pt_ind][0]), (x_samples[necking_pt_ind], y_line_values[necking_pt_ind][1]), (0, 0, 255), 2)     
 
@@ -332,18 +320,7 @@ def necking_point(
         dist_df.to_csv("output/Necking_Point_Output.csv")
     elif file_mode == FileMode.APPEND:
         dist_df = pd.read_csv("output/Necking_Point_Output.csv")
-        
-        try: # rename existing columns to plan for appending, if this is the first append mode since last overwrite
-            num_prev_trackers = int(dist_df.columns[-1][0])
-        except ValueError:
-            print("First append mode since last overwrite")
-            dist_df.rename(columns={
-                'x at necking point (px)': '1-x at necking point (px)',
-                'y necking distance (px)': '1-y necking distance (px)',
-                'video_file_name' : '1-video_file_name'
-            }, inplace=True)
-            num_prev_trackers = 1
-
+        num_prev_trackers = int(dist_df.columns[-1][0])
         print(f"Num previous tracked entities: {num_prev_trackers}")
 
         # create new df of current tracking data and merge into previous
@@ -354,9 +331,9 @@ def necking_point(
 
         # rename df to indicate which num tracker this is
         cur_df.rename(columns={
-                'x at necking point (px)': f'{num_prev_trackers+1}-x at necking point (px)',
-                'y necking distance (px)': f'{num_prev_trackers+1}-y necking distance (px)',
-                'video_file_name' : f'{num_prev_trackers+1}-video_file_name'
+                '1-x at necking point (px)': f'{num_prev_trackers+1}-x at necking point (px)',
+                '1-y necking distance (px)': f'{num_prev_trackers+1}-y necking distance (px)',
+                '1-video_file_name' : f'{num_prev_trackers+1}-video_file_name'
             }, inplace=True)
         
         dist_df_merged = pd.merge(dist_df, cur_df, on='Frame', how='outer')
@@ -411,7 +388,7 @@ def track_area(
 
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_start)
     frame_num = frame_start
-    area_data = {'Frame': [], f'Time({time_units})': [], 'x cell location': [], 'y cell location': [], 'cell surface area (px^2)': [], 'video_file_name': video_file_name}
+    area_data = {'Frame': [], f'Time({time_units})': [], '1-x cell location': [], '1-y cell location': [], '1-cell surface area (px^2)': [], '1-video_file_name': video_file_name}
     
     # init trackers
     trackers = []
@@ -489,9 +466,9 @@ def track_area(
             area_data[f'Time({time_units})'].append(np.float32(frame_num / cap.get(5)))
         else:
             area_data[f'Time({time_units})'].append(np.float16(frame_num * frame_interval))
-        area_data['x cell location'].append(int((marker_center[0] / scale_factor)))
-        area_data['y cell location'].append(int((marker_center[1] / scale_factor)))
-        area_data['cell surface area (px^2)'].append(max_area)
+        area_data['1-x cell location'].append(int((marker_center[0] / scale_factor)))
+        area_data['1-y cell location'].append(int((marker_center[1] / scale_factor)))
+        area_data['1-cell surface area (px^2)'].append(max_area)
 
         #cv2.imshow('Surface Area Tracking', adaptive_thresh)
         cv2.imshow('Surface Area Tracking', scaled_frame)
@@ -506,19 +483,7 @@ def track_area(
         area_df.to_csv("output/Surface_Area_Output.csv")
     elif file_mode == FileMode.APPEND:
         area_df = pd.read_csv("output/Surface_Area_Output.csv")
-        
-        try: # rename existing columns to plan for appending, if this is the first append mode since last overwrite
-            num_prev_trackers = int(area_df.columns[-1][0])
-        except ValueError:
-            print("First append mode since last overwrite")
-            area_df.rename(columns={
-                'x cell location': '1-x cell location',
-                'y cell location': '1-y cell location',
-                'cell surface area (px^2)': '1-cell surface area (px^2)',
-                'video_file_name' : '1-video_file_name'
-            }, inplace=True)
-            num_prev_trackers = 1
-
+        num_prev_trackers = int(area_df.columns[-1][0])
         print(f"Num previous tracked entities: {num_prev_trackers}")
 
         # create new df of current tracking data and merge into previous
@@ -529,10 +494,10 @@ def track_area(
 
         # rename df to indicate which num tracker this is
         cur_df.rename(columns={
-                'x cell location': f'{num_prev_trackers+1}-x cell location',
-                'y cell location': f'{num_prev_trackers+1}-y cell location',
-                'cell surface area (px^2)': f'{num_prev_trackers+1}-cell surface area (px^2)',
-                'video_file_name' : f'{num_prev_trackers+1}-video_file_name'
+                '1-x cell location': f'{num_prev_trackers+1}-x cell location',
+                '1-y cell location': f'{num_prev_trackers+1}-y cell location',
+                '1-cell surface area (px^2)': f'{num_prev_trackers+1}-cell surface area (px^2)',
+                '1-video_file_name' : f'{num_prev_trackers+1}-video_file_name'
             }, inplace=True)
         
         area_df_merged = pd.merge(area_df, cur_df, on='Frame', how='outer')
