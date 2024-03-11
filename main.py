@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 import os
 import sys
 
-from exceptions import error_popup, warning_popup
+from exceptions import error_popup, warning_popup, warning_prompt
 from enums import *
 import analysis
 import tracking
@@ -182,36 +182,47 @@ class TrackingUI:
         track_btn.grid(row=0, column=0, columnspan=2, padx=32, pady=(24,4))
         remove_outliers_button = ttk.Button(submission_frame, text="Remove outliers", command=self.remove_outliers, style='Regular.TButton')
         remove_outliers_button.grid(row=1, column=0, columnspan=2, padx=32, pady=(4,24))
+        
+        undo_buttons_frame = tk.Frame(submission_frame)
+        undo_label = ttk.Label(undo_buttons_frame, text="Undo previous appended tracking data recording.")
+        undo_label.grid(row=0, column=0, columnspan=3)
+        undo_marker_tracking_append_btn = ttk.Button(undo_buttons_frame, text="Marker tracking", command=lambda: self.undo_last_tracking_append("output/Tracking_Output.csv"), style='Regular.TButton')
+        undo_marker_tracking_append_btn.grid(row=1, column=0)        
+        undo_necking_point_append_btn = ttk.Button(undo_buttons_frame, text="Necking point", command=lambda: self.undo_last_tracking_append("output/Necking_Point_Output.csv"), style='Regular.TButton')
+        undo_necking_point_append_btn.grid(row=1, column=1)    
+        undo_surface_tracking_append_btn = ttk.Button(undo_buttons_frame, text="Surface area", command=lambda: self.undo_last_tracking_append("output/Surface_Area_Output.csv"), style='Regular.TButton')
+        undo_surface_tracking_append_btn.grid(row=1, column=2)
+        undo_buttons_frame.grid(row=2, column=0, columnspan=2, pady=(8,20))
 
         conversion_factor_label = ttk.Label(submission_frame, text="Enter the conversion factor\nto convert pixels to\nyour desired units: ")
-        conversion_factor_label.grid(row=2, column=0)
+        conversion_factor_label.grid(row=3, column=0)
         self.conversion_factor_entry = ttk.Entry(submission_frame)
         self.conversion_factor_entry.insert(0, "1.0")
-        self.conversion_factor_entry.grid(row=2, column=1)
+        self.conversion_factor_entry.grid(row=3, column=1)
         conversion_units_label = ttk.Label(submission_frame, text="Enter the units that result\nfrom this conversion\n(mm, µm, nm, etc.): ")
-        conversion_units_label.grid(row=3, column=0, pady=(0,16))
+        conversion_units_label.grid(row=4, column=0, pady=(0,16))
         self.conversion_units_entry = ttk.Entry(submission_frame)
         self.conversion_units_entry.insert(0, "pixels")
-        self.conversion_units_entry.grid(row=3, column=1)
+        self.conversion_units_entry.grid(row=4, column=1)
         n_ranges_label = ttk.Label(submission_frame, text="Number of time ranges\nfor bar graphs: ")
-        n_ranges_label.grid(row=4, column=0, pady=(0, 16))
+        n_ranges_label.grid(row=5, column=0, pady=(0, 16))
         self.n_ranges_entry = ttk.Entry(submission_frame)
         self.n_ranges_entry.insert(0, "5")
-        self.n_ranges_entry.grid(row=4, column=1, pady=(0, 16))
+        self.n_ranges_entry.grid(row=5, column=1, pady=(0, 16))
 
         marker_deltas_btn = ttk.Button(submission_frame, text="Marker deltas analysis", command=lambda: analysis.analyze_marker_deltas((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
-        marker_deltas_btn.grid(row=5, column=0, padx=4, pady=4)
+        marker_deltas_btn.grid(row=6, column=0, padx=4, pady=4)
         necking_pt_btn = ttk.Button(submission_frame, text="Necking point analysis", command=lambda: analysis.analyze_necking_point((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
-        necking_pt_btn.grid(row=6, column=0, padx=4, pady=4)
+        necking_pt_btn.grid(row=7, column=0, padx=4, pady=4)
         poissons_ratio_btn = ttk.Button(submission_frame, text="Poisson's ratio", command=lambda: analysis.poissons_ratio((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
-        poissons_ratio_btn.grid(row=7, column=0, padx=4, pady=4)
+        poissons_ratio_btn.grid(row=8, column=0, padx=4, pady=4)
 
         cell_velocity_btn = ttk.Button(submission_frame, text="Marker velocity", command=lambda: analysis.marker_velocity((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get(), int(self.n_ranges_entry.get()))), style='Regular.TButton')
-        cell_velocity_btn.grid(row=5, column=1, padx=4, pady=4)
+        cell_velocity_btn.grid(row=6, column=1, padx=4, pady=4)
         cell_distance_btn = ttk.Button(submission_frame, text="Marker distance", command=lambda: analysis.marker_distance((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
-        cell_distance_btn.grid(row=6, column=1, padx=4, pady=4)
+        cell_distance_btn.grid(row=7, column=1, padx=4, pady=4)
         cell_spread_btn = ttk.Button(submission_frame, text="Marker spread", command=lambda: analysis.single_marker_spread((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
-        cell_spread_btn.grid(row=7, column=1, padx=4, pady=4)
+        cell_spread_btn.grid(row=8, column=1, padx=4, pady=4)
 
         exit_btn = ttk.Button(submission_frame, text='Exit', command=sys.exit, style='Regular.TButton')
         exit_btn.grid(row=20, column=0, columnspan=2, padx=32, pady=(24,12))
@@ -301,6 +312,17 @@ class TrackingUI:
                 self.necking_frame.grid_forget()
                 self.tracking_frame.grid_forget()
                 self.area_frame.grid(row=9, column=0)
+
+    def undo_last_tracking_append(self, fp):
+        df = pd.read_csv(fp)
+        n_entities = int(df.columns[-1][0])
+        dropped_cols = [col for col in df.columns if f"{n_entities}-" in col]
+        df.drop(columns=dropped_cols, inplace=True)
+        msg = f"WARNING: This will remove the most recent tracking operation from: {fp}\n\n"+\
+        "Click Ok to continue, or Cancel to exit"
+        user_resp = warning_prompt(msg)
+        if user_resp: # if user indicated to cont
+            df.to_csv(fp)
 
     def on_submit_tracking(self):
         """calls the appropriate functions with user spec'd args when tracking start button clicked"""        

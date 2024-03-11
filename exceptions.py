@@ -7,3 +7,6 @@ def error_popup(msg=None):
 
 def warning_popup(msg):
     messagebox.showwarning("Warning", msg)
+
+def warning_prompt(msg):
+    return messagebox.askokcancel("Warning", msg)

@@ -1,6 +1,4 @@
 ## ISSUES
-- outlier removal for marker tracking when points clicked they do not remove the correct ones
-    - this is due to the fact that points shown in in the tool are from calculations based on the points being removed, need to plot something different here
 
 ## TODO
 Housekeeping
@@ -15,14 +13,19 @@ Multi purpose
 - outlier removal for surface area
 - adjust outlier removal to work with multiple dataset readings
     - text field to enter either number or 'all'
-- adjust data analysis to work with new append method
 - identifier for plot legend labels
 
 Cell Mechanics
-- ability to append to dataset for cells from different videos
 - see about surface tracking on the lighter videos
 
 # Changelog
+
+3/11
+- added tk msg box to ask ok/cancel
+- added ui buttons to select to undo previous append operation for each tracking operation
+- implemented functionality of those buttons
+    - finds n_entities and locates columns with that number (and a dash) and removes them
+
 
 3/10
 - reworked how data is recorded for all tracking operations s.t. initial columns have a 1 prepended to all column headers, instead of renaming column headers to 1 if appending
