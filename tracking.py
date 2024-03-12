@@ -155,7 +155,7 @@ def track_markers(
 
         # updating trackers and saving location
         for i, tracker in enumerate(trackers):
-            success, bbox = tracker.update(scaled_frame)
+            success, bbox = tracker.update(scaled_frame)              
 
             if success:  # get coords of marker on successful frame update
                 x_bbox, y_bbox, w_bbox, h_bbox = [int(coord) for coord in bbox]  # get coords of bbox in the scaled frame
@@ -171,6 +171,13 @@ def track_markers(
                 tracker_data['1-x (px)'].append(int((marker_center[0] / scale_factor)))  # scale back to the original frame resolution
                 tracker_data['1-y (px)'].append(int((marker_center[1] / scale_factor)))
                 cv2.rectangle(scaled_frame, (x_bbox, y_bbox), (x_bbox + w_bbox, y_bbox + h_bbox), (0, 255, 0), 2)  # update tracker rectangle
+
+            else:
+                msg = "WARNING: Lost tracking marker\n\nPlease retry after adjusting any of the following\n\n: -Parameters\n-Initial tracker placement\n-Frame selection"
+                warning_popup(msg)
+                cap.release()
+                cv2.destroyAllWindows()
+                return
 
         cv2.imshow("Tracking...", scaled_frame)  # show updated frame tracking
 
@@ -244,7 +251,6 @@ def necking_point(
         ret, frame = cap.read()
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame_start + frame_num)
         frame_num += 1
-
         if not ret:
             break
 
@@ -406,7 +412,6 @@ def track_area(
 
     while frame_num < frame_end:
         ret, frame = cap.read()
-        time.sleep(0.05)
         if not ret:
             break
 
@@ -420,6 +425,12 @@ def track_area(
             x_bbox, y_bbox, w_bbox, h_bbox = [int(coord) for coord in bbox]  # get coords of bbox in the scaled frame
             marker_center = (x_bbox + w_bbox // 2, y_bbox + h_bbox // 2)  # get center of bbox
             cv2.rectangle(scaled_frame, (x_bbox, y_bbox), (x_bbox + w_bbox, y_bbox + h_bbox), (0, 255, 0), 2)  # update tracker rectangle
+        else:
+            msg = "WARNING: Lost tracking marker\n\nPlease retry after adjusting any of the following\n\n: -Parameters\n-Initial tracker placement\n-Frame selection"
+            warning_popup(msg)
+            cap.release()
+            cv2.destroyAllWindows()
+            return
 
         # Thresholding
         #_, binary_frame = cv2.threshold(blur_frame, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)

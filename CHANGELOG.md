@@ -9,11 +9,10 @@ Hydrogel
 - 
 
 Multi purpose
-- undo previous appending operation button in ui
-- outlier removal for surface area
 - adjust outlier removal to work with multiple dataset readings
     - text field to enter either number or 'all'
 - identifier for plot legend labels
+- clean up outlier removal ui using grid instead of pack
 
 Cell Mechanics
 - see about surface tracking on the lighter videos
@@ -25,7 +24,13 @@ Cell Mechanics
 - added ui buttons to select to undo previous append operation for each tracking operation
 - implemented functionality of those buttons
     - finds n_entities and locates columns with that number (and a dash) and removes them
-
+- added entry to outlier removal window to indicate which set to look for outliers in
+- fixed marker velocity outlier removal
+- fixed all poissons ratio analysis that broke during column renaming for appending data feature
+- added error check for cell velocity outlier removal to check if user entered erroneous dataset choice
+- added error checking for if tracker is lost indicating user to adjust params and retry
+- marker velocity outlier removal now works with user inputted datasets beyond the first
+- added marker spread to outlier removal tool
 
 3/10
 - reworked how data is recorded for all tracking operations s.t. initial columns have a 1 prepended to all column headers, instead of renaming column headers to 1 if appending

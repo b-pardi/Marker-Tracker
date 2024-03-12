@@ -55,17 +55,25 @@ def get_time_labels(df):
 
     return time_col, time_label, time_unit
 
-def check_tracker_data_lengths(df, n_trackers, num_tracker_datasets):
+def check_tracker_data_lengths(df, n_trackers):
     tracker_shapes  = []
-    for dataset in range(num_tracker_datasets):
+    col_start, col_end, n_sets = get_num_datasets(df)
+    for dataset in range(col_start, col_end+1, 1):
         for tracker in range(n_trackers):
-            cur_df = df[df[f'{dataset+1}-Tracker'] == tracker+1]
+            cur_df = df[df[f'{dataset}-Tracker'] == tracker+1]
             tracker_shapes.append(cur_df.shape[0])
         min_len, max_len = min(tracker_shapes), max(tracker_shapes)
     if min_len != max_len:
         msg = "ERROR: Length of data entries for trackers are different.\n\n"+\
             "Please reattempt tracking"
         error_popup(msg)
+
+def get_num_datasets(df):
+    col_start = int(df.columns[2][0])
+    col_end = int(df.columns[-1][0])
+    n_sets = col_end - col_start + 1
+
+    return col_start, col_end, n_sets
 
 def check_num_trackers_with_num_datasets(n_trackers, num_tracker_datasets):
     data_multiplicity_type = 0
@@ -78,6 +86,8 @@ def check_num_trackers_with_num_datasets(n_trackers, num_tracker_datasets):
         data_multiplicity_type = DataMultiplicity.VIDEOS
     elif n_trackers > 1 and num_tracker_datasets == 1:
         data_multiplicity_type = DataMultiplicity.TRACKERS
+    elif n_trackers == 1 and num_tracker_datasets == 1:
+        data_multiplicity_type = DataMultiplicity.SINGLE
 
     return data_multiplicity_type
 
@@ -222,13 +232,13 @@ def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True)
     
     time_col, time_label, _ = get_time_labels(df)
     # grab relevant data and put into np array
-    m1_df = df[df['Tracker'] == 1]
-    m2_df = df[df['Tracker'] == 2]
+    m1_df = df[df['1-Tracker'] == 1]
+    m2_df = df[df['1-Tracker'] == 2]
     time = df[time_col].unique()
-    m1_x = m1_df['x (px)'].values * conversion_factor
-    m1_y = m1_df['y (px)'].values * conversion_factor
-    m2_x = m2_df['x (px)'].values * conversion_factor
-    m2_y = m2_df['y (px)'].values * conversion_factor
+    m1_x = m1_df['1-x (px)'].values * conversion_factor
+    m1_y = m1_df['1-y (px)'].values * conversion_factor
+    m2_x = m2_df['1-x (px)'].values * conversion_factor
+    m2_y = m2_df['1-y (px)'].values * conversion_factor
 
     # find euclidean distances of markers
     marker_distances = []
@@ -292,8 +302,8 @@ def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True)
 
     time_col, time_label, _ = get_time_labels(df)
     time = df[time_col].values
-    necking_pt_x = df['x at necking point (px)'].values * conversion_factor
-    necking_pt_len = df['y necking distance (px)'].values * conversion_factor
+    necking_pt_x = df['1-x at necking point (px)'].values * conversion_factor
+    necking_pt_len = df['1-y necking distance (px)'].values * conversion_factor
 
     # radial strain (deltaR / R0)
     R0 = necking_pt_len[0]
@@ -394,7 +404,7 @@ def poissons_ratio(user_unit_conversion):
 
     print("Done")
 
-def marker_velocity(user_unit_conversion, df=None, will_save_figures=True):
+def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chosen_video_data=None):
     print("Finding Marker Velocity...")
     if len(user_unit_conversion) == 3:
         conversion_factor, conversion_units, n_ranges = user_unit_conversion
@@ -402,13 +412,17 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True):
         conversion_factor, conversion_units = user_unit_conversion
         n_ranges = 5
 
+
     if not isinstance(df, pd.DataFrame):
         df = pd.read_csv("output/Tracking_Output.csv") # open csv created/modified from marker tracking process
     print(df.head())
 
     time_col, time_label, time_unit = get_time_labels(df)
-    num_tracker_datasets = int(df.columns[-1][0]) # get num datasets
-    n_trackers = df['1-Tracker'].unique().shape[0] # get number of trackers
+    _, _, num_tracker_datasets = get_num_datasets(df) # get num datasets
+    if chosen_video_data is None:
+        n_trackers = df['1-Tracker'].unique().shape[0] # get number of trackers
+    else:
+        n_trackers = df[f'{chosen_video_data}-Tracker'].unique().shape[0] # get number of trackers
     n_plots = 0
     label = ''
     times = []
@@ -418,10 +432,9 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True):
 
     # determine if there are multiple trackers and 1 video, or multiple videos and 1 tracker
     data_multiplicity_type = check_num_trackers_with_num_datasets(n_trackers, num_tracker_datasets)
-    
     if data_multiplicity_type == DataMultiplicity.TRACKERS or data_multiplicity_type == DataMultiplicity.SINGLE:
         # account for mismatch lengths of tracker information (if 1 tracker fell off before the other)
-        check_tracker_data_lengths(df, n_trackers, num_tracker_datasets)
+        check_tracker_data_lengths(df, n_trackers)
         n_plots = n_trackers
         label = 'Tracker'
         num_sets = n_trackers
@@ -433,8 +446,16 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True):
     # grab relevant values from df
     vel_df = pd.DataFrame({time_col: df[time_col].unique()[:-1]})
     for n in range(num_sets):
-        if data_multiplicity_type == DataMultiplicity.TRACKERS or data_multiplicity_type == DataMultiplicity.SINGLE:
-            cur_df = df[df['Tracker'] == n+1]
+        if data_multiplicity_type == DataMultiplicity.SINGLE:
+            if chosen_video_data is None:
+                chosen_video_data = 1
+            print("TEST SINGLE AND CHOSEN VIDEO DATA")
+            cur_df = df[df[f'{chosen_video_data}-Tracker'] == n+1]
+            x = cur_df[f'{chosen_video_data}-x (px)'].values * conversion_factor
+            y = cur_df[f'{chosen_video_data}-y (px)'].values * conversion_factor
+            time = cur_df[time_col].values
+        elif data_multiplicity_type == DataMultiplicity.TRACKERS:
+            cur_df = df[df['1-Tracker'] == n+1]
             x = cur_df['1-x (px)'].values * conversion_factor
             y = cur_df['1-y (px)'].values * conversion_factor
             time = cur_df[time_col].values
@@ -509,7 +530,7 @@ def marker_distance(user_unit_conversion):
     print(df.head())
 
     time_col, time_label, _ = get_time_labels(df)
-    num_tracker_datasets = int(df.columns[-1][0]) # get num datasets
+    _, _, num_tracker_datasets = get_num_datasets(df) # get num datasets
     n_trackers = df['1-Tracker'].unique().shape[0] # get number of trackers
     rms_disps = []
     time = df[time_col].unique()
@@ -522,7 +543,7 @@ def marker_distance(user_unit_conversion):
 
     if data_multiplicity_type == DataMultiplicity.TRACKERS or data_multiplicity_type == DataMultiplicity.SINGLE:
         # account for mismatch lengths of tracker information (if 1 tracker fell off before the other)
-        check_tracker_data_lengths(df, n_trackers, num_tracker_datasets)
+        check_tracker_data_lengths(df, n_trackers)
         n_plots = n_trackers
         label = 'Tracker'
         num_sets = n_trackers
@@ -554,7 +575,7 @@ def marker_distance(user_unit_conversion):
     disp_fig, disp_ax = plot_scatter_data(time[:-1], rms_disps, plot_args, n_plots)
     disp_fig.savefig("figures/marker_RMS_displacement.png")
 
-def single_marker_spread(user_unit_conversion, df=None, will_save_figures=True):
+def single_marker_spread(user_unit_conversion, df=None, will_save_figures=True, chosen_video_data=None):
     print("Finding Marker Spread...")
     conversion_factor, conversion_units = user_unit_conversion
 
@@ -562,13 +583,20 @@ def single_marker_spread(user_unit_conversion, df=None, will_save_figures=True):
         df = pd.read_csv("output/Surface_Area_Output.csv") # open csv created/modified from marker tracking process
     print(df.head())
 
-    num_tracker_datasets = int(df.columns[-1][0])
+    _, _, num_tracker_datasets = get_num_datasets(df)
     time_col, time_label, time_unit = get_time_labels(df)
+    data_multiplicity_type = check_num_trackers_with_num_datasets(1, num_tracker_datasets)
 
     surface_areas = []
     time = df[time_col].values
     for i in range(num_tracker_datasets):
-        surface_area = df[f'{i+1}-cell surface area (px^2)'].values * conversion_factor
+        if data_multiplicity_type == DataMultiplicity.SINGLE:
+            if chosen_video_data is None:
+                chosen_video_data = 1
+            surface_area = df[f'{chosen_video_data}-cell surface area (px^2)'].values * conversion_factor
+        else:
+            surface_area = df[f'{i+1}-cell surface area (px^2)'].values * conversion_factor
+        
         surface_areas.append(surface_area)
 
     # plot
