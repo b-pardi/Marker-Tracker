@@ -4,9 +4,7 @@
 Housekeeping
 - switch possible options to Enums
 
-
 Hydrogel
-- 
 
 Multi purpose
 - adjust outlier removal to work with multiple dataset readings
@@ -18,6 +16,10 @@ Cell Mechanics
 - see about surface tracking on the lighter videos
 
 # Changelog
+
+3/12
+- bug fix with removal of last appended data button
+- tried improve_binarization for necking point, it sucked
 
 3/11
 - added tk msg box to ask ok/cancel

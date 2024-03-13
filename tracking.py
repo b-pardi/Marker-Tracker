@@ -173,7 +173,7 @@ def track_markers(
                 cv2.rectangle(scaled_frame, (x_bbox, y_bbox), (x_bbox + w_bbox, y_bbox + h_bbox), (0, 255, 0), 2)  # update tracker rectangle
 
             else:
-                msg = "WARNING: Lost tracking marker\n\nPlease retry after adjusting any of the following\n\n: -Parameters\n-Initial tracker placement\n-Frame selection"
+                msg = "WARNING: Lost tracking marker\n\nPlease retry after adjusting any of the following:\n\n-Parameters\n-Initial tracker placement\n-Frame selection"
                 warning_popup(msg)
                 cap.release()
                 cv2.destroyAllWindows()
@@ -255,7 +255,6 @@ def necking_point(
             break
 
         scaled_frame, scale_factor = scale_frame(frame)  # scale the frame
-
         gray_frame = cv2.cvtColor(scaled_frame, cv2.COLOR_BGR2GRAY)  # convert frame to gray
         _, binary_frame = cv2.threshold(gray_frame, binarize_intensity_thresh, 255, cv2.THRESH_BINARY)  # threshold to binarize image
 

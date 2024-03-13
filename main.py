@@ -314,7 +314,8 @@ class TrackingUI:
                 self.area_frame.grid(row=9, column=0)
 
     def undo_last_tracking_append(self, fp):
-        df = pd.read_csv(fp)
+        df = pd.read_csv(fp, index_col=None)
+        print(df)
         n_entities = int(df.columns[-1][0])
         dropped_cols = [col for col in df.columns if f"{n_entities}-" in col]
         df.drop(columns=dropped_cols, inplace=True)
@@ -322,7 +323,9 @@ class TrackingUI:
         "Click Ok to continue, or Cancel to exit"
         user_resp = warning_prompt(msg)
         if user_resp: # if user indicated to cont
-            df.to_csv(fp)
+            df.set_index('Frame')
+            print(df)
+            df.to_csv(fp, index=False)
 
     def on_submit_tracking(self):
         """calls the appropriate functions with user spec'd args when tracking start button clicked"""        
