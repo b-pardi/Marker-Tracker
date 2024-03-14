@@ -1,0 +1,25 @@
+{
+    "colors": {
+        "scatter1": "blue",
+        "scatter2": "green",
+        "scatter3": "red",
+        "scatter4": "orange",
+        "scatter5": "purple",
+        "lines": "black"
+    },
+    "font": "Arial",
+    "label_text_size": 16,
+    "title_text_size": 16,
+    "value_text_size": 14,
+    "legend_text_size": 14,
+    "tick_dir": "inout",
+    "fig_format": "tiff",
+    "fig_dpi": 200,
+    "points_plotted_index": 1,
+    "time_lower_bound": "auto",
+    "time_upper_bound": "auto",
+    "frequency_lower_bound": "auto",
+    "frequency_upper_bound": "auto",
+    "dissipation_lower_bound": "auto",
+    "dissipation_upper_bound": "auto"
+}
