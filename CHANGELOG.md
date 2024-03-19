@@ -11,9 +11,11 @@ Multi purpose
     - text field to enter either number or 'all'
 - identifier for plot legend labels
 - clean up outlier removal ui using grid instead of pack
+- plot opt to fix axis limits
 
 Cell Mechanics
 - see about surface tracking on the lighter videos
+
 
 # Changelog
 
