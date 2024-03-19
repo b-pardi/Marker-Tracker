@@ -10,12 +10,21 @@ Multi purpose
 - adjust outlier removal to work with multiple dataset readings
     - text field to enter either number or 'all'
 - identifier for plot legend labels
-- clean up outlier removal ui using grid instead of pack
 
 Cell Mechanics
 - see about surface tracking on the lighter videos
 
 # Changelog
+
+3/18
+- cleaned up outlier removal tool opting for grid instead of pack for ui elements
+- added more enums to replace method of storing user opts
+- fixed bug where time interval entries showed up below filemode radio btns when timelapse var checked
+- added label and entry for user to indicate a custom data label for the output csv and figures
+- added error checking to ensure that label hasn't been used previously in the output file
+- replaced old data_label method with the custom one, defaulting to the old one if no label is entered for the following analysis functions:
+    - rms_distance
+    - marker_velocity
 
 3/12
 - bug fix with removal of last appended data button

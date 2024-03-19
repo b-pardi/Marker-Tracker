@@ -117,7 +117,10 @@ def plot_scatter_data(x, y, plot_args, n_datasets, fig=None, ax=None):
             color = f'C{i}'
 
         if plot_args['data_label'] is not None:
-            label = plot_args['data_label'][i]
+            if plot_args['data_label'][i] == '':
+                label = i
+            else:
+                label = plot_args['data_label'][i]
         else:
             label = None
         ax.plot(x, y[i], 'o', markersize=1, color=color, label=label)      
@@ -164,9 +167,10 @@ def plot_avgs_bar_data(n_ranges, x, y, plot_args, n_trackers=1):
             color = f'C{i}'
 
         if plot_args['data_label'] is not None:
-            print(plot_args['data_label'])
-            label = plot_args['data_label'][i]
-            print(label)
+            if plot_args['data_label'][i] == '':
+                label = i
+            else:
+                label = plot_args['data_label'][i]
         else:
             label = None
         bar_pos = np.arange(n_ranges) - (0.4 - bar_width/2) + (i * bar_width)
@@ -426,6 +430,7 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chose
     n_plots = 0
     label = ''
     times = []
+    data_labels = []
     tracker_velocities = []
     tracker_amplitudes = []
     tracker_frequencies = []
@@ -453,16 +458,20 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chose
             cur_df = df[df[f'{chosen_video_data}-Tracker'] == n+1]
             x = cur_df[f'{chosen_video_data}-x (px)'].values * conversion_factor
             y = cur_df[f'{chosen_video_data}-y (px)'].values * conversion_factor
+            data_labels.append(cur_df[f'{chosen_video_data}-data_label'].unique()[0])
             time = cur_df[time_col].values
         elif data_multiplicity_type == DataMultiplicity.TRACKERS:
             cur_df = df[df['1-Tracker'] == n+1]
             x = cur_df['1-x (px)'].values * conversion_factor
             y = cur_df['1-y (px)'].values * conversion_factor
             time = cur_df[time_col].values
+            data_labels.append(cur_df['1-data_label'].unique()[0])
         elif data_multiplicity_type == DataMultiplicity.VIDEOS:
             x = df[f'{n+1}-x (px)'].values * conversion_factor
             y = df[f'{n+1}-y (px)'].values * conversion_factor
             time = df[time_col].values
+            data_labels.append(df[f'{n+1}-data_label'].unique()[0])
+
 
         # get differences
         dx = np.diff(x)
@@ -496,7 +505,7 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chose
         'title': r'Cell Velocity',
         'x_label': time_label,
         'y_label': rf'Magnitude of cell velocity, |$\frac{{v}}{{{time_unit}}}$| ({conversion_units})',
-        'data_label': [f"{label} {i+1}" for i in range(n_plots)],
+        'data_label': data_labels,
         'has_legend': True,
 
     }
@@ -532,11 +541,11 @@ def marker_distance(user_unit_conversion):
     time_col, time_label, _ = get_time_labels(df)
     _, _, num_tracker_datasets = get_num_datasets(df) # get num datasets
     n_trackers = df['1-Tracker'].unique().shape[0] # get number of trackers
+    data_labels = []
     rms_disps = []
     time = df[time_col].unique()
     print(n_trackers, num_tracker_datasets)
     n_plots = 0
-    label = ''
 
     # determine if there are multiple trackers and 1 video, or multiple videos and 1 tracker
     data_multiplicity_type = check_num_trackers_with_num_datasets(n_trackers, num_tracker_datasets)
@@ -552,6 +561,7 @@ def marker_distance(user_unit_conversion):
             x = cur_df['1-x (px)'].values * conversion_factor
             y = cur_df['1-y (px)'].values * conversion_factor
 
+            data_labels.append(cur_df['1-data_label'].unique()[0])
             rms_disps.append(rms_displacement(np.diff(x), np.diff(y)))
 
     elif data_multiplicity_type == DataMultiplicity.VIDEOS:
@@ -561,14 +571,14 @@ def marker_distance(user_unit_conversion):
         for dataset in range(num_tracker_datasets):
             x = df[f'{dataset+1}-x (px)'].values * conversion_factor
             y = df[f'{dataset+1}-y (px)'].values * conversion_factor
-
+            data_labels.append(df[f'{dataset+1}-data_label'].unique()[0])
             rms_disps.append(rms_displacement(np.diff(x), np.diff(y)))
 
     plot_args = {
         'title': 'Cell RMS Displacement',
         'x_label': time_label,
         'y_label': f'RMS ({conversion_units})',
-        'data_label': [f"{label} {i+1}" for i in range(n_plots)],
+        'data_label': data_labels,
         'has_legend': True
     }
     # plot marker velocity

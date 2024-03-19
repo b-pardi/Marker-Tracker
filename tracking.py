@@ -111,7 +111,8 @@ def track_markers(
         frame_interval,
         time_units,
         file_mode,
-        video_file_name):
+        video_file_name,
+        data_label):
     """main tracking loop of markers selected using marker selections from select_markers()
     saves distances of each mark each frame update to 'output/Tracking_Output.csv'
 
@@ -141,7 +142,7 @@ def track_markers(
         trackers[i].init(scaled_first_frame, bbox)
 
     # init tracking data dict
-    tracker_data = {'Frame': [], f'Time({time_units})': [], '1-Tracker': [], '1-x (px)': [], '1-y (px)': [], '1-video_file_name': video_file_name}
+    tracker_data = {'Frame': [], f'Time({time_units})': [], '1-Tracker': [], '1-x (px)': [], '1-y (px)': [], '1-video_file_name': video_file_name, '1-data_label': data_label}
     frame_num = 0
 
     # tracking loop
@@ -204,7 +205,8 @@ def track_markers(
                 '1-Tracker': f'{num_prev_trackers+1}-Tracker',
                 '1-x (px)': f'{num_prev_trackers+1}-x (px)',
                 '1-y (px)': f'{num_prev_trackers+1}-y (px)',
-                '1-video_file_name' : f'{num_prev_trackers+1}-video_file_name'
+                '1-video_file_name' : f'{num_prev_trackers+1}-video_file_name',
+                '1-data_label': f'{num_prev_trackers+1}-data_label'
             }, inplace=True)
         
         tracker_df_merged = pd.merge(tracker_df, cur_df, on='Frame', how='outer')
@@ -224,7 +226,8 @@ def necking_point(
         frame_interval,
         time_units,
         file_mode,
-        video_file_name
+        video_file_name,
+        data_label
     ):
 
     """necking point detection loop
@@ -243,7 +246,7 @@ def necking_point(
     """    
     x_interval = 50 # interval for how many blue line visuals to display
     frame_num = 0
-    dist_data = {'Frame': [], f'Time({time_units})': [], '1-x at necking point (px)': [], '1-y necking distance (px)': [], '1-video_file_name': video_file_name}
+    dist_data = {'Frame': [], f'Time({time_units})': [], '1-x at necking point (px)': [], '1-y necking distance (px)': [], '1-video_file_name': video_file_name, '1-data_label': data_label}
     percent_crop_left *= 0.01
     percent_crop_right *= 0.01
 
@@ -338,7 +341,8 @@ def necking_point(
         cur_df.rename(columns={
                 '1-x at necking point (px)': f'{num_prev_trackers+1}-x at necking point (px)',
                 '1-y necking distance (px)': f'{num_prev_trackers+1}-y necking distance (px)',
-                '1-video_file_name' : f'{num_prev_trackers+1}-video_file_name'
+                '1-video_file_name' : f'{num_prev_trackers+1}-video_file_name',
+                '1-data_label': f'{num_prev_trackers+1}-data_label'
             }, inplace=True)
         
         dist_df_merged = pd.merge(dist_df, cur_df, on='Frame', how='outer')
@@ -388,12 +392,13 @@ def track_area(
         time_units,
         distance_from_marker_thresh,
         file_mode,
-        video_file_name
+        video_file_name,
+        data_label
     ):
 
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_start)
     frame_num = frame_start
-    area_data = {'Frame': [], f'Time({time_units})': [], '1-x cell location': [], '1-y cell location': [], '1-cell surface area (px^2)': [], '1-video_file_name': video_file_name}
+    area_data = {'Frame': [], f'Time({time_units})': [], '1-x cell location': [], '1-y cell location': [], '1-cell surface area (px^2)': [], '1-video_file_name': video_file_name, '1-data_label': data_label}
     
     # init trackers
     trackers = []
@@ -507,7 +512,8 @@ def track_area(
                 '1-x cell location': f'{num_prev_trackers+1}-x cell location',
                 '1-y cell location': f'{num_prev_trackers+1}-y cell location',
                 '1-cell surface area (px^2)': f'{num_prev_trackers+1}-cell surface area (px^2)',
-                '1-video_file_name' : f'{num_prev_trackers+1}-video_file_name'
+                '1-video_file_name' : f'{num_prev_trackers+1}-video_file_name',
+                '1-data_label': f'{num_prev_trackers+1}-data_label'
             }, inplace=True)
         
         area_df_merged = pd.merge(area_df, cur_df, on='Frame', how='outer')
