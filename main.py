@@ -107,7 +107,13 @@ class TrackingUI:
         self.append_radio.grid(row=1, column=0)
         self.overwrite_radio = ttk.Radiobutton(self.append_or_overwrite_frame, text="Overwrite", variable=self.append_or_overwrite_var, value=2)
         self.overwrite_radio.grid(row=1, column=1)
-        self.append_or_overwrite_frame.grid(row=5, column=0, pady=12)
+        self.append_or_overwrite_frame.grid(row=6, column=0, pady=12)
+
+        # optional range identifier
+        range_identifier_label = ttk.Label(self.scrollable_frame, text="Enter an optional identifier label for the tracking data: ")
+        range_identifier_label.grid(row=7, column=0, pady=(8,4))
+        self.range_identifier_entry = ttk.Entry(self.scrollable_frame)
+        self.range_identifier_entry.grid(row=8, column=0, pady=(0,8))
 
         # radios for selecting operation
         self.operation_intvar = tk.IntVar()
@@ -119,9 +125,9 @@ class TrackingUI:
         operation_necking_radio.grid(row=0, column=1, padx=4, pady=(16, 4))
         operation_area_radio = ttk.Radiobutton(operation_frame, text="Surface area tracking", variable=self.operation_intvar, value=3, command=self.handle_radios, width=25, style='Outline.TButton')
         operation_area_radio.grid(row=1, column=0, columnspan=2, padx=4, pady=(4, 16))
-        operation_frame.grid(row=7, column=0)
+        operation_frame.grid(row=10, column=0)
         self.select_msg = ttk.Label(self.scrollable_frame, text="Select from above for more customizable parameters")
-        self.select_msg.grid(row=8, column=0)
+        self.select_msg.grid(row=11, column=0)
 
         # options for marker tracking
         self.tracking_frame = tk.Frame(self.scrollable_frame)
@@ -289,7 +295,7 @@ class TrackingUI:
 
     def handle_checkbuttons(self):
         if self.is_timelapse_var.get() == 1:
-            self.frame_interval_frame.grid(row=6, column=0)
+            self.frame_interval_frame.grid(row=5, column=0)
         else:
             self.frame_interval_frame.grid_forget()
 
@@ -301,17 +307,17 @@ class TrackingUI:
                 self.select_msg.grid_forget()
                 self.necking_frame.grid_forget()
                 self.area_frame.grid_forget()
-                self.tracking_frame.grid(row=9, column=0)
+                self.tracking_frame.grid(row=15, column=0)
             case 2:
                 self.select_msg.grid_forget()
                 self.tracking_frame.grid_forget()
                 self.area_frame.grid_forget()
-                self.necking_frame.grid(row=9, column=0)
+                self.necking_frame.grid(row=15, column=0)
             case 3:
                 self.select_msg.grid_forget()
                 self.necking_frame.grid_forget()
                 self.tracking_frame.grid_forget()
-                self.area_frame.grid(row=9, column=0)
+                self.area_frame.grid(row=15, column=0)
 
     def undo_last_tracking_append(self, fp):
         df = pd.read_csv(fp, index_col=None)
@@ -326,6 +332,22 @@ class TrackingUI:
             df.set_index('Frame')
             print(df)
             df.to_csv(fp, index=False)
+
+    def check_data_label(self, output_fp, cur_label):
+        data_label_err_flag = False
+        out_df = pd.read_csv(output_fp)
+        label_cols = [col for col in out_df.columns if 'data_label' in col]
+        for col in label_cols:
+            label = out_df[col].unique()
+            print(label)
+            if label == cur_label: # compare all prev range_ids to current
+                msg = "WARNING: Current data label already exists in the output data.\n"+\
+                "Please use a different data label for new data."
+                warning_popup(msg)
+                data_label_err_flag = True
+                break
+        
+        return data_label_err_flag
 
     def on_submit_tracking(self):
         """calls the appropriate functions with user spec'd args when tracking start button clicked"""        
@@ -368,6 +390,10 @@ class TrackingUI:
             error_popup(msg)
             return
 
+        # handle optional range identifier entry
+        range_id = self.range_identifier_entry.get()
+        data_label_err_flag = False
+
         match option:
             case 0:
                 msg = "ERROR: Please select a radio button for a tracking operation."
@@ -380,59 +406,77 @@ class TrackingUI:
                 elif self.tracker_choice_intvar.get() == 1:
                     tracker_choice = 'CSRT'
 
-                selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start) # prompt to select markers
-                print(f"marker locs: {selected_markers}")
-                if not selected_markers.__contains__((-1,-1)): # select_markers returns list of -1 if selections cancelled
-                    tracking.track_markers(
-                        selected_markers,
-                        first_frame,
-                        self.frame_start,
-                        self.frame_end,
-                        cap,
-                        bbox_size,
-                        tracker_choice,
-                        self.frame_interval,
-                        self.time_units,
-                        file_mode,
-                        video_name
-                    )
+                # check if range_id already used
+                if file_mode == FileMode.APPEND: # only need to check prev ids if appending
+                    data_label_err_flag = self.check_data_label('output/Tracking_Output.csv', range_id)
+
+                if not data_label_err_flag:
+                    selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start) # prompt to select markers
+                    print(f"marker locs: {selected_markers}")
+                    if not selected_markers.__contains__((-1,-1)): # select_markers returns list of -1 if selections cancelled
+                        tracking.track_markers(
+                            selected_markers,
+                            first_frame,
+                            self.frame_start,
+                            self.frame_end,
+                            cap,
+                            bbox_size,
+                            tracker_choice,
+                            self.frame_interval,
+                            self.time_units,
+                            file_mode,
+                            video_name,
+                            range_id
+                        )
             case 2:
                 percent_crop_right = float(self.percent_crop_right_entry.get())
                 percent_crop_left = float(self.percent_crop_left_entry.get())
                 binarize_intensity_thresh = int(self.binarize_intensity_thresh_entry.get())
 
-                print("Beginning Necking Point")
-                tracking.necking_point(
-                    cap,
-                    self.frame_start,
-                    self.frame_end,
-                    percent_crop_left,
-                    percent_crop_right,
-                    binarize_intensity_thresh,
-                    self.frame_interval,
-                    self.time_units,
-                    file_mode,
-                    video_name
-                )
+                # check if range_id already used
+                if file_mode == FileMode.APPEND: # only need to check prev ids if appending
+                    data_label_err_flag = self.check_data_label('output/Necking_Point_Output.csv', range_id)
 
-            case 3:
-                bbox_size = int(self.bbox_size_area_entry.get())
-                distance_from_marker_thresh = int(self.distance_from_marker_thresh_entry.get())
-                selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start) # prompt to select markers
-                print(f"marker locs: {selected_markers}")
-                if not selected_markers.__contains__((-1,-1)): # select_markers returns list of -1 if selections cancelled
-                    tracking.track_area(cap,
-                        selected_markers,
-                        first_frame,
-                        bbox_size,
+                if not data_label_err_flag:
+                    print("Beginning Necking Point")
+                    tracking.necking_point(
+                        cap,
                         self.frame_start,
                         self.frame_end,
+                        percent_crop_left,
+                        percent_crop_right,
+                        binarize_intensity_thresh,
                         self.frame_interval,
                         self.time_units,
-                        distance_from_marker_thresh,
                         file_mode,
-                        video_name
+                        video_name,
+                        range_id
                     )
+
+            case 3:
+                # check if range_id already used
+                if file_mode == FileMode.APPEND: # only need to check prev ids if appending
+                    data_label_err_flag = self.check_data_label('output/Tracking_Output.csv', range_id)
+
+                if not data_label_err_flag:
+                    bbox_size = int(self.bbox_size_area_entry.get())
+                    distance_from_marker_thresh = int(self.distance_from_marker_thresh_entry.get())
+                    selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start) # prompt to select markers
+                    print(f"marker locs: {selected_markers}")
+                    if not selected_markers.__contains__((-1,-1)): # select_markers returns list of -1 if selections cancelled
+                        tracking.track_area(cap,
+                            selected_markers,
+                            first_frame,
+                            bbox_size,
+                            self.frame_start,
+                            self.frame_end,
+                            self.frame_interval,
+                            self.time_units,
+                            distance_from_marker_thresh,
+                            file_mode,
+                            video_name,
+                            range_id
+                        )
 
     def get_file(self):
         """util function to prompt a file browser to select the video file that will be tracked
@@ -485,19 +529,19 @@ class FrameSelector:
                 background=[('selected', 'blue'), ('!selected', 'white')])
         
         self.frame_select_label = ttk.Label(self.child_window, textvariable=self.child_label_var)
-        self.frame_select_label.pack(pady=10)
+        self.frame_select_label.grid(pady=10)
         
         self.confirm_start_button = ttk.Button(self.child_window, text="Confirm start frame", command=self.confirm_start, style='Regular.TButton')
-        self.confirm_start_button.pack()
+        self.confirm_start_button.grid()
         self.confirm_end_button = ttk.Button(self.child_window, text="Confirm end frame", command=self.confirm_end, style='Regular.TButton')
-        self.confirm_end_button.pack()
+        self.confirm_end_button.grid()
         
         self.frame_display = ttk.Label(self.child_window, text="test")
-        self.frame_display.pack(pady=10)
+        self.frame_display.grid(pady=10)
         self.slider = ttk.Scale(self.child_window, from_=0, to=self.n_frames - 1, orient="horizontal", length=400,
                                 command=self.update_frames)
         self.slider.set(0)
-        self.slider.pack(pady=10)
+        self.slider.grid(pady=10)
 
         self.child_window.focus_set()
         self.child_window.bind("<Left>", lambda event: self.on_left_arrow(event))
@@ -577,30 +621,30 @@ class OutlierRemoval:
 
         # prompt for input of which dataset
         self.which_dataset = 1
-        self.which_dataset_label = ttk.Label(self.window, text="Enter number of which dataset to remove outliers from")
-        self.which_dataset_label.pack()
+        self.which_dataset_label = ttk.Label(self.window, text="Enter number of which dataset to remove outliers from: ")
+        self.which_dataset_label.grid(row=0, column=0, columnspan=2)
         self.which_dataset_entry = ttk.Entry(self.window)
         self.which_dataset_entry.insert(0, "1")
-        self.which_dataset_entry.pack()
+        self.which_dataset_entry.grid(row=0, column=2, padx=4, pady=8, columnspan=2)
 
         # radio buttons for file selection
         self.selected_data = tk.StringVar()
         self.marker_radio = ttk.Radiobutton(self.window, text="Marker deltas (Hydrogels)", variable=self.selected_data, value='marker_deltas', command=self.load_plot)
-        self.marker_radio.pack()
+        self.marker_radio.grid(row=1, column=0, padx=6, pady=8)
         self.necking_radio = ttk.Radiobutton(self.window, text="Necking point (Hydrogels)", variable=self.selected_data, value='necking_point', command=self.load_plot)
-        self.necking_radio.pack()
+        self.necking_radio.grid(row=1, column=1, padx=6, pady=8)
         self.marker_vel_radio = ttk.Radiobutton(self.window, text="Marker velocities (Cell tracking)", variable=self.selected_data, value='marker_tracking', command=self.load_plot)
-        self.marker_vel_radio.pack()
+        self.marker_vel_radio.grid(row=1, column=2, padx=6, pady=8)
         self.surface_area_radio = ttk.Radiobutton(self.window, text="Surface area (Cell tracking)", variable=self.selected_data, value='surface_area', command=self.load_plot)
-        self.surface_area_radio.pack()
+        self.surface_area_radio.grid(row=1, column=3, padx=6, pady=8)
 
         self.undo_removals_button = ttk.Button(self.window, text="Undo Selections", command=self.undo_selections)
-        self.undo_removals_button.pack(pady=12)
+        self.undo_removals_button.grid(row=5, column=0, columnspan=2, pady=8)
         self.confirm_button = ttk.Button(self.window, text="Confirm Removal", comman=self.confirm)
-        self.confirm_button.pack()
+        self.confirm_button.grid(row=5, column=2, columnspan=2, pady=8)
 
-        self.confirm_label = ttk.Label(self.window, text="Points removed!")
-        self.removed_label = ttk.Label(self.window, text="Selections undone")
+        self.confirm_label = ttk.Label(self.window, text="Points removed!", font=('TkDefaultFont', 12, 'bold'))
+        self.removed_label = ttk.Label(self.window, text="Selections undone", font=('TkDefaultFont', 12, 'bold'))
 
     def load_data(self, is_updating=False):
         self.which_dataset = int(self.which_dataset_entry.get())
@@ -670,7 +714,7 @@ class OutlierRemoval:
         if self.canvas:
             self.canvas.get_tk_widget().destroy()
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.window)
-        self.canvas.get_tk_widget().pack()
+        self.canvas.get_tk_widget().grid(row=10, column=0, columnspan=4)
         self.fig.canvas.mpl_connect('pick_event', self.onclick)
 
     def onclick(self, event):
@@ -691,16 +735,16 @@ class OutlierRemoval:
             self.canvas.draw()
 
     def undo_selections(self):
-        self.removed_label.pack()
-        self.window.after(5000, lambda: self.removed_label.pack_forget())
+        self.removed_label.grid(row=8, column=0, columnspan=4, pady=8)
+        self.window.after(5000, lambda: self.removed_label.grid_forget())
         plt.clf()
         self.fig = None
         self.ax = None
         self.plot_data()
         
     def confirm(self):
-        self.confirm_label.pack()
-        self.window.after(5000, lambda: self.confirm_label.pack_forget())
+        self.confirm_label.grid(row=9, column=0, columnspan=4, pady=8)
+        self.window.after(5000, lambda: self.confirm_label.grid_forget())
         orig_df = pd.read_csv(self.fp)
         print(orig_df)
         for col in self.df.columns:
