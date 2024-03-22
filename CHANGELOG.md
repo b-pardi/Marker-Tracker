@@ -9,14 +9,15 @@ Hydrogel
 Multi purpose
 - adjust outlier removal to work with multiple dataset readings
     - text field to enter either number or 'all'
-- identifier for plot legend labels
 - plot opt to fix axis limits
 
 Cell Mechanics
 - see about surface tracking on the lighter videos
 
-
 # Changelog
+
+3/21
+- added data labels to remaining analysis functions
 
 3/18
 - cleaned up outlier removal tool opting for grid instead of pack for ui elements

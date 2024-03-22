@@ -243,22 +243,24 @@ def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True)
     m1_y = m1_df['1-y (px)'].values * conversion_factor
     m2_x = m2_df['1-x (px)'].values * conversion_factor
     m2_y = m2_df['1-y (px)'].values * conversion_factor
+    data_labels = []
 
     # find euclidean distances of markers
     marker_distances = []
     for i in range(len(time)):
         euclidean_dist = marker_euclidean_distance(m1_x[i], m1_y[i], m2_x[i], m2_y[i])
         marker_distances.append(np.abs(euclidean_dist))
+        data_labels.append(df['1-data_label'].unique()[0])
     
     # longitudinal strain (deltaL / L0)
     L0 = marker_distances[0]
     longitudinal_strain = [(L-L0) / L0 for L in marker_distances]
 
     plot_args = {
-        'title': r'Longitudinal Strain of Hydrogel$',
+        'title': r'Longitudinal Strain of Hydrogel',
         'x_label': time_label,
         'y_label': r'Longitudinal Strain, ${\epsilon}_{l}$',
-        'data_label': None,
+        'data_label': data_labels,
         'has_legend': False
     }
 
@@ -278,7 +280,7 @@ def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True)
         # plot difference between euclidean and horizontal differences
         plot_args['title'] = 'Euclidean and Horizontal Differences'
         plot_args['y_label'] = rf'Marker elongation, $\mathit{{{conversion_units}}}$'
-        plot_args['data_label'] = None
+        plot_args['data_label'] = data_labels
         fig, ax = plot_scatter_data(time, [np.abs(marker_distances - np.abs(m2_x-m1_x))], plot_args, n_datasets=1) # plot x distance as well for control/comparison
         fig.savefig("figures/marker_euclidean_horizontal_differences.png")
 
@@ -306,8 +308,10 @@ def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True)
 
     time_col, time_label, _ = get_time_labels(df)
     time = df[time_col].values
+    data_labels = []
     necking_pt_x = df['1-x at necking point (px)'].values * conversion_factor
     necking_pt_len = df['1-y necking distance (px)'].values * conversion_factor
+    data_labels.append(df['1-data_label'].unique()[0])
 
     # radial strain (deltaR / R0)
     R0 = necking_pt_len[0]
@@ -317,7 +321,7 @@ def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True)
         'title': 'Radial Strain of Hydrogel',
         'x_label': time_label,
         'y_label': r'Radial strain, ${\epsilon}_{r}$',
-        'data_label': None,
+        'data_label': data_labels,
         'has_legend': False
     }
 
@@ -344,9 +348,10 @@ def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True)
 
 def poissons_ratio(user_unit_conversion):
     conversion_factor, conversion_units = user_unit_conversion
-    marker_time, longitudinal_strain, _ = analyze_marker_deltas(user_unit_conversion)
+    marker_time, longitudinal_strain, plot_args = analyze_marker_deltas(user_unit_conversion)
     necking_time, radial_strain, _ = analyze_necking_point(user_unit_conversion)
-
+    data_label = plot_args['data_label']
+    print("LABEL", plot_args['data_label'])
     print("Finding Poisson's ratio...")
 
     # ensure tracking operations previously ran on the same data in the same time range
@@ -378,13 +383,8 @@ def poissons_ratio(user_unit_conversion):
     print(poissons_df)
     poissons_df.to_csv("output/poissons_ratio.csv")
 
-    plot_args = {
-        'title': r"Poisson's Ratio - $\mathit{\nu(t)}$",
-        'x_label': time_label,
-        'y_label': r"Poisson's ratio, $\mathit{\nu}$",
-        'data_label': None,
-        'has_legend': False
-    }
+    plot_args['title'] = r"Poisson's Ratio - $\mathit{\nu(t)}$"
+    plot_args['y_label'] = r"Poisson's ratio, $\mathit{\nu}$"
 
     # plot poissons ratio against time
     poisson_fig, poisson_ax = plot_scatter_data(poissons_df['time'], [poissons_df['v']], plot_args, n_datasets=1)
@@ -471,7 +471,6 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chose
             y = df[f'{n+1}-y (px)'].values * conversion_factor
             time = df[time_col].values
             data_labels.append(df[f'{n+1}-data_label'].unique()[0])
-
 
         # get differences
         dx = np.diff(x)
@@ -598,15 +597,18 @@ def single_marker_spread(user_unit_conversion, df=None, will_save_figures=True, 
     data_multiplicity_type = check_num_trackers_with_num_datasets(1, num_tracker_datasets)
 
     surface_areas = []
+    data_labels = []
     time = df[time_col].values
     for i in range(num_tracker_datasets):
         if data_multiplicity_type == DataMultiplicity.SINGLE:
             if chosen_video_data is None:
                 chosen_video_data = 1
             surface_area = df[f'{chosen_video_data}-cell surface area (px^2)'].values * conversion_factor
+            data_labels.append(df[f'{chosen_video_data}-data_label'].unique()[0])
         else:
             surface_area = df[f'{i+1}-cell surface area (px^2)'].values * conversion_factor
-        
+            data_labels.append(df[f'{i+1}-data_label'].unique()[0])
+
         surface_areas.append(surface_area)
 
     # plot
@@ -614,10 +616,10 @@ def single_marker_spread(user_unit_conversion, df=None, will_save_figures=True, 
         'title': r'Cell Surface Area Spread',
         'x_label': time_label,
         'y_label': rf'Surface area, ({conversion_units})',
-        'data_label': [f"Video {i+1}" for i in range(num_tracker_datasets)],
+        'data_label': data_labels,
         'has_legend': True,
-
     }
+
     if will_save_figures:
         # plot marker velocity
         area_fig, area_ax = plot_scatter_data(time, surface_areas, plot_args, num_tracker_datasets)
