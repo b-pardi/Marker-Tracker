@@ -45,13 +45,13 @@ def rms_displacement(dx, dy):
 def get_time_labels(df):
     time_col = df.filter(like='Time').columns[0]
     time_label = r'Time, $\mathit{t}$ (s)'
-    time_unit = 's'
+    time_unit = TimeUnits.SECONDS.value
     if time_col.__contains__('min'):
         time_label = r'Time, $\mathit{t}$ (min)'
-        time_unit = 'min'
+        time_unit = TimeUnits.MINUTES.value
     if time_col.__contains__('hr'):
         time_label = r'Time, $\mathit{t}$ (hr)'
-        time_unit = 'hr'
+        time_unit = TimeUnits.HOURS.value
 
     return time_col, time_label, time_unit
 
@@ -116,9 +116,10 @@ def plot_scatter_data(x, y, plot_args, n_datasets, fig=None, ax=None):
         else:
             color = f'C{i}'
 
+        print(plot_args['data_label'])
         if plot_args['data_label'] is not None:
-            if plot_args['data_label'][i] == '':
-                label = i
+            if pd.isna(pd.Series(plot_args['data_label']).iloc[i]): # gross but effective way to check if nan or string
+                label = f"data {i}"
             else:
                 label = plot_args['data_label'][i]
         else:
@@ -138,6 +139,9 @@ def plot_scatter_data(x, y, plot_args, n_datasets, fig=None, ax=None):
     plt.xlabel(plot_args['x_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
     plt.ylabel(plot_args['y_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
     plt.tick_params(axis='both', direction=plot_customs['tick_dir'])
+    y_lower_bound = None if plot_customs['y_lower_bound'] == 'auto' else float(plot_customs['y_lower_bound'])
+    y_upper_bound = None if plot_customs['y_upper_bound'] == 'auto' else float(plot_customs['y_upper_bound'])    
+    plt.ylim(y_lower_bound, y_upper_bound)
     plt.title(plot_args['title'], fontsize=plot_customs['title_text_size'], fontfamily=font)
     plt.tight_layout()
 
@@ -410,13 +414,8 @@ def poissons_ratio(user_unit_conversion):
 
 def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chosen_video_data=None):
     print("Finding Marker Velocity...")
-    if len(user_unit_conversion) == 3:
-        conversion_factor, conversion_units, n_ranges = user_unit_conversion
-    else:
-        conversion_factor, conversion_units = user_unit_conversion
-        n_ranges = 5
 
-
+    conversion_factor, conversion_units = user_unit_conversion
     if not isinstance(df, pd.DataFrame):
         df = pd.read_csv("output/Tracking_Output.csv") # open csv created/modified from marker tracking process
     print(df.head())
@@ -428,7 +427,6 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chose
     else:
         n_trackers = df[f'{chosen_video_data}-Tracker'].unique().shape[0] # get number of trackers
     n_plots = 0
-    label = ''
     times = []
     data_labels = []
     tracker_velocities = []
@@ -512,10 +510,6 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chose
         # plot marker velocity
         vel_fig, vel_ax = plot_scatter_data(times[0], tracker_velocities, plot_args, n_plots)
         vel_fig.savefig("figures/marker_velocity.png")
-
-        # plot bar graph of average cell velocities in time range
-        avg_vel_fig, avg_vel_ax = plot_avgs_bar_data(n_ranges, times[0], tracker_velocities, plot_args, n_plots)
-        avg_vel_fig.savefig("figures/average_marker_velocity.png")
 
         # plot fourier transform of marker distances
         plot_args['title'] = 'Marker Velocity FFT'

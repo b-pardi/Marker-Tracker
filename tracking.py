@@ -125,10 +125,10 @@ def track_markers(
     """    
     # create trackers
     trackers = []
-    if tracker_choice == 'KCF':
+    if tracker_choice == TrackerChoice.KCF:
         for _ in range(len(marker_positions)):
             trackers.append(cv2.TrackerKCF_create())
-    elif tracker_choice == 'CSRT':
+    elif tracker_choice == TrackerChoice.CSRT:
         for _ in range(len(marker_positions)):
             trackers.append(cv2.TrackerCSRT_create())
 
@@ -352,6 +352,18 @@ def necking_point(
     cv2.destroyAllWindows()
 
 
+def noise_reduction(frame):
+    # Apply Median Filtering
+    median_filtered = cv2.medianBlur(frame, 7)
+
+    # Apply Non-local Means Denoising
+    non_local_means = cv2.fastNlMeansDenoising(median_filtered, h=15, templateWindowSize=5, searchWindowSize=17)
+    
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(12, 12))
+    equalized = clahe.apply(non_local_means)
+    return equalized
+
+
 def improve_binarization(frame):    
     # Apply CLAHE (Contrast Limited Adaptive Histogram Equalization)
     # boosts contrast
@@ -436,7 +448,11 @@ def track_area(
             cv2.destroyAllWindows()
             return
 
-        # Thresholding
+        # preprocessing
+
+        # reduce static noise (WIP)
+        #noise_reduced_frame = noise_reduction(gray_frame)
+
         #_, binary_frame = cv2.threshold(blur_frame, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         binary_frame = improve_binarization(gray_frame)
 
@@ -485,7 +501,7 @@ def track_area(
         area_data['1-y cell location'].append(int((marker_center[1] / scale_factor)))
         area_data['1-cell surface area (px^2)'].append(max_area)
 
-        #cv2.imshow('Surface Area Tracking', adaptive_thresh)
+        #cv2.imshow('Surface Area Tracking', noise_reduced_frame)
         cv2.imshow('Surface Area Tracking', scaled_frame)
         if cv2.waitKey(1) == 27:
             break

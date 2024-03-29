@@ -2,19 +2,36 @@
 
 ## TODO
 Housekeeping
-- switch possible options to Enums
 
 Hydrogel
 
 Multi purpose
 - adjust outlier removal to work with multiple dataset readings
     - text field to enter either number or 'all'
-- plot opt to fix axis limits
 
 Cell Mechanics
 - see about surface tracking on the lighter videos
 
 # Changelog
+
+3/28
+- removed bar plots for cell velocity
+- added ui elements to set axis limits
+    - when entering bounds, clicking 'Set limits' will save the values to the plot customs json
+    - if empty this defaults to auto
+- scatter plot function now reads 2 new variables, "y_lower_bound" and "y_upper_bound"
+- these bounds set the axis limits of the plots
+    - if it reads 'auto', sets plt.ylim as None for whichever bounds read 'auto'
+- fixed data label issue where if no data label entered the plot legend would put 'nan'
+    - changed how data label checks for nan using a pd.Series
+    - if nan, sets data label to 'data {i}' where {i} is the index of the dataset being plotted
+- refactored use of FileMode enum with tk int vars in a way that's more intuitive
+- restructured handling of the following ui options, opting for enums instead of string comparisons:
+    - time units
+    - tracking operation
+    - tracker (algorithm) choice
+- began noise reduction function for reducing incredibly noisy videos for surface tracking
+
 
 3/21
 - added data labels to remaining analysis functions

@@ -16,10 +16,6 @@
     "fig_format": "png",
     "fig_dpi": 200,
     "points_plotted_index": 1,
-    "time_lower_bound": "auto",
-    "time_upper_bound": "auto",
-    "frequency_lower_bound": "auto",
-    "frequency_upper_bound": "auto",
-    "dissipation_lower_bound": "auto",
-    "dissipation_upper_bound": "auto"
+    "y_lower_bound": "auto",
+    "y_upper_bound": "auto"
 }
