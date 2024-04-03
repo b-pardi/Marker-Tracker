@@ -144,6 +144,7 @@ def plot_scatter_data(x, y, plot_args, n_datasets, fig=None, ax=None):
     plt.ylim(y_lower_bound, y_upper_bound)
     plt.title(plot_args['title'], fontsize=plot_customs['title_text_size'], fontfamily=font)
     plt.tight_layout()
+    plt.figure(constrained_layout=True)
 
     return fig, ax
 
@@ -501,7 +502,7 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chose
     plot_args = {
         'title': r'Cell Velocity',
         'x_label': time_label,
-        'y_label': rf'Magnitude of cell velocity, |$\frac{{v}}{{{time_unit}}}$| ({conversion_units})',
+        'y_label': rf'Magnitude of cell velocity, $|\mathit{{v}}|$ $(\frac{{{conversion_units}}}{{{time_unit}}})$',
         'data_label': data_labels,
         'has_legend': True,
 
@@ -568,9 +569,9 @@ def marker_distance(user_unit_conversion):
             rms_disps.append(rms_displacement(np.diff(x), np.diff(y)))
 
     plot_args = {
-        'title': 'Cell RMS Displacement',
+        'title': 'Root mean square Displacement',
         'x_label': time_label,
-        'y_label': f'RMS ({conversion_units})',
+        'y_label': r'Root mean square Displacement, $\mathit{D_{rms}}$' + rf' ({conversion_units})    ',
         'data_label': data_labels,
         'has_legend': True
     }
@@ -609,7 +610,7 @@ def single_marker_spread(user_unit_conversion, df=None, will_save_figures=True, 
     plot_args = {
         'title': r'Cell Surface Area Spread',
         'x_label': time_label,
-        'y_label': rf'Surface area, ({conversion_units})',
+        'y_label': rf'Projected cell area, $\mathit{{A}}$ ' + rf'({conversion_units})$^{{2}}$',
         'data_label': data_labels,
         'has_legend': True,
     }

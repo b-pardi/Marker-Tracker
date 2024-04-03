@@ -6,13 +6,18 @@ Housekeeping
 Hydrogel
 
 Multi purpose
-- adjust outlier removal to work with multiple dataset readings
-    - text field to enter either number or 'all'
 
 Cell Mechanics
+- box plots for single and multiple conditions
+    - for multiple conditions user will put a keyword in the data label that will be in all data labels of a certain condition
+        - i.e. elastic-cell1, elastic-cell2, stiff-cell1, stiff-cell2
+    
 - see about surface tracking on the lighter videos
 
 # Changelog
+
+4/2
+- various plot formatting
 
 3/28
 - removed bar plots for cell velocity
