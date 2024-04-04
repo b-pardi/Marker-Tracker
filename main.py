@@ -60,16 +60,21 @@ class TrackingUI:
         #self.scrollable_frame.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
         self.scrollable_frame.bind("<Configure>", self.on_frame_configure)
         
+        # section 1 houses tracking/recording related widgets
+        self.section1 = tk.Frame(self.scrollable_frame)
+        sect1_header = ttk.Label(self.section1, text="Tracking & Recording", font=('TkDefaultFont', 14, 'bold'))
+        sect1_header.grid(row=0, column=0)
+
         # file browse button
         self.video_path = ""
-        file_btn = ttk.Button(self.scrollable_frame, text="Browse for video file", command=self.get_file, style='Regular.TButton')
-        file_btn.grid(row=0, column=0, padx=32, pady=24)
+        file_btn = ttk.Button(self.section1, text="Browse for video file", command=self.get_file, style='Regular.TButton')
+        file_btn.grid(row=1, column=0, padx=32, pady=24)
 
         # file name label
         self.data_label_var = tk.StringVar()
         self.data_label_var.set("File not selected")
-        data_label = ttk.Label(self.scrollable_frame, textvariable=self.data_label_var)
-        data_label.grid(row=1, column=0, pady=(0,8))
+        data_label = ttk.Label(self.section1, textvariable=self.data_label_var)
+        data_label.grid(row=2, column=0, pady=(0,8))
 
         # frame selection button
         self.frame_start = -1
@@ -77,18 +82,18 @@ class TrackingUI:
         self.child = None
         self.frame_label_var = tk.StringVar()
         self.frame_label_var.set("Frame range: FULL")
-        self.frame_label = ttk.Label(self.scrollable_frame, textvariable=self.frame_label_var)
-        self.frame_selector_btn = ttk.Button(self.scrollable_frame, text="Select start/end frames", command=self.select_frames, style='Regular.TButton')
-        self.frame_selector_btn.grid(row=2, pady=(12,4))
-        self.frame_label.grid(row=3, column=0, pady=(0,8))
+        self.frame_label = ttk.Label(self.section1, textvariable=self.frame_label_var)
+        self.frame_selector_btn = ttk.Button(self.section1, text="Select start/end frames", command=self.select_frames, style='Regular.TButton')
+        self.frame_selector_btn.grid(row=3, pady=(12,4))
+        self.frame_label.grid(row=4, column=0, pady=(0,8))
 
         # frame interval input
         self.frame_interval = 0
         self.time_units = TimeUnits.SECONDS
         self.is_timelapse_var = tk.IntVar()
-        is_timelapse_check = ttk.Checkbutton(self.scrollable_frame, text="Is this video a timelapse? ", variable=self.is_timelapse_var, onvalue=1, offvalue=0, command=self.handle_checkbuttons)
-        is_timelapse_check.grid(row=4, column=0)
-        self.frame_interval_frame = tk.Frame(self.scrollable_frame)
+        is_timelapse_check = ttk.Checkbutton(self.section1, text="Is this video a timelapse? ", variable=self.is_timelapse_var, onvalue=1, offvalue=0, command=self.handle_checkbuttons)
+        is_timelapse_check.grid(row=5, column=0)
+        self.frame_interval_frame = tk.Frame(self.section1)
         time_units_label = ttk.Label(self.frame_interval_frame, text="Units of time:")
         time_units_label.grid(row=0, column=0, columnspan=3, pady=6)
 
@@ -109,7 +114,7 @@ class TrackingUI:
         time_units_frame.grid(row=1, column=0, columnspan=2)
 
         # indicate if appending data
-        self.append_or_overwrite_frame = tk.Frame(self.scrollable_frame)
+        self.append_or_overwrite_frame = tk.Frame(self.section1)
         self.append_or_overwrite_var = tk.IntVar()
         self.append_or_overwrite_var.set(FileMode.UNSELECTED.value)
         append_or_overwrite_label = ttk.Label(self.append_or_overwrite_frame, text="Append or overwrite existing tracking data?\n")
@@ -118,18 +123,18 @@ class TrackingUI:
         self.append_radio.grid(row=1, column=0)
         self.overwrite_radio = ttk.Radiobutton(self.append_or_overwrite_frame, text="Overwrite", variable=self.append_or_overwrite_var, value=FileMode.OVERWRITE.value)
         self.overwrite_radio.grid(row=1, column=1)
-        self.append_or_overwrite_frame.grid(row=6, column=0, pady=12)
+        self.append_or_overwrite_frame.grid(row=7, column=0, pady=12)
 
         # optional range identifier
-        range_identifier_label = ttk.Label(self.scrollable_frame, text="Enter an optional identifier label for the tracking data: ")
-        range_identifier_label.grid(row=7, column=0, pady=(8,4))
-        self.range_identifier_entry = ttk.Entry(self.scrollable_frame)
-        self.range_identifier_entry.grid(row=8, column=0, pady=(0,8))
+        range_identifier_label = ttk.Label(self.section1, text="Enter an optional identifier label for the tracking data: ")
+        range_identifier_label.grid(row=8, column=0, pady=(8,4))
+        self.range_identifier_entry = ttk.Entry(self.section1)
+        self.range_identifier_entry.grid(row=9, column=0, pady=(0,8))
 
         # radios for selecting operation
         self.operation_intvar = tk.IntVar()
         self.operation_intvar.set(TrackingOperation.UNSELECTED.value)
-        operation_frame = tk.Frame(self.scrollable_frame)
+        operation_frame = tk.Frame(self.section1)
         operation_tracking_radio = ttk.Radiobutton(operation_frame, text="Marker tracking", variable=self.operation_intvar, value=TrackingOperation.MARKERS.value, command=self.handle_radios, width=25, style='Outline.TButton')
         operation_tracking_radio.grid(row=0, column=0, padx=4, pady=(16, 4))
         operation_necking_radio = ttk.Radiobutton(operation_frame, text="Necking point detection", variable=self.operation_intvar, value=TrackingOperation.NECKING.value, command=self.handle_radios, width=25, style='Outline.TButton')
@@ -137,11 +142,11 @@ class TrackingUI:
         operation_area_radio = ttk.Radiobutton(operation_frame, text="Surface area tracking", variable=self.operation_intvar, value=TrackingOperation.AREA.value, command=self.handle_radios, width=25, style='Outline.TButton')
         operation_area_radio.grid(row=1, column=0, columnspan=2, padx=4, pady=(4, 16))
         operation_frame.grid(row=10, column=0)
-        self.select_msg = ttk.Label(self.scrollable_frame, text="Select from above for more customizable parameters")
+        self.select_msg = ttk.Label(self.section1, text="Select from above for more customizable parameters")
         self.select_msg.grid(row=11, column=0)
 
         # options for marker tracking
-        self.tracking_frame = tk.Frame(self.scrollable_frame)
+        self.tracking_frame = tk.Frame(self.section1)
         bbox_tracking_size_label = ttk.Label(self.tracking_frame, text="Tracker bounding box size (px)")
         bbox_tracking_size_label.grid(row=0, column=0, padx=4, pady=8)
         self.bbox_size_tracking_entry = ttk.Entry(self.tracking_frame, width=10)
@@ -158,7 +163,7 @@ class TrackingUI:
         tracker_CSRT_radio.grid(row=2, column=1, padx=4)
 
         # options for necking point
-        self.necking_frame = tk.Frame(self.scrollable_frame)
+        self.necking_frame = tk.Frame(self.section1)
         percent_crop_label = ttk.Label(self.necking_frame, text="% of video width to\nexclude outter edges of\n(0 for none)")
         percent_crop_label.grid(row=0, column=0, rowspan=2, padx=4, pady=8)
         percent_crop_left_label = ttk.Label(self.necking_frame, text="left edge") 
@@ -180,27 +185,25 @@ class TrackingUI:
         self.binarize_intensity_thresh_entry.grid(row=2, column=1, columnspan=2, padx=4, pady=8)
 
         # options for surface area tracking
-        self.area_frame = tk.Frame(self.scrollable_frame)
+        self.area_frame = tk.Frame(self.section1)
         bbox_area_size_label = ttk.Label(self.area_frame, text="Tracker bounding box size (px)")
         bbox_area_size_label.grid(row=0, column=0, padx=4, pady=8)
         self.bbox_size_area_entry = ttk.Entry(self.area_frame, width=10)
         self.bbox_size_area_entry.insert(0, "100")
         self.bbox_size_area_entry.grid(row=0, column=1, padx=4, pady=8)
-
         distance_from_marker_thresh_label = ttk.Label(self.area_frame, text="Max distance from marker to find contours (px)")
         distance_from_marker_thresh_label.grid(row=1, column=0, padx=4, pady=8)
         self.distance_from_marker_thresh_entry = ttk.Entry(self.area_frame, width=10)
         self.distance_from_marker_thresh_entry.insert(0, "150")
         self.distance_from_marker_thresh_entry.grid(row=1, column=1, padx=4, pady=8)
 
-        # submission fields/buttons
-        submission_frame = tk.Frame(self.scrollable_frame)
-        track_btn = ttk.Button(submission_frame, text="Begin tracking", command=self.on_submit_tracking, style='Regular.TButton')
+        # tracking operation buttons
+        track_record_frame = tk.Frame(self.section1)
+        track_btn = ttk.Button(track_record_frame, text="Begin tracking", command=self.on_submit_tracking, style='Regular.TButton')
         track_btn.grid(row=0, column=0, columnspan=2, padx=32, pady=(24,4))
-        remove_outliers_button = ttk.Button(submission_frame, text="Remove outliers", command=self.remove_outliers, style='Regular.TButton')
+        remove_outliers_button = ttk.Button(track_record_frame, text="Remove outliers", command=self.remove_outliers, style='Regular.TButton')
         remove_outliers_button.grid(row=1, column=0, columnspan=2, padx=32, pady=(4,24))
-        
-        undo_buttons_frame = tk.Frame(submission_frame)
+        undo_buttons_frame = tk.Frame(track_record_frame)
         undo_label = ttk.Label(undo_buttons_frame, text="Undo previous appended tracking data recording.")
         undo_label.grid(row=0, column=0, columnspan=3)
         undo_marker_tracking_append_btn = ttk.Button(undo_buttons_frame, text="Marker tracking", command=lambda: self.undo_last_tracking_append("output/Tracking_Output.csv"), style='Regular.TButton')
@@ -210,9 +213,16 @@ class TrackingUI:
         undo_surface_tracking_append_btn = ttk.Button(undo_buttons_frame, text="Surface area", command=lambda: self.undo_last_tracking_append("output/Surface_Area_Output.csv"), style='Regular.TButton')
         undo_surface_tracking_append_btn.grid(row=1, column=2)
         undo_buttons_frame.grid(row=2, column=0, columnspan=2, pady=(8,20))
+        track_record_frame.grid(row=18, column=0)
+        self.section1.grid(row=0, column=0)
+
+        # section 2 pertains to data analysis
+        section2 = tk.Frame(self.scrollable_frame)
+        sect2_header = ttk.Label(section2, text="Data Analysis", font=('TkDefaultFont', 14, 'bold'))
+        sect2_header.grid(row=0, column=0)
 
         # some data dependent graph options (more in plot_opts.json)
-        graph_opts_frame = tk.Frame(submission_frame)
+        graph_opts_frame = tk.Frame(section2)
         graph_opts_label = ttk.Label(graph_opts_frame, text="Data dependent graph options")
         graph_opts_label.grid(row=0, column=0, columnspan=2, pady=(0,12))
         conversion_factor_label = ttk.Label(graph_opts_frame, text="Enter the conversion factor\nto convert pixels to\nyour desired units: ")
@@ -238,8 +248,10 @@ class TrackingUI:
         self.upper_limit_entry.grid(row=5, column=1, pady=(0, 16))
         set_limits_btn = ttk.Button(graph_opts_frame, text="Set limits", command=self.set_axis_limits, style='Regular.TButton')
         set_limits_btn.grid(row=6, column=0, columnspan=2)
-        graph_opts_frame.grid(row=3, column=0, columnspan=2, pady=16)
+        graph_opts_frame.grid(row=1, column=0, pady=16)
 
+        # submission fields/buttons
+        submission_frame = tk.Frame(section2)
         marker_deltas_btn = ttk.Button(submission_frame, text="Marker deltas analysis", command=lambda: analysis.analyze_marker_deltas((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
         marker_deltas_btn.grid(row=6, column=0, padx=4, pady=4)
         necking_pt_btn = ttk.Button(submission_frame, text="Necking point analysis", command=lambda: analysis.analyze_necking_point((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
@@ -247,20 +259,32 @@ class TrackingUI:
         poissons_ratio_btn = ttk.Button(submission_frame, text="Poisson's ratio", command=lambda: analysis.poissons_ratio((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
         poissons_ratio_btn.grid(row=8, column=0, padx=4, pady=4)
 
-        cell_velocity_btn = ttk.Button(submission_frame, text="Marker velocity", command=lambda: analysis.marker_velocity((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
-        cell_velocity_btn.grid(row=6, column=1, padx=4, pady=4)
         cell_distance_btn = ttk.Button(submission_frame, text="Marker distance", command=lambda: analysis.marker_distance((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
-        cell_distance_btn.grid(row=7, column=1, padx=4, pady=4)
+        cell_distance_btn.grid(row=6, column=1, padx=4, pady=4)
         cell_spread_btn = ttk.Button(submission_frame, text="Marker spread", command=lambda: analysis.single_marker_spread((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
-        cell_spread_btn.grid(row=8, column=1, padx=4, pady=4)
+        cell_spread_btn.grid(row=7, column=1, padx=4, pady=4)
+        cell_velocity_btn = ttk.Button(submission_frame, text="Marker velocity", command=lambda: analysis.marker_velocity((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
+        cell_velocity_btn.grid(row=8, column=1, padx=4, pady=4)
+        
+        self.cell_velocity_boxplot_opts_var = tk.IntVar()
+        cell_velocity_boxplot_opts_check = ttk.Checkbutton(submission_frame, text="Velocity boxplot", variable=self.cell_velocity_boxplot_opts_var, onvalue=1, offvalue=0, command=self.handle_boxplot_opts_blit)
+        cell_velocity_boxplot_opts_check.grid(row=9, column=1)
+        self.cell_velocity_boxplot_opts_frame = tk.Frame(submission_frame)
+        self.boxplot_keywords_label = ttk.Label(self.cell_velocity_boxplot_opts_frame, text="Enter list of conditions used in data labels\nfor boxplot categories separated by commas")
+        self.boxplot_keywords_label.grid(row=0, column=0, pady=(16,4))
+        self.boxplot_keywords_entry = ttk.Entry(self.cell_velocity_boxplot_opts_frame, width=40)
+        self.boxplot_keywords_entry.grid(row=1, column=0)
+        self.boxplot_button = ttk.Button(self.cell_velocity_boxplot_opts_frame, text="Cell velocities boxplot", command=self.call_boxplot, style='Regular.TButton')
+        self.boxplot_button.grid(row=2, column=0, pady=(8, 20))
 
         exit_btn = ttk.Button(submission_frame, text='Exit', command=sys.exit, style='Regular.TButton')
         exit_btn.grid(row=20, column=0, columnspan=2, padx=32, pady=(24,12))
-        submission_frame.grid(row=20, column=0)
+        submission_frame.grid(row=2, column=0)
 
         self.adjust_window_size()        
         self.scrollable_frame.bind("<Enter>", lambda e: self.scrollable_frame.bind_all("<MouseWheel>", self.on_mousewheel))
         self.scrollable_frame.bind("<Leave>", lambda e: self.scrollable_frame.unbind_all("<MouseWheel>"))
+        section2.grid(row=0, column=1, padx=(64,16),sticky='n')
 
     def on_frame_configure(self, event):
         '''Reset the scroll region to encompass the inner frame and adjust window size if necessary'''
@@ -337,7 +361,7 @@ class TrackingUI:
 
     def handle_checkbuttons(self):
         if self.is_timelapse_var.get() == 1:
-            self.frame_interval_frame.grid(row=5, column=0)
+            self.frame_interval_frame.grid(row=6, column=0)
         else:
             self.frame_interval_frame.grid_forget()
 
@@ -380,9 +404,13 @@ class TrackingUI:
         out_df = pd.read_csv(output_fp)
         label_cols = [col for col in out_df.columns if 'data_label' in col]
         for col in label_cols:
+
             label = out_df[col].unique()
-            print(label)
-            if label == cur_label: # compare all prev range_ids to current
+            for item in label:
+                print(type(item), item)
+                label_parsed = [item for item in label if isinstance(item, str)]
+            print(label, label_parsed, cur_label)
+            if cur_label == label_parsed[0]: # compare all prev range_ids to current
                 msg = "WARNING: Current data label already exists in the output data.\n"+\
                 "Please use a different data label for new data."
                 warning_popup(msg)
@@ -390,6 +418,19 @@ class TrackingUI:
                 break
         
         return data_label_err_flag
+
+    def handle_boxplot_opts_blit(self):
+        if self.cell_velocity_boxplot_opts_var.get() == 1:
+            self.cell_velocity_boxplot_opts_frame.grid(row=10, column=0, columnspan=2)
+        else:
+            self.cell_velocity_boxplot_opts_frame.grid_forget()
+
+    def call_boxplot(self):
+        conditions = self.boxplot_keywords_entry.get()
+        conditions = conditions.split(',')
+        conditions_parsed = [c.strip() for c in conditions]
+
+        analysis.velocity_boxplot(conditions_parsed, (float(self.conversion_factor_entry.get()), self.conversion_units_entry.get()))
 
     def on_submit_tracking(self):
         """calls the appropriate functions with user spec'd args when tracking start button clicked"""        
@@ -435,6 +476,10 @@ class TrackingUI:
         # handle optional range identifier entry
         range_id = self.range_identifier_entry.get()
         data_label_err_flag = False
+        if range_id.__contains__(','): # check if range_id has commas
+            msg = "Error: Please avoid using commas in data labels."
+            data_label_err_flag = True
+            error_popup(msg)
 
         match option:
             case TrackingOperation.UNSELECTED:

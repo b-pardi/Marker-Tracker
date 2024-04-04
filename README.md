@@ -41,9 +41,15 @@
         - The software will let you record multiple videos each with multiple markers, but will not be able to handle analysis
         - If you need to record data for multiple videos each with multiple markers, you can rerun the tracking operation on the same video and selecting a different object to track, essentially 1 marker per tracking operation, but multiple tracking operations are done on the same video.
 
+- Enter an optional label that will be associated with the data you are about to record.
+    - This label will appear in the output file and in the plot legend
+    - If no label indicated, will just show the default 'data i' where i is in the dataset index
+    - **Note** If you plan on utilizing the average marker velocity boxplot feature, ensure that you use datalabels, and put a condition in there that will be later used to group data together in boxes in the plot. More details below in the cell velocity plot section
+
 - Select either marker tracking or necking point detection
 - Specify parameters (detailed below)
 - Click submit, each option's process is described below
+    - **Note** if there was a mistake or error in an appended tracking operation, the 3 buttons on the bottom left allow you to remove the most recently appended recorded data from each of the 3 tracking operations separately
 
 ## Individual Tracking Operation Details
 ### Marker Tracking
@@ -113,8 +119,8 @@
     - Pro tip: to type µ in any text field on windows, hold the alt key and press 230 (ALT+230)
     - mac users try Option+M I cannot confirm this I don't have a mac so good luck
 
-### Data Visualization
-- Currently 6 analysis buttons are available for tracking visualizations
+## Data Visualization
+- Currently 7 analysis buttons are available for tracking visualizations
 
 - Marker deltas:
     - 'marker_deltas' plots the distance that 2 tracked markers are moving away from eachother, showing the horizontal (x) distance, as well as the euclidean distance for comparison
@@ -136,6 +142,13 @@
     - 'marker_velocity' plots the magnitude of the differences of x and y locations over time
     - 'average_marker_velocity' plots of bar graph of the average velocity of each marker within a user specified number of ranges
     - 'marker_velocity_FFT' plots the Fast Fourier Transform of the marker velocities
+- Average marker velocity boxplot
+    - To use the box plot, make sure every condition you want to have (each condition becomes a box in the plot) is put as a substring in the data label
+        - i.e. condition1-description, condition1-more description, condition2-another description, condition2-probably another description
+    - After recording all the data you want in the box plot, click the boxplot checkbox right below the cell velocity button
+    - Here you will be able to enter the conditions you put in your data labels,  separating them with a comma
+    - With the example above, you would type "cond1, cond2"
+    - Then just click the button to generate the plot
 
 - Marker disance
     - 'marker_RMS_displacement' plots the root mean squared (RMS) displacement travelled by the marker over time

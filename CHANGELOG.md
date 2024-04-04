@@ -2,6 +2,7 @@
 
 ## TODO
 Housekeeping
+- catch up on documentation
 
 Hydrogel
 
@@ -15,6 +16,18 @@ Cell Mechanics
 - see about surface tracking on the lighter videos
 
 # Changelog
+
+4/3
+- forget vertical, become horizontal
+    - ui the long way was not cutting it with more features being added, split top and bottom halfs onto a left and right side (data recording and data analysis)
+- added to ui checkbox for doing a boxplot that reveals a labelled entry to enter the conditions that will be pulled from datalabels and grouped together for each box of the plot
+- added err check for data labels to ensure there are no commas, as the string splitting of the conditions entry splits on commas
+- fixed bug when checking if data label is already being used where sometimes random nans will appear in the list of labels, so now label is stripped of all non strings
+- implemented cell velocity boxplot
+    - each box will represent a condition
+        - a condition is specified as a substring in all the datalabels corresponding to that condition
+    - each point in the box is the average velocity of one tracked video of that box's condition
+
 
 4/2
 - various plot formatting

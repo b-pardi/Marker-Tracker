@@ -440,11 +440,9 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chose
         # account for mismatch lengths of tracker information (if 1 tracker fell off before the other)
         check_tracker_data_lengths(df, n_trackers)
         n_plots = n_trackers
-        label = 'Tracker'
         num_sets = n_trackers
     elif data_multiplicity_type == DataMultiplicity.VIDEOS:
         n_plots = num_tracker_datasets
-        label = 'Video'
         num_sets = num_tracker_datasets
 
     # grab relevant values from df
@@ -502,7 +500,7 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chose
     plot_args = {
         'title': r'Cell Velocity',
         'x_label': time_label,
-        'y_label': rf'Magnitude of cell velocity, $|\mathit{{v}}|$ $(\frac{{{conversion_units}}}{{{time_unit}}})$',
+        'y_label': rf'Average magnitude of cell velocity, $|\mathit{{v}}|$ $(\frac{{{conversion_units}}}{{{time_unit}}})$',
         'data_label': data_labels,
         'has_legend': True,
 
@@ -521,9 +519,48 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chose
             plot_scatter_data(tracker_frequencies[i], [tracker_amplitudes[i]], plot_args, 1, fft_fig, fft_ax)
         fft_fig.savefig("figures/marker_velocity_FFT.png")
 
-
     print("Done")
     return times, tracker_velocities, plot_args, n_plots
+
+def velocity_boxplot(conditions, user_unit_conversion):
+    print(f"Piecing together boxplot of cell velocities for each of the given conditions: {conditions}")
+    df = pd.read_csv("output/Tracking_Output.csv")
+    time_col, time_label, time_unit = get_time_labels(df)
+    conversion_factor, conversion_units = user_unit_conversion
+    time = df[time_col].values
+
+    condition_avg_velocities = {} # group average velocities by condition
+    for condition in conditions: # separate output file datasets by condition spec'd by user found in datalabels
+        cur_condition_avg_velocities = []
+        for col in df.columns: # find dataset index of current condition
+            if str(df[col].unique()[0]).__contains__(condition):
+                cur_dataset = col[0]
+                cur_df = df.filter(like=cur_dataset)
+
+                # grab data from cur df
+                x = cur_df[f'{cur_dataset}-x (px)'].values * conversion_factor
+                y = cur_df[f'{cur_dataset}-y (px)'].values * conversion_factor
+
+                # get velocities
+                dx = np.diff(x)
+                dy = np.diff(y)
+                dt = np.diff(time)
+                vel_x = dx / dt
+                vel_y = dy / dt
+                vel_mag = np.sqrt(vel_x**2 + vel_y**2) # magnitude of velocities
+                cur_condition_avg_velocities.append(np.mean(vel_mag))
+
+        condition_avg_velocities[condition] = cur_condition_avg_velocities
+    print(condition_avg_velocities)
+    data_lists = [condition_avg_velocities[condition] for condition in conditions]
+
+    # plotting
+    plt.boxplot(data_lists)
+    plt.xticks([1,2], list(condition_avg_velocities.keys()))
+    plt.title("Average Cell Velocities Across Multiple Conditions")
+    plt.ylabel(rf'Magnitude of cell velocity, $|\mathit{{v}}|$ $(\frac{{{conversion_units}}}{{{time_unit}}})$')
+    plt.xlabel(time_label)
+    plt.savefig("figures/marker_velocity_boxplot")
 
 
 def marker_distance(user_unit_conversion):
