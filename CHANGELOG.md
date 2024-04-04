@@ -8,11 +8,7 @@ Hydrogel
 
 Multi purpose
 
-Cell Mechanics
-- box plots for single and multiple conditions
-    - for multiple conditions user will put a keyword in the data label that will be in all data labels of a certain condition
-        - i.e. elastic-cell1, elastic-cell2, stiff-cell1, stiff-cell2
-    
+Cell Mechanics  
 - see about surface tracking on the lighter videos
 
 # Changelog
