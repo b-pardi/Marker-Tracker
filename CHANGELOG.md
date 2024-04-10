@@ -31,8 +31,8 @@ Cell Mechanics
 - added error checking for box plots to ensure entered conditions was valid (found data for it)
 - overlayed the average velocity points to their respective boxes in the boxplot
 - added x jitter to points overlayed on boxplot so points don't overlap
+- deprecated marker velocity fft until further notice
 - updated readme
-
 
 4/3
 - forget vertical, become horizontal

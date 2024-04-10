@@ -148,7 +148,7 @@
 ### Marker velocity:
 - 'marker_velocity' plots the magnitude of the differences of x and y locations over time
 - 'average_marker_velocity' plots of bar graph of the average velocity of each marker within a user specified number of ranges
-- 'marker_velocity_FFT' plots the Fast Fourier Transform of the marker velocities
+- 'marker_velocity_FFT' plots the Fast Fourier Transform of the marker velocities (DEPRECATED)
 ### Average marker velocity boxplot
 - To use the box plot, make sure every condition you want to have (each condition becomes a box in the plot) is put as a substring in the data label
     - i.e. condition1-description, condition1-more description, condition2-another description, condition2-probably another description
