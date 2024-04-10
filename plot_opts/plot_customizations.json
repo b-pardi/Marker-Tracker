@@ -8,13 +8,13 @@
         "lines": "black"
     },
     "font": "Arial",
-    "label_text_size": 16,
+    "label_text_size": 14,
     "title_text_size": 16,
     "value_text_size": 14,
     "legend_text_size": 14,
     "tick_dir": "inout",
-    "fig_format": "tiff",
-    "fig_dpi": 200,
+    "fig_format": "png",
+    "fig_dpi": 400,
     "points_plotted_index": 1,
     "y_lower_bound": "auto",
     "y_upper_bound": "auto"

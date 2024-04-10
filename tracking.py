@@ -18,8 +18,8 @@ def scale_frame(frame, scale_factor=0.9):
     monitor = screeninfo.get_monitors()[0] # get primary monitor resolution
 
     # get indv scale factors for width and height
-    scale_factor_height = monitor.height / frame.shape[0]
-    scale_factor_width = monitor.width / frame.shape[1]
+    scale_factor_height = scale_factor * (monitor.height / frame.shape[0])
+    scale_factor_width = scale_factor * (monitor.width / frame.shape[1])
 
     min_scale_factor = min(scale_factor_width, scale_factor_height)
 

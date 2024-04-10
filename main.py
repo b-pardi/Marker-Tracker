@@ -489,6 +489,10 @@ class TrackingUI:
                 print("Beginning Marker Tracking Process...")
                 bbox_size = int(self.bbox_size_tracking_entry.get())
                 tracker_choice = TrackerChoice(self.tracker_choice_intvar.get())
+                if tracker_choice == TrackerChoice.UNSELECTED:
+                    msg = "WARNING: Please select a tracking method\n\neither KCF for rigid shapes,\nor CSRT for deformable"
+                    error_popup(msg)
+                    return
 
                 # check if range_id already used
                 if file_mode == FileMode.APPEND: # only need to check prev ids if appending
@@ -635,12 +639,22 @@ class FrameSelector:
         self.child_window.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def on_left_arrow(self, event):
-        direction = -10 if event.state & 0x1 else -1
+        if event.state & 0x1 and event.state & 0x4:
+            direction = -100
+        elif event.state & 0x1:  # Only Shift is pressed
+            direction = -10
+        else:
+            direction = -1
         new_frame = max(0, self.frame_start + direction)
         self.slider.set(new_frame)
 
     def on_right_arrow(self, event):
-        direction = 10 if event.state & 0x1 else 1
+        if event.state & 0x1 and event.state & 0x4:
+            direction = 100
+        elif event.state & 0x1:  # Only Shift is pressed
+            direction = 10
+        else:
+            direction = 1
         new_frame = min(self.n_frames - 1, self.frame_start + direction)
         self.slider.set(new_frame)
 
@@ -654,7 +668,7 @@ class FrameSelector:
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, self.frame_start)
         ret, frame = self.cap.read()
         if ret:
-            frame, _ = tracking.scale_frame(frame)
+            frame, _ = tracking.scale_frame(frame, 0.75)
             self.display_frame(frame)
 
     def display_frame(self, frame):

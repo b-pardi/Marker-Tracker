@@ -18,13 +18,17 @@
 - Run 'main.py' upon completion of above
 - Click button to select video file
 
+### Frame Selection Tool
 - If needed, select the frames of the video you want tracked by clicking the 'Select start/end frames' button
     - This will open a window to scroll through the video
-    - Can use either arrow keys (shift + arrow keys to move 10 frames at a time) or the slider at the bottom of the window
+    - Can use either arrow keys or the slider at the bottom of the window
+        - when using arrow keys, holding shift will skip 10 frames at a time
+        - holding ctrl+shift will skip 100 at a time
     - Scroll to where you want the tracking to begin and click 'Confirm start frame
     - Repeat for tracking end frame
     - close window and frame selections are saved
 
+### Timelapse Accountability
 - Indicate if the video you are using is a timelapse
     - This is important for later analysis, as the frames per second (FPS) will not directly correlate to the original time of the video if it is a timelapse
     - If the timelapse box is checked, 2 more prompts appear
@@ -33,6 +37,7 @@
             - This is how often a picture was taken to make the timelapse
             - i.e. if you have a 24 hour timelapse and a picture was taken every 30 minutes, you could specify the desired time units as minutes and put 30 for the frame interval, or use hours and put 0.5 for the interval (every half hour) 
 
+### Output Data File Mode Indication
 - Indicate if the tracking you are about to run will overwrite or append to existing tracking data
     - This will allow you to analyze tracked markers from multiple different videos in the same plot
     - **Do Not** Use append mode for the first tracking operation of your set of videos, only for subsequent videos
@@ -41,11 +46,13 @@
         - The software will let you record multiple videos each with multiple markers, but will not be able to handle analysis
         - If you need to record data for multiple videos each with multiple markers, you can rerun the tracking operation on the same video and selecting a different object to track, essentially 1 marker per tracking operation, but multiple tracking operations are done on the same video.
 
+### Data Labels
 - Enter an optional label that will be associated with the data you are about to record.
     - This label will appear in the output file and in the plot legend
     - If no label indicated, will just show the default 'data i' where i is in the dataset index
     - **Note** If you plan on utilizing the average marker velocity boxplot feature, ensure that you use datalabels, and put a condition in there that will be later used to group data together in boxes in the plot. More details below in the cell velocity plot section
 
+### Beginning Tracking
 - Select either marker tracking or necking point detection
 - Specify parameters (detailed below)
 - Click submit, each option's process is described below
@@ -100,7 +107,7 @@
 - The green box will follow the cell and the blue lines indicate the contours of the cell, recording the surface area within the blue boundaries
 - Outputs are saved to 'output/Surface_Area_Output.csv'
 
-## After tracking videos, further analysis
+## After Tracking Videos, Further Analysis
 ### Outlier Removal
 - Sometimes necking point or less commonly marker tracker jump around certain points and can skew data
 - There is a 'Remove outliers' button which opens a new window prompting choice between available tracking output files
@@ -119,42 +126,42 @@
     - Pro tip: to type µ in any text field on windows, hold the alt key and press 230 (ALT+230)
     - mac users try Option+M I cannot confirm this I don't have a mac so good luck
 
-## Data Visualization
-- Currently 7 analysis buttons are available for tracking visualizations
+# Data Visualization
+## Currently 7 analysis buttons are available for tracking visualizations
 
-- Marker deltas:
-    - 'marker_deltas' plots the distance that 2 tracked markers are moving away from eachother, showing the horizontal (x) distance, as well as the euclidean distance for comparison
-    - 'longitudinal_strain' plots the longitudinal strain ((L-L0) / L0) where L is the distance between the markers at time t and L0 is the initial distance between the markers
-    - 'marker_euclidean_horizontal_differences' plots the discrepancies between euclidean and horizontal distances
+### Marker deltas:
+- 'marker_deltas' plots the distance that 2 tracked markers are moving away from eachother, showing the horizontal (x) distance, as well as the euclidean distance for comparison
+- 'longitudinal_strain' plots the longitudinal strain ((L-L0) / L0) where L is the distance between the markers at time t and L0 is the initial distance between the markers
+- 'marker_euclidean_horizontal_differences' plots the discrepancies between euclidean and horizontal distances
 
-- Necking point:
-    - 'necking_point_location' plots as a control the horizontal marker location of the necking point (minimum diameter)
-    - 'diameter_at_necking_point' plots the length of the vertical red marker from the tracking operation
-    - 'radial_strain' plots the radial strain ((R-R0) / R0) where R is the diameter of the necking point and R0 is the initial diameter
+### Necking point:
+- 'necking_point_location' plots as a control the horizontal marker location of the necking point (minimum diameter)
+- 'diameter_at_necking_point' plots the length of the vertical red marker from the tracking operation
+- 'radial_strain' plots the radial strain ((R-R0) / R0) where R is the diameter of the necking point and R0 is the initial diameter
 
-- Poisson's ratio (plots all of the above, in addition to):
-    - 'poissons_ratio' plots the poissons ratio using above calculations (-rad_strain / long_strain)
-    - 'poissons_ratio_prime' derivative of poissons_ratio
-    - 'long_strain_prime' derivative of long_strain
-    - 'rad_strain_prime' derivative of rad_strain
+### Poisson's ratio (plots all of the above, in addition to):
+- 'poissons_ratio' plots the poissons ratio using above calculations (-rad_strain / long_strain)
+- 'poissons_ratio_prime' derivative of poissons_ratio
+- 'long_strain_prime' derivative of long_strain
+- 'rad_strain_prime' derivative of rad_strain
 
-- Marker velocity:
-    - 'marker_velocity' plots the magnitude of the differences of x and y locations over time
-    - 'average_marker_velocity' plots of bar graph of the average velocity of each marker within a user specified number of ranges
-    - 'marker_velocity_FFT' plots the Fast Fourier Transform of the marker velocities
-- Average marker velocity boxplot
-    - To use the box plot, make sure every condition you want to have (each condition becomes a box in the plot) is put as a substring in the data label
-        - i.e. condition1-description, condition1-more description, condition2-another description, condition2-probably another description
-    - After recording all the data you want in the box plot, click the boxplot checkbox right below the cell velocity button
-    - Here you will be able to enter the conditions you put in your data labels,  separating them with a comma
-    - With the example above, you would type "cond1, cond2"
-    - Then just click the button to generate the plot
+### Marker velocity:
+- 'marker_velocity' plots the magnitude of the differences of x and y locations over time
+- 'average_marker_velocity' plots of bar graph of the average velocity of each marker within a user specified number of ranges
+- 'marker_velocity_FFT' plots the Fast Fourier Transform of the marker velocities
+### Average marker velocity boxplot
+- To use the box plot, make sure every condition you want to have (each condition becomes a box in the plot) is put as a substring in the data label
+    - i.e. condition1-description, condition1-more description, condition2-another description, condition2-probably another description
+- After recording all the data you want in the box plot, click the boxplot checkbox right below the cell velocity button
+- Here you will be able to enter the conditions you put in your data labels,  separating them with a comma
+- With the example above, you would type "cond1, cond2"
+- Then just click the button to generate the plot
 
-- Marker disance
-    - 'marker_RMS_displacement' plots the root mean squared (RMS) displacement travelled by the marker over time
+### Marker disance
+- 'marker_RMS_displacement' plots the root mean squared (RMS) displacement travelled by the marker over time
 
-- Marker spread
-    - 'marker_surface_area' plots the surface area of the tracked contours over time
+### Marker spread
+- 'marker_surface_area' plots the surface area of the tracked contours over time
 
 
 ### Plot Customizations

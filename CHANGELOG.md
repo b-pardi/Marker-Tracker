@@ -7,11 +7,32 @@ Housekeeping
 Hydrogel
 
 Multi purpose
+- fix fft?
 
 Cell Mechanics  
 - see about surface tracking on the lighter videos
 
 # Changelog
+
+4/9
+- added error msg for if a tracker selection was not made
+- added ability to skip 100 frames in the selector by holding ctrl and shift
+- changed cell velocity y axis label
+- fixed bug where scale_frame() wasn't actually scaling by a factor of the monitor resolution, just scaling down to fit in the monitor window
+    - now it scales it down to scale_factor (defaults 0.9) * min of monitor height or width
+- frame selector now scales frame for viewing
+- adjusted plot scatter function:
+    - if more than 3 datasets, now puts legend outside of plot, while maintaining axis size
+    - function now saves figs if it is passed in a figure name, rather than saving the fig in the function that calls it
+    - dpi arg from plot_customizations.json now taken into account
+- if more than 3 datasets in plotting, moves legend outside to the right side of plot
+- scatterplot save fig now reads the figure fmt from plot_customs when saving
+- added plot_customs and other formatting to boxplot function
+- added error checking for box plots to ensure entered conditions was valid (found data for it)
+- overlayed the average velocity points to their respective boxes in the boxplot
+- added x jitter to points overlayed on boxplot so points don't overlap
+- updated readme
+
 
 4/3
 - forget vertical, become horizontal
