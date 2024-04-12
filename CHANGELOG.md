@@ -14,6 +14,9 @@ Cell Mechanics
 
 # Changelog
 
+4/12
+- plotting bug fix where new legend method didn't account for if plot has no legend
+
 4/9
 - added error msg for if a tracker selection was not made
 - added ability to skip 100 frames in the selector by holding ctrl and shift

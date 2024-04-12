@@ -134,7 +134,8 @@ def plot_scatter_data(x, y, plot_args, n_datasets, fig=None, ax=None, output_fig
             legend = ax.legend(loc='best', fontsize=plot_customs['legend_text_size'], prop={'family': font}, framealpha=0.3)
         else: # put legend outside plot if more than 3 datasets for readability
             legend = ax.legend(loc='upper left', bbox_to_anchor=(1, 1), fontsize=plot_customs['legend_text_size'], prop={'family': font}, framealpha=0.3)
-    
+    else:
+        legend = None
     # formatting the plot according to 'plot_customizations.json'
     plt.sca(ax)
     plt.xticks(fontsize=plot_customs['value_text_size'], fontfamily=font)
@@ -423,7 +424,8 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chose
     time_col, time_label, time_unit = get_time_labels(df)
     _, _, num_tracker_datasets = get_num_datasets(df) # get num datasets
     if chosen_video_data is None:
-        n_trackers = df['1-Tracker'].unique().shape[0] # get number of trackers
+        tracker_cols = [col for col in df.columns if col.__contains__('Tracker')]
+        n_trackers = df[tracker_cols[0]].unique().shape[0] # get number of trackers
     else:
         n_trackers = df[f'{chosen_video_data}-Tracker'].unique().shape[0] # get number of trackers
     n_plots = 0
