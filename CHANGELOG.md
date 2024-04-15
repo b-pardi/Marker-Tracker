@@ -7,12 +7,18 @@ Housekeeping
 Hydrogel
 
 Multi purpose
-- fix fft?
 
 Cell Mechanics  
 - see about surface tracking on the lighter videos
 
 # Changelog
+
+4/14
+- revived fourier transform plotting for marker velocity
+- added ability to track every 'x' frames (frame_record_interval)
+    - defaults to 1 (track every frame)
+- updated readme
+- extensive documentation overhaul (thank you gpt)
 
 4/12
 - plotting bug fix where new legend method didn't account for if plot has no legend

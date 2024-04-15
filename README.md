@@ -46,6 +46,12 @@
         - The software will let you record multiple videos each with multiple markers, but will not be able to handle analysis
         - If you need to record data for multiple videos each with multiple markers, you can rerun the tracking operation on the same video and selecting a different object to track, essentially 1 marker per tracking operation, but multiple tracking operations are done on the same video.
 
+### Frame Recording Interval
+- Sometimes videos are unnecessarily long, and not much happens between frames
+- User has the option to record every 'x' frames, specified here
+- The video will still play and track as usual, but instead of playing and tracking every frame, it will skip the number of frames specified here, exponentially speeding up process
+- **Note** not recommended for tracking very dynamic objects in videos
+
 ### Data Labels
 - Enter an optional label that will be associated with the data you are about to record.
     - This label will appear in the output file and in the plot legend

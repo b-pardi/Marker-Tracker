@@ -43,6 +43,11 @@ def rms_displacement(dx, dy):
     return rms_displacement
 
 def get_time_labels(df):
+    ''' util function to return the appropriate strings for:
+        - time column in dataframe
+        - plot x axis label
+        - specific time unit
+    '''
     time_col = df.filter(like='Time').columns[0]
     time_label = r'Time, $\mathit{t}$ (s)'
     time_unit = TimeUnits.SECONDS.value
@@ -93,17 +98,35 @@ def check_num_trackers_with_num_datasets(n_trackers, num_tracker_datasets):
 
 
 def plot_scatter_data(x, y, plot_args, n_datasets, fig=None, ax=None, output_fig_name=None):
-    """util function to handle plotting and formatting of the plots
-    can accept 1 or multiple independent variable datasets
+    """
+    Handles the plotting and formatting of scatter plot data, supporting both single and multiple datasets. 
+    The function customizes the plot appearance based on provided arguments and saves the plot if specified.
+
+    Details:
+        - This function reads plot customization settings from a JSON file ('plot_customizations.json') to apply color schemes, fonts, and other stylistic elements.
+        - The function can manage up to five datasets with predefined colors, and uses default matplotlib colors for additional datasets.
+        - Data labels are managed dynamically; if a label is not provided or is NaN for a dataset, a default label is assigned.
+        - Legend placement is automatically adjusted based on the number of datasets to enhance plot readability.
+        - Axis labels, ticks, and title are set according to `plot_args`.
+        - Optionally, the plot can be saved in a specified format with a high resolution, and customization details are pulled from the JSON file.
+
+    Note:
+        - Ensure that `plot_customs` JSON file contains all required customization parameters.
+        - If `output_fig_name` is specified, ensure the 'figures' directory exists or handle the potential `FileNotFoundError`.
+
 
     Args:
-        x (pd.Dataframe/Series, np.Array, list, etc): x points to plot
-        y (pd.Dataframe/Series, np.Array, list, etc): y points to plot
-        plot_args (dict): dictionary of plot customization arguments
+        x (pd.DataFrame/Series, np.array, list, etc.): Independent variable data points to plot.
+        y (pd.DataFrame/Series, np.array, list, etc.): Dependent variable data points to plot. Each dataset in `y` is plotted against `x`.
+        plot_args (dict): Dictionary containing customization options such as labels, titles, and legend configuration.
+        n_datasets (int): Number of datasets to plot, typically the length of `y` if it contains multiple sets.
+        fig (matplotlib.figure.Figure, optional): Figure object to plot on, if None a new figure is created.
+        ax (matplotlib.axes.Axes, optional): Axes object to plot on, if None a new axes is created on the figure.
+        output_fig_name (str, optional): Filename to save the figure; if not provided, the figure is not saved.
 
     Returns:
-        (plt.figure, plt.axes): the figure and axes objects created and modified in this function
-    """ 
+        tuple: A tuple containing the matplotlib figure and axes objects (`fig`, `ax`) used or created.
+    """
     if fig is None and ax is None:
         fig, ax = plt.subplots(figsize=(8,5))
     with open("plot_opts/plot_customizations.json", 'r') as plot_customs_file:
@@ -155,6 +178,7 @@ def plot_scatter_data(x, y, plot_args, n_datasets, fig=None, ax=None, output_fig
     return fig, ax
 
 def plot_avgs_bar_data(n_ranges, x, y, plot_args, n_trackers=1, output_fig_name=None):
+    '''DEPRECATED'''
     fig, ax = plt.subplots()
     with open("plot_opts/plot_customizations.json", 'r') as plot_customs_file:
         plot_customs = json.load(plot_customs_file)
@@ -209,8 +233,46 @@ def plot_avgs_bar_data(n_ranges, x, y, plot_args, n_trackers=1, output_fig_name=
     if output_fig_name is not None:
         plt.savefig(f"figures/{output_fig_name}.{plot_customs['fig_format']}", dpi=plot_customs['fig_dpi'])
 
-
     return fig, ax
+
+def plot_fft(freqs, mags, N, n_datasets, plot_args):  
+    """
+    Plots the Fast Fourier Transform (FFT) of given signal data. This function visualizes frequency domains of multiple datasets,
+    highlighting the dominant frequency for each dataset.
+
+    Details:
+        - The FFT often produces a mirror image around the Nyquist frequency, so this function only considers the first half of the frequency data.
+        - The magnitude of the FFT is taken as the absolute value, since FFT outputs are generally complex numbers.
+        - For each dataset, the dominant frequency (frequency with the highest amplitude) is identified and highlighted in the legend.
+        - This function is configured to save the plot automatically to a specified file.
+
+    Note:
+        - Ensure that all frequency and magnitude arrays are of the same length and correspond to each other in the `freqs` and `mags` lists.
+        - The plot is saved to 'figures/marker_velocity_FFT.png'; ensure the directory exists or handle potential errors for file writing.
+
+    Args:
+        freqs (list of np.array): Frequencies for each dataset; expects each list element to be an array of frequencies.
+        mags (list of np.array): Magnitudes corresponding to the frequencies for each dataset.
+        N (int): Total number of data points in the FFT. Used to limit the data to the first half (real component).
+        n_datasets (int): Number of datasets to plot.
+        plot_args (dict): Dictionary containing plot options such as data labels.    
+    """  
+    fft_fig, fft_ax = plt.subplots()
+    for n in range(n_datasets):
+        # fft produces mirror image so take first half of data and its abs value for amplitdue
+        cur_freqs = (freqs[n])[:N // 2]
+        cur_mags = np.abs(mags[n])[:N // 2]
+        max_magnitude_idx = np.argmax(cur_mags)
+        dom_freq = cur_freqs[max_magnitude_idx]
+        fft_ax.plot(cur_freqs, cur_mags, color=f'C{n}', label=f"Dominant frequency for {plot_args['data_label'][n]} {dom_freq:.2f} Hz")
+
+    fft_ax.legend()
+    plt.xlabel("Frequency (Hz)")
+    plt.ylabel("Magnitude normalized")
+    plt.title("Fourier Transform of Selected Signal Data")
+    plt.grid(True)
+    fft_fig.tight_layout()
+    fft_fig.savefig("figures/marker_velocity_FFT.png")
 
 def get_marker_data(user_unit_conversion, df):
     print("Grabbing tracker data...")
@@ -228,10 +290,33 @@ def get_marker_data(user_unit_conversion, df):
     return list(x_locations), list(y_locations)
 
 def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True):
-    """plots euclidean distance between tracked fiducial marker data
-    reads data from 'output/Tracking_Output.csv' which is created in the marker tracking process
-    saves plot to the 'figures' folder
-    """    
+    """
+    Analyzes and plots the Euclidean distances between two tracked markers to evaluate marker deltas and 
+    calculates longitudinal strain from these distances. Optionally saves the plots to a specified directory.
+
+    Details:
+        - The function expects the DataFrame to have data from exactly two markers for correct processing. If more or fewer are found, an error is raised.
+        - It checks for the presence of more than one dataset. If found, an error is raised assuming only single-session tracking data should be analyzed.
+        - Euclidean distance between the two markers is computed for each time point and converted using the provided conversion factor.
+        - Longitudinal strain is calculated as the change in distance relative to the initial distance.
+        - The function generates several plots:
+            1. Longitudinal strain over time.
+            2. Euclidean distances and horizontal differences between markers.
+            3. Difference between Euclidean and purely horizontal distances for further analysis.
+
+    Note:
+        - Ensure the tracking data in 'output/Tracking_Output.csv' is correctly formatted and includes necessary columns like '1-x (px)' and '1-y (px)' for each marker.
+        - If saving plots, ensure that the 'figures' directory exists or handle potential FileNotFoundError issues.
+
+    Args:
+        user_unit_conversion (tuple): Tuple containing a conversion factor and unit name to convert pixel distances to a desired unit.
+        df (pd.DataFrame, optional): DataFrame containing marker tracking data. If not provided, data is read from 'output/Tracking_Output.csv'.
+        will_save_figures (bool, optional): If True, saves generated plots to the 'figures' directory. Defaults to True.
+
+    Returns:
+        tuple: Returns a tuple containing time points, longitudinal strains, and plot arguments used for plotting.
+    """
+    
     conversion_factor, conversion_units = user_unit_conversion
 
     print("Analyzing tracked marker distances...")
@@ -302,10 +387,31 @@ def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True)
 
 
 def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True):
-    """plots necking point data, x location of necking point against time, as well as diameter at necking point
-    reads from 'output/Necking_Point_Output.csv' which is created in the necking point tracking process
-    saves plot in 'figures' folder
-    """    
+    """
+    Analyzes and plots data related to the necking point of materials, such as the horizontal location and diameter over time,
+    as well as calculating radial strain. The function reads from a specified CSV file and optionally saves plots to a directory.
+
+    Details:
+        - The function reads necking point data from 'output/Necking_Point_Output.csv' which should have been created during the necking point tracking process.
+        - It expects data from a single tracking session; if multiple datasets are found, it raises an error.
+        - The function plots three key metrics:
+            1. Radial strain of the material over time.
+            2. Horizontal location of the necking point over time.
+            3. Diameter at the necking point over time.
+        - Each of these metrics is calculated and then plotted, using the unit of measure specified by the user.
+
+    Note:
+        - Ensure the 'output/Necking_Point_Output.csv' file is formatted correctly with necessary columns for x-location, y-length, and data labels.
+        - If saving plots, ensure that the 'figures' directory exists or handle potential FileNotFoundError issues.
+
+    Args:
+        user_unit_conversion (tuple): Tuple containing a conversion factor and unit name to convert pixel measurements to a desired unit.
+        df (pd.DataFrame, optional): DataFrame containing necking point tracking data. If not provided, data is read from 'output/Necking_Point_Output.csv'.
+        will_save_figures (bool, optional): If True, saves generated plots to the 'figures' directory. Defaults to True.
+
+    Returns:
+        tuple: Returns a tuple containing time points, radial strains, and plot arguments used for plotting.
+    """
     conversion_factor, conversion_units = user_unit_conversion
 
     print("Analyzing necking point...")
@@ -356,6 +462,28 @@ def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True)
     return list(time), radial_strain, plot_args
 
 def poissons_ratio(user_unit_conversion):
+    """
+    Calculates Poisson's ratio for a material by analyzing longitudinal and radial strains, and additionally computes
+    the derivatives of these strains over time. The function integrates data from previous tracking and necking operations,
+    ensuring time alignment, and generates plots for both Poisson's ratio and its derivative.
+
+    Details:
+        - The function first retrieves longitudinal and radial strain data by calling `analyze_marker_deltas` and `analyze_necking_point`.
+        - It verifies that the data from both functions cover the same time period and handles potential discrepancies.
+        - A DataFrame is created to align and merge the strains, and Poisson's ratio is calculated as the negative ratio of radial to longitudinal strain.
+        - The time derivatives of Poisson's ratio, longitudinal strain, and radial strain are also calculated and plotted.
+        - Results are saved to 'output/poissons_ratio.csv', and plots are saved in the 'figures' folder.
+
+    Note:
+        - Ensure that both the `analyze_marker_deltas` and `analyze_necking_point` functions are run prior to this with compatible data sets.
+        - Ensure proper handling of directories for saving outputs and that the necessary CSV files are formatted correctly.
+
+    Args:
+        user_unit_conversion (tuple): Tuple containing a conversion factor and unit name to convert pixel measurements to a desired unit.
+
+    Returns:
+        None: The function directly outputs CSV files and generates plots, but does not return any variables.
+    """
     conversion_factor, conversion_units = user_unit_conversion
     marker_time, longitudinal_strain, plot_args = analyze_marker_deltas(user_unit_conversion)
     necking_time, radial_strain, _ = analyze_necking_point(user_unit_conversion)
@@ -414,6 +542,33 @@ def poissons_ratio(user_unit_conversion):
     print("Done")
 
 def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chosen_video_data=None):
+    """
+    Calculates and plots the velocities of tracked markers based on their positional data over time. Optionally performs
+    Fourier transform to analyze the frequency components of these velocities. The function supports multiple datasets
+    or multiple trackers within a single dataset and handles discrepancies in data lengths.
+
+    Details:
+        - Retrieves marker positional data from 'output/Tracking_Output.csv' unless a DataFrame is directly provided.
+        - Determines whether the data pertains to multiple trackers or multiple video datasets and adjusts processing accordingly.
+        - Calculates instantaneous velocities in both x and y directions and their magnitudes.
+        - Optionally performs a Fourier transform on the velocity data to analyze frequency components and plots these analyses.
+        - Saves processed velocity data to 'output/marker_velocity.csv' and plots to the 'figures' folder if enabled.
+
+    Note:
+        - Ensure the input DataFrame or CSV file is formatted correctly with necessary columns for x and y positions.
+        - Ensure the directory for saving outputs exists if saving plots or data.
+        - The function handles data from either multiple trackers in a single dataset or multiple datasets but expects a consistent format across datasets.
+
+    Args:
+        user_unit_conversion (tuple): Contains the conversion factor and units to convert pixel measurements to a desired unit.
+        df (pd.DataFrame, optional): DataFrame containing tracking data. If not provided, data is read from 'output/Tracking_Output.csv'.
+        will_save_figures (bool, optional): If True, saves generated plots to the 'figures' directory. Defaults to True.
+        chosen_video_data (int, optional): Specifies a particular dataset to analyze if multiple datasets are present.
+
+    Returns:
+        tuple: Contains time arrays, velocity arrays for each tracker or dataset, plot arguments, and the number of plots or datasets processed.
+    """
+    
     print("Finding Marker Velocity...")
 
     conversion_factor, conversion_units = user_unit_conversion
@@ -489,7 +644,8 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chose
         vel_df[f'magnitude_velocity_tracker{n+1}'] = vel_mag
 
         # fourier transform
-        vel_fft = np.abs(np.fft.fft(vel_mag)) # amplitude (pixels/Hz)
+        N = len(vel_mag)
+        vel_fft = np.fft.fft(vel_mag) # amplitude (pixels/Hz)
         freqs = np.fft.fftfreq(len(vel_mag), np.mean(dt)) # frequencies
         tracker_amplitudes.append(vel_fft)
         tracker_frequencies.append(freqs)
@@ -510,20 +666,40 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chose
         # plot marker velocity
         vel_fig, vel_ax = plot_scatter_data(times[0], tracker_velocities, plot_args, n_plots, output_fig_name='marker_velocity')
 
-        ''' Fourier Transform deprecated indefinitely
         # plot fourier transform of marker distances
         plot_args['title'] = 'Marker Velocity FFT'
         plot_args['y_label'] = f'({conversion_units}/Hz)'
         plot_args['x_label'] = 'Hz'
-        fft_fig, fft_ax = plt.subplots()
-        for i in range(n_plots):
-            plot_scatter_data(tracker_frequencies[i], [tracker_amplitudes[i]], plot_args, 1, fft_fig, fft_ax)
-        fft_fig.savefig("figures/marker_velocity_FFT.png")
-        '''
+        plot_fft(tracker_frequencies, tracker_amplitudes, N, n_plots, plot_args)
+        
     print("Done")
     return times, tracker_velocities, plot_args, n_plots
 
 def velocity_boxplot(conditions, user_unit_conversion):
+    """
+    Generates a boxplot of cell velocities for specified conditions. This function reads cell velocity data,
+    computes averages, and displays a boxplot to compare velocities across different experimental conditions.
+
+    Details:
+        - The function reads velocity data from 'output/Tracking_Output.csv'.
+        - It filters data based on conditions specified by the user and calculates average velocities for each condition.
+        - A boxplot is generated showing the distribution of average velocities across conditions, with additional scatter points
+          representing individual dataset averages.
+        - The plot is saved to the 'figures' directory.
+
+    Note:
+        - Ensure that the CSV file contains the necessary data columns formatted correctly.
+        - The conditions list should match the data labels in the dataset to correctly filter the data.
+        - Ensure the 'figures' directory exists to prevent a FileNotFoundError when saving the plot.
+
+    Args:
+        conditions (list): A list of strings representing the conditions under which the data was collected, used to filter datasets.
+        user_unit_conversion (tuple): Contains the conversion factor and units to convert pixel measurements to a desired unit.
+
+    Returns:
+        None: The function directly outputs a boxplot to a file but does not return any variables.
+    """
+
     print(f"Piecing together boxplot of cell velocities for each of the given conditions: {conditions}")
     df = pd.read_csv("output/Tracking_Output.csv")
     time_col, time_label, time_unit = get_time_labels(df)
@@ -595,6 +771,28 @@ def velocity_boxplot(conditions, user_unit_conversion):
 
 
 def marker_distance(user_unit_conversion):
+    """
+    Calculates and plots the root mean square displacement of markers over time. This function reads tracking data,
+    processes it to compute the RMS displacement for each tracker or dataset, and plots the results.
+
+    Details:
+        - The function reads tracking data from 'output/Tracking_Output.csv'.
+        - It identifies whether data are from multiple trackers or multiple video datasets and calculates RMS displacement accordingly.
+        - Displacement calculations are based on changes in x and y positions over time, adjusted for a conversion factor to a specified unit.
+        - The plot is generated to visually represent the displacement over time for each dataset or tracker.
+
+    Note:
+        - Ensure the input CSV file is properly formatted with necessary columns for x and y positions.
+        - RMS calculations are sensitive to noise in the data, which can affect the results.
+        - Ensure directories for saving outputs exist if saving plots or data.
+
+    Args:
+        user_unit_conversion (tuple): Contains the conversion factor and units to convert pixel measurements to a desired unit.
+
+    Returns:
+        None: The function directly outputs a plot but does not return any variables.
+    """
+
     print("Finding Marker RMS Distance...")
     conversion_factor, conversion_units = user_unit_conversion
     df = pd.read_csv("output/Tracking_Output.csv") # open csv created/modified from marker tracking process
@@ -647,6 +845,28 @@ def marker_distance(user_unit_conversion):
     disp_fig, disp_ax = plot_scatter_data(time[:-1], rms_disps, plot_args, n_plots, output_fig_name='marker_RMS_displacement')
 
 def single_marker_spread(user_unit_conversion, df=None, will_save_figures=True, chosen_video_data=None):
+    """
+    Analyzes and visualizes changes in tracked surface areas over time. This function processes the previously tracked surface
+    area data to compute metrics such as area growth rate and plots these changes over time to facilitate analysis.
+
+    Details:
+        - The function reads surface area tracking data from 'output/Tracking_Output.csv', which should contain surface area data
+          across multiple frames or conditions.
+        - It calculates the percentage change in surface area relative to the initial area and other relevant metrics.
+        - Results are visualized in a plot that displays changes in surface area over time, highlighting any significant growth or contraction.
+        - Optionally, the function can compare surface area changes across different experimental conditions if such data is available.
+
+    Note:
+        - Ensure that the input CSV file is formatted correctly with necessary columns for surface areas and possibly conditions.
+        - Accurate initial area measurements are crucial for meaningful percentage change calculations.
+        - Ensure directories for saving outputs exist if saving plots or data.
+
+    Args:
+        user_unit_conversion (tuple): Contains the conversion factor and units to convert pixel measurements to a desired unit.
+
+    Returns:
+        None: The function directly outputs a plot but does not return any variables.
+    """
     print("Finding Marker Spread...")
     conversion_factor, conversion_units = user_unit_conversion
 

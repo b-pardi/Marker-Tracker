@@ -125,11 +125,22 @@ class TrackingUI:
         self.overwrite_radio.grid(row=1, column=1)
         self.append_or_overwrite_frame.grid(row=7, column=0, pady=12)
 
+        # skip frames when tracking option
+        skip_frames_frame = tk.Frame(self.section1)
+        skip_frames_label_prefix = ttk.Label(skip_frames_frame, text="Track every ")
+        skip_frames_label_prefix.grid(row=0, column=0)
+        self.skip_frames_entry = ttk.Entry(skip_frames_frame, width=4)
+        self.skip_frames_entry.insert(0, '1')
+        self.skip_frames_entry.grid(row=0, column=1)
+        skip_frames_label_postfix = ttk.Label(skip_frames_frame, text="frame(s)")
+        skip_frames_label_postfix.grid(row=0, column=2)
+        skip_frames_frame.grid(row=8, column=0, pady=12)
+
         # optional range identifier
         range_identifier_label = ttk.Label(self.section1, text="Enter an optional identifier label for the tracking data: ")
-        range_identifier_label.grid(row=8, column=0, pady=(8,4))
+        range_identifier_label.grid(row=9, column=0, pady=(8,4))
         self.range_identifier_entry = ttk.Entry(self.section1)
-        self.range_identifier_entry.grid(row=9, column=0, pady=(0,8))
+        self.range_identifier_entry.grid(row=10, column=0, pady=(0,8))
 
         # radios for selecting operation
         self.operation_intvar = tk.IntVar()
@@ -141,9 +152,9 @@ class TrackingUI:
         operation_necking_radio.grid(row=0, column=1, padx=4, pady=(16, 4))
         operation_area_radio = ttk.Radiobutton(operation_frame, text="Surface area tracking", variable=self.operation_intvar, value=TrackingOperation.AREA.value, command=self.handle_radios, width=25, style='Outline.TButton')
         operation_area_radio.grid(row=1, column=0, columnspan=2, padx=4, pady=(4, 16))
-        operation_frame.grid(row=10, column=0)
+        operation_frame.grid(row=11, column=0)
         self.select_msg = ttk.Label(self.section1, text="Select from above for more customizable parameters")
-        self.select_msg.grid(row=11, column=0)
+        self.select_msg.grid(row=12, column=0)
 
         # options for marker tracking
         self.tracking_frame = tk.Frame(self.section1)
@@ -473,6 +484,9 @@ class TrackingUI:
         else:
             file_mode = FileMode(self.append_or_overwrite_var.get())
 
+        # handle frame skipping entry
+        frame_record_interval = int(self.skip_frames_entry.get())
+
         # handle optional range identifier entry
         range_id = self.range_identifier_entry.get()
         data_label_err_flag = False
@@ -510,6 +524,7 @@ class TrackingUI:
                             cap,
                             bbox_size,
                             tracker_choice,
+                            frame_record_interval,
                             self.frame_interval,
                             self.time_units,
                             file_mode,
@@ -534,6 +549,7 @@ class TrackingUI:
                         percent_crop_left,
                         percent_crop_right,
                         binarize_intensity_thresh,
+                        frame_record_interval,
                         self.frame_interval,
                         self.time_units,
                         file_mode,
@@ -558,6 +574,7 @@ class TrackingUI:
                             bbox_size,
                             self.frame_start,
                             self.frame_end,
+                            frame_record_interval,
                             self.frame_interval,
                             self.time_units,
                             distance_from_marker_thresh,
