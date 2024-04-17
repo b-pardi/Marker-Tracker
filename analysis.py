@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import json
+import re
 
 from exceptions import error_popup, warning_popup
 from enums import *
@@ -42,13 +43,13 @@ def rms_displacement(dx, dy):
     rms_displacement = np.sqrt(np.cumsum(dx_sq + dy_sq) / (np.arange(len(dx))+1))
     return rms_displacement
 
-def get_time_labels(df):
+def get_time_labels(df, col_num=1):
     ''' util function to return the appropriate strings for:
         - time column in dataframe
         - plot x axis label
         - specific time unit
     '''
-    time_col = df.filter(like='Time').columns[0]
+    time_col = f'{col_num}-' + (df.filter(like='Time').columns[0]).split('-')[1] # accounts for any kind of units in time col
     time_label = r'Time, $\mathit{t}$ (s)'
     time_unit = TimeUnits.SECONDS.value
     if time_col.__contains__('min'):
@@ -74,11 +75,15 @@ def check_tracker_data_lengths(df, n_trackers):
         error_popup(msg)
 
 def get_num_datasets(df):
-    col_start = int(df.columns[2][0])
+    col_start = int(df.columns[0][0])
     col_end = int(df.columns[-1][0])
     n_sets = col_end - col_start + 1
 
     return col_start, col_end, n_sets
+
+def get_relevant_columns(df, col_num):
+    relevant_cols = [col for col in df.columns if col.startswith(f"{col_num}-")]
+    return df[relevant_cols]
 
 def check_num_trackers_with_num_datasets(n_trackers, num_tracker_datasets):
     data_multiplicity_type = 0
@@ -111,9 +116,9 @@ def plot_scatter_data(x, y, plot_args, n_datasets, fig=None, ax=None, output_fig
         - Optionally, the plot can be saved in a specified format with a high resolution, and customization details are pulled from the JSON file.
 
     Note:
+        - Expects a list of datasets, if using only 1 it should be wrapped in a list.
         - Ensure that `plot_customs` JSON file contains all required customization parameters.
         - If `output_fig_name` is specified, ensure the 'figures' directory exists or handle the potential `FileNotFoundError`.
-
 
     Args:
         x (pd.DataFrame/Series, np.array, list, etc.): Independent variable data points to plot.
@@ -129,17 +134,20 @@ def plot_scatter_data(x, y, plot_args, n_datasets, fig=None, ax=None, output_fig
     """
     if fig is None and ax is None:
         fig, ax = plt.subplots(figsize=(8,5))
+        n_prev_plots = 0 # if adding to existing plot, continue color index
+    else:
+        n_prev_plots = len(ax.lines)
+
     with open("plot_opts/plot_customizations.json", 'r') as plot_customs_file:
         plot_customs = json.load(plot_customs_file)
 
     print(len(x), len(y))
     for i in range(n_datasets):
-        if i < 5:  # only 5 colors spec'd in plot customizations
-            color = plot_customs['colors'][f'scatter{i+1}']
+        if i+n_prev_plots < 5:  # only 5 colors spec'd in plot customizations
+            color = plot_customs['colors'][f'scatter{i+1+n_prev_plots}']
         else:
-            color = f'C{i}'
+            color = f'C{i+n_prev_plots}'
 
-        print(plot_args['data_label'], i)
         if plot_args['data_label'] is not None:
             if pd.isna(pd.Series(plot_args['data_label']).iloc[i]): # gross but effective way to check if nan or string
                 label = f"data {i}"
@@ -147,7 +155,7 @@ def plot_scatter_data(x, y, plot_args, n_datasets, fig=None, ax=None, output_fig
                 label = plot_args['data_label'][i]
         else:
             label = None
-        ax.plot(x, y[i], 'o', markersize=1, color=color, label=label)      
+        ax.plot(x[i], y[i], 'o', markersize=1, color=color, label=label)      
 
     font = plot_customs['font']
 
@@ -174,7 +182,7 @@ def plot_scatter_data(x, y, plot_args, n_datasets, fig=None, ax=None, output_fig
 
     if output_fig_name is not None:
         plt.savefig(f"figures/{output_fig_name}.{plot_customs['fig_format']}", bbox_extra_artists=(legend,), dpi=plot_customs['fig_dpi'])
-
+        plt.close()
     return fig, ax
 
 def plot_avgs_bar_data(n_ranges, x, y, plot_args, n_trackers=1, output_fig_name=None):
@@ -305,7 +313,6 @@ def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True)
             3. Difference between Euclidean and purely horizontal distances for further analysis.
 
     Note:
-        - Ensure the tracking data in 'output/Tracking_Output.csv' is correctly formatted and includes necessary columns like '1-x (px)' and '1-y (px)' for each marker.
         - If saving plots, ensure that the 'figures' directory exists or handle potential FileNotFoundError issues.
 
     Args:
@@ -316,74 +323,90 @@ def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True)
     Returns:
         tuple: Returns a tuple containing time points, longitudinal strains, and plot arguments used for plotting.
     """
-    
+    print("Analyzing tracked marker distances...")
     conversion_factor, conversion_units = user_unit_conversion
 
-    print("Analyzing tracked marker distances...")
     if not isinstance(df, pd.DataFrame):
         df = pd.read_csv("output/Tracking_Output.csv") # open csv created/modified from marker tracking process
     print(df.head())
+    _, _, n_datasets = get_num_datasets(df)
 
-    # ensure only 2 markers were selected
-    if df['1-Tracker'].unique().shape[0] != 2:
-        msg = "Found more/less than 2 markers.\n\nPlease ensure exactly 2 markers are tracked"
-        error_popup(msg)
-        return
-    if int(df.columns[-1][0]) != 1:
-        msg = "Found more than 1 tracked video dataset.\nPlease ensure overwrite is selected instead of append for Poissons ratio related tracking"
-        error_popup(msg)
-        return
-    
-    time_col, time_label, _ = get_time_labels(df)
-    # grab relevant data and put into np array
-    m1_df = df[df['1-Tracker'] == 1]
-    m2_df = df[df['1-Tracker'] == 2]
-    time = df[time_col].unique()
-    m1_x = m1_df['1-x (px)'].values * conversion_factor
-    m1_y = m1_df['1-y (px)'].values * conversion_factor
-    m2_x = m2_df['1-x (px)'].values * conversion_factor
-    m2_y = m2_df['1-y (px)'].values * conversion_factor
+    # initialize lists to store processed data
+    times = []
+    marker_distances = []
+    horizontal_distances = []
+    longitudinal_strains = []
+    elongation_differences = []
     data_labels = []
 
-    # find euclidean distances of markers
-    marker_distances = []
-    for i in range(len(time)):
-        euclidean_dist = marker_euclidean_distance(m1_x[i], m1_y[i], m2_x[i], m2_y[i])
-        marker_distances.append(np.abs(euclidean_dist))
-        data_labels.append(df['1-data_label'].unique()[0])
+    for i in range(1, n_datasets+1):
+        # ensure only 2 markers were selected
+        if df[f'{i}-Tracker'].dropna().unique().shape[0] != 2:
+            msg = "Found more/less than 2 markers.\n\nPlease ensure exactly 2 markers are tracked in each dataset"
+            error_popup(msg)
+            return
     
-    # longitudinal strain (deltaL / L0)
-    L0 = marker_distances[0]
-    longitudinal_strain = [(L-L0) / L0 for L in marker_distances]
+        cur_df = get_relevant_columns(df, i).dropna()
+        time_col, time_label, _ = get_time_labels(df, i)
+
+        # grab relevant data and put into np array
+        m1_df = cur_df[cur_df[f'{i}-Tracker'] == 1]
+        m2_df = cur_df[cur_df[f'{i}-Tracker'] == 2]
+        time = cur_df[time_col].unique()
+        m1_x = m1_df[f'{i}-x (px)'].values * conversion_factor
+        m1_y = m1_df[f'{i}-y (px)'].values * conversion_factor
+        m2_x = m2_df[f'{i}-x (px)'].values * conversion_factor
+        m2_y = m2_df[f'{i}-y (px)'].values * conversion_factor
+        
+        # find euclidean distances of markers
+        marker_dist = []
+        print(time, len(time), time_col)
+        for j in range(len(time)):
+            euclidean_dist = marker_euclidean_distance(m1_x[j], m1_y[j], m2_x[j], m2_y[j])
+            marker_dist.append(np.abs(euclidean_dist))
+        
+        # longitudinal strain (deltaL / L0)
+        L0 = marker_dist[0]
+        longitudinal_strain = [(L-L0) / L0 for L in marker_dist]
+
+        # append each datasets calculations for plotting
+        print(df[f'{i}-data_label'].unique()[0])
+        data_labels.append(df[f'{i}-data_label'].unique()[0])
+        times.append(time)
+        marker_distances.append(marker_dist)
+        horizontal_distances.append(np.abs(m2_x-m1_x))
+        longitudinal_strains.append(longitudinal_strain)
+        elongation_differences.append(np.abs(marker_dist - np.abs(m2_x-m1_x)))
 
     plot_args = {
         'title': r'Longitudinal Strain of Hydrogel',
         'x_label': time_label,
         'y_label': r'Longitudinal Strain, ${\epsilon}_{l}$',
         'data_label': data_labels,
-        'has_legend': False
+        'has_legend': True
     }
 
     if will_save_figures:
         # plot longitudinal strain
-        longitudinal_strain_fig, longitudinal_strain_ax = plot_scatter_data(time, [longitudinal_strain], plot_args, n_datasets=1, output_fig_name='longitudinal_strain')
+        longitudinal_strain_fig, longitudinal_strain_ax = plot_scatter_data(times, longitudinal_strains, plot_args, n_datasets, output_fig_name='longitudinal_strain')
 
         # plot marker distances
         plot_args['title'] = 'Marker Delta Tracking'
         plot_args['y_label'] = rf'Marker elongation, $\mathit{{\Delta {conversion_units}}}$'
-        print(len(time), len(marker_distances), len(np.abs(m2_x-m1_x)))
-        plot_args['data_label'] = ['Euclidean Distances', 'Horizontal Differences']
-        fig, ax = plot_scatter_data(time, [marker_distances, np.abs(m2_x-m1_x)], plot_args, n_datasets=2, output_fig_name='marker_deltas') # plot x distance as well for control/comparison
+        plot_args['data_label'] = ['Euclidean Distances ' + label for label in data_labels]
+        fig, ax = plot_scatter_data(times, marker_distances, plot_args, n_datasets=2)
+        plot_args['data_label'] = ['Horizontal Distances ' + label for label in data_labels]
+        plot_scatter_data(times, horizontal_distances, plot_args, n_datasets, fig=fig, ax=ax, output_fig_name='marker_deltas') # plot x distance as well for control/comparison
 
         # plot difference between euclidean and horizontal differences
         plot_args['title'] = 'Euclidean and Horizontal Differences'
-        plot_args['y_label'] = rf'Marker elongation, $\mathit{{{conversion_units}}}$'
+        plot_args['y_label'] = rf'Marker elongation differences, $\mathit{{{conversion_units}}}$'
         plot_args['data_label'] = data_labels
-        fig, ax = plot_scatter_data(time, [np.abs(marker_distances - np.abs(m2_x-m1_x))], plot_args, n_datasets=1, output_fig_name='marker_euclidean_horizontal_differences') # plot x distance as well for control/comparison
+        fig, ax = plot_scatter_data(times, elongation_differences, plot_args, n_datasets, output_fig_name='marker_euclidean_horizontal_differences') # plot x distance as well for control/comparison
 
     print("Done")
 
-    return list(time), longitudinal_strain, plot_args
+    return times, longitudinal_strains, plot_args
 
 
 def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True):
@@ -419,47 +442,55 @@ def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True)
         df = pd.read_csv("output/Necking_Point_Output.csv") # open csv created/modified from marker tracking process
     print(df.head())
 
-    if int(df.columns[-1][0]) != 1:
-        msg = "Found more than 1 tracked video dataset.\nPlease ensure overwrite is selected instead of append for Poissons ratio related tracking"
-        error_popup(msg)
-        return
-
-    time_col, time_label, _ = get_time_labels(df)
-    time = df[time_col].values
+    _, _, n_datasets = get_num_datasets(df)
     data_labels = []
-    necking_pt_x = df['1-x at necking point (px)'].values * conversion_factor
-    necking_pt_len = df['1-y necking distance (px)'].values * conversion_factor
-    data_labels.append(df['1-data_label'].unique()[0])
+    radial_strains = []
+    times = []
+    necking_pt_x_locs = []
+    necking_pt_lens = []
 
-    # radial strain (deltaR / R0)
-    R0 = necking_pt_len[0]
-    radial_strain = [(R - R0) / R0 for R in necking_pt_len]
+    for i in range(1, n_datasets+1):
+        cur_df = get_relevant_columns(df, i).dropna()
+        time_col, time_label, _ = get_time_labels(df, i)
+        print(time_col)
+        time = cur_df[time_col].values
+        necking_pt_x = cur_df[f'{i}-x at necking point (px)'].values * conversion_factor
+        necking_pt_len = cur_df[f'{i}-y necking distance (px)'].values * conversion_factor
+        data_labels.append(cur_df[f'{i}-data_label'].unique()[0])
+
+        # radial strain (deltaR / R0)
+        R0 = necking_pt_len[0]
+        radial_strains.append([(R - R0) / R0 for R in necking_pt_len])
+        
+        times.append(time)
+        necking_pt_x_locs.append(necking_pt_x)
+        necking_pt_lens.append(necking_pt_len)
 
     plot_args = {
         'title': 'Radial Strain of Hydrogel',
         'x_label': time_label,
         'y_label': r'Radial strain, ${\epsilon}_{r}$',
         'data_label': data_labels,
-        'has_legend': False
+        'has_legend': True
     }
 
     if will_save_figures:
         # plot radial strain
-        radial_strain_fig, radial_strain_ax = plot_scatter_data(time, [radial_strain], plot_args, n_datasets=1, output_fig_name='radial_strain')
+        radial_strain_fig, radial_strain_ax = plot_scatter_data(times, radial_strains, plot_args, n_datasets, output_fig_name='radial_strain')
 
         # plot x location of necking point over time
         plot_args['title'] = 'Necking Point Horizontal Location'
-        plot_args['y_label'] = f'Horizontal location of necking point ({conversion_units})'
-        necking_pt_loc_fig, necking_pt_loc_ax = plot_scatter_data(time, [necking_pt_x], plot_args, n_datasets=1, output_fig_name='necking_point_location')
+        plot_args['y_label'] = rf'Horizontal location of necking point, $\mathit{{x_{{np}}}}$ ({conversion_units})'
+        necking_pt_loc_fig, necking_pt_loc_ax = plot_scatter_data(times, necking_pt_x_locs, plot_args, n_datasets, output_fig_name='necking_point_location')
 
         # plot diameter at necking point
         plot_args['title'] = r'Diameter of Hydrogel at Necking Point' 
-        plot_args['y_label'] = f'Diameter ({conversion_units})'
-        necking_pt_len_fig, necking_pt_len_ax = plot_scatter_data(time, [necking_pt_len], plot_args, n_datasets=1, output_fig_name='diameter_at_necking_point')
+        plot_args['y_label'] = f'Diameter, $\mathit{{D_{{np}}}}$ ({conversion_units})'
+        necking_pt_len_fig, necking_pt_len_ax = plot_scatter_data(times, necking_pt_lens, plot_args, n_datasets, output_fig_name='diameter_at_necking_point')
 
     print("Done")
 
-    return list(time), radial_strain, plot_args
+    return times, radial_strains, plot_args
 
 def poissons_ratio(user_unit_conversion):
     """
@@ -485,38 +516,66 @@ def poissons_ratio(user_unit_conversion):
         None: The function directly outputs CSV files and generates plots, but does not return any variables.
     """
     conversion_factor, conversion_units = user_unit_conversion
-    marker_time, longitudinal_strain, plot_args = analyze_marker_deltas(user_unit_conversion)
-    necking_time, radial_strain, _ = analyze_necking_point(user_unit_conversion)
-    data_label = plot_args['data_label']
+    marker_times, longitudinal_strains, plot_args = analyze_marker_deltas(user_unit_conversion)
+    necking_times, radial_strains, _ = analyze_necking_point(user_unit_conversion)
+    
     print("LABEL", plot_args['data_label'])
     print("Finding Poisson's ratio...")
 
-    # ensure tracking operations previously ran on the same data in the same time range
-    if not (marker_time[0] == necking_time[0] and marker_time[-1] == necking_time[-1] and len(marker_time) == len(necking_time)):
-        msg = "Warning: Found discrepancies in marker deltas output and necking point output.\n"+\
-        "If this is due to outlier removal in one but not the other, proceed as normal.\n"+\
-        "Otherwise please ensure that both marker tracking and necking point detection are run on the same experiment within the same time frame."
-        warning_popup(msg)
-
-    # align values, as time values in one may have some missing from the other (from outlier removal)
-    marker_df = pd.DataFrame({
-        'time': marker_time,
-        'long_strain': longitudinal_strain
-    })
-    necking_df = pd.DataFrame({
-        'time': necking_time,
-        'rad_strain': radial_strain
-    })
-
-    # calculate poisson's ratio, radial / longitudinal
-    poissons_df = pd.merge(marker_df, necking_df, 'inner', 'time')
-    poissons_df['v'] = np.where(poissons_df['long_strain'] != 0, -1 * poissons_df['rad_strain'] / poissons_df['long_strain'], 0)
-    time_col, time_label, _ = get_time_labels(pd.read_csv("output/Necking_Point_Output.csv"))
+    # ensure there are the same number of marker and necking datasets
+    if not (len(marker_times) == len(necking_times) and len(longitudinal_strains) == len(radial_strains)):
+        msg = "Error: Found inequality of marker deltas and necking point datasets.\n\n"+\
+        "Please ensure each video used has tracking data for markers and necking point"
+        print("Aborted")
+        error_popup(msg)
+        return
+    else:
+        n_datasets = len(marker_times)
     
-    poissons_df['d(long_strain)/dt'] = poissons_df['long_strain'].diff() / poissons_df['time']
-    poissons_df['d(rad_strain)/dt'] = poissons_df['rad_strain'].diff() / poissons_df['time']
-    poissons_df['d(v)/dt'] = poissons_df['v'].diff() / poissons_df['time']
-    
+    poissons_df = pd.DataFrame()
+    times = []
+    poissons_ratios = []
+    long_strain_primes = []
+    rad_strain_primes = []
+    poisson_primes = []
+
+    for i in range(n_datasets):
+        # ensure tracking operations previously ran on the same data in the same time range
+        if not (marker_times[i][0] == necking_times[i][0] and marker_times[i][-1] == necking_times[i][-1] and len(marker_times[i]) == len(necking_times[i])):
+            msg = "Warning: Found discrepancies in marker deltas output and necking point output.\n"+\
+            "If this is due to outlier removal in one but not the other, proceed as normal.\n"+\
+            "Otherwise please ensure that both marker tracking and necking point detection are run on the same experiment within the same time frame."
+            warning_popup(msg)
+
+        # align values, as time values in one may have some missing from the other (from outlier removal)
+        marker_df = pd.DataFrame({
+            f'{i+1}-time': marker_times[i],
+            f'{i+1}-long_strain': longitudinal_strains[i]
+        })
+        necking_df = pd.DataFrame({
+            f'{i+1}-time': necking_times[i],
+            f'{i+1}-rad_strain': radial_strains[i]
+        })
+
+        time_unit = re.findall(r'\((.*?)\)', plot_args['x_label'])[0] # grab time unit from x axis label for use in y axis labels here
+
+        # calculate poisson's ratio, radial / longitudinal
+        cur_poissons_df = pd.merge(marker_df, necking_df, 'inner', f'{i+1}-time')
+        times.append(cur_poissons_df[f'{i+1}-time'])
+        print(cur_poissons_df)
+        # calculates poissons ratio while also avoiding divide by 0 errors
+        cur_poissons_df[f'{i+1}-v'] = np.where(cur_poissons_df[f'{i+1}-long_strain'] != 0, -1 * cur_poissons_df[f'{i+1}-rad_strain'] / cur_poissons_df[f'{i+1}-long_strain'], 0)
+        poissons_ratios.append(cur_poissons_df[f'{i+1}-v'])
+        
+        cur_poissons_df[f'{i+1}-d(long_strain)/dt'] = cur_poissons_df[f'{i+1}-long_strain'].diff() / cur_poissons_df[f'{i+1}-time']
+        long_strain_primes.append(cur_poissons_df[f'{i+1}-d(long_strain)/dt'])
+        cur_poissons_df[f'{i+1}-d(rad_strain)/dt'] = cur_poissons_df[f'{i+1}-rad_strain'].diff() / cur_poissons_df[f'{i+1}-time']
+        rad_strain_primes.append(cur_poissons_df[f'{i+1}-d(rad_strain)/dt'])
+        cur_poissons_df[f'{i+1}-d(v)/dt'] = cur_poissons_df[f'{i+1}-v'].diff() / cur_poissons_df[f'{i+1}-time']
+        poisson_primes.append(cur_poissons_df[f'{i+1}-d(v)/dt'])
+
+        poissons_df = pd.concat([poissons_df, cur_poissons_df], axis=1)
+
     print(poissons_df)
     poissons_df.to_csv("output/poissons_ratio.csv")
 
@@ -524,20 +583,20 @@ def poissons_ratio(user_unit_conversion):
     plot_args['y_label'] = r"Poisson's ratio, $\mathit{\nu}$"
 
     # plot poissons ratio against time
-    poisson_fig, poisson_ax = plot_scatter_data(poissons_df['time'], [poissons_df['v']], plot_args, n_datasets=1, output_fig_name='poissons_ratio')
+    poisson_fig, poisson_ax = plot_scatter_data(times, poissons_ratios, plot_args, n_datasets, output_fig_name='poissons_ratio')
 
-    # plot derivatives
-    plot_args['title'] = r"Derivative of Poissons Ratio - $\dot{\nu} (t)$"
-    plot_args['y_label'] = r"$\dot{\nu}(t)$"
-    poisson_prime_fig, poisson_prime_ax = plot_scatter_data(poissons_df['time'], [poissons_df['d(v)/dt']], plot_args, n_datasets=1, output_fig_name='poissons_ratio_prime')
+    # plot rates
+    plot_args['title'] = r"Rate of Poissons Ratio - $\dot{\nu} (t)$"
+    plot_args['y_label'] = rf"Poisson's ratio rate, $\dot{{\nu}}(t)$ $(\frac{{1}}{{{time_unit}}})$"
+    poisson_prime_fig, poisson_prime_ax = plot_scatter_data(times, poisson_primes, plot_args, n_datasets, output_fig_name='poissons_ratio_prime')
 
-    plot_args['title'] = r"Derivative of Longitudinal Strain - $\dot{\epsilon}_l (t)$"
-    plot_args['y_label'] = r"$\dot{\epsilon}_l (t)$"
-    long_strain_prime_fig, long_strain_prime_ax = plot_scatter_data(poissons_df['time'], [poissons_df['d(long_strain)/dt']], plot_args, n_datasets=1, output_fig_name='long_strain_prime')
+    plot_args['title'] = r"Rate of Longitudinal Strain - $\dot{\epsilon}_l (t)$"
+    plot_args['y_label'] = rf"Longitudinal strain rate, $\dot{{\epsilon}}_l (t) $ $(\frac{{1}}{{{time_unit}}})$"
+    long_strain_prime_fig, long_strain_prime_ax = plot_scatter_data(times, long_strain_primes, plot_args, n_datasets, output_fig_name='long_strain_prime')
 
-    plot_args['title'] = r"Derivative of Radial Strain - $\dot{\epsilon}_r (t)$"
-    plot_args['y_label'] = r"$\dot{\epsilon}_r (t)$"
-    rad_strain_prime_fig, rad_strain_prime_ax = plot_scatter_data(poissons_df['time'], [poissons_df['d(rad_strain)/dt']], plot_args, n_datasets=1, output_fig_name='rad_strain_prime')
+    plot_args['title'] = r"Rate of Radial Strain - $\dot{\epsilon}_r (t)$"
+    plot_args['y_label'] = rf"Radial strain rate $\mathit{{\dot{{\epsilon}}_r (t)}}$ $(\frac{{1}}{{{time_unit}}})$"
+    rad_strain_prime_fig, rad_strain_prime_ax = plot_scatter_data(times, rad_strain_primes, plot_args, n_datasets, output_fig_name='rad_strain_prime')
 
     print("Done")
 
@@ -594,7 +653,6 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chose
     data_multiplicity_type = check_num_trackers_with_num_datasets(n_trackers, num_tracker_datasets)
     if data_multiplicity_type == DataMultiplicity.TRACKERS or data_multiplicity_type == DataMultiplicity.SINGLE:
         # account for mismatch lengths of tracker information (if 1 tracker fell off before the other)
-        check_tracker_data_lengths(df, n_trackers)
         n_plots = n_trackers
         num_sets = n_trackers
     elif data_multiplicity_type == DataMultiplicity.VIDEOS:
@@ -639,9 +697,9 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chose
         tracker_velocities.append(vel_mag)
         print(vel_x.shape)
 
-        vel_df[f'x_velocity_tracker{n+1}'] = vel_x
-        vel_df[f'y_velocity_tracker{n+1}'] = vel_y
-        vel_df[f'magnitude_velocity_tracker{n+1}'] = vel_mag
+        vel_df[f'{n+1}-x_velocity_tracker'] = vel_x
+        vel_df[f'{n+1}-y_velocity_tracker'] = vel_y
+        vel_df[f'{n+1}-magnitude_velocity_tracker'] = vel_mag
 
         # fourier transform
         N = len(vel_mag)
@@ -664,7 +722,7 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chose
     }
     if will_save_figures:
         # plot marker velocity
-        vel_fig, vel_ax = plot_scatter_data(times[0], tracker_velocities, plot_args, n_plots, output_fig_name='marker_velocity')
+        vel_fig, vel_ax = plot_scatter_data(times, tracker_velocities, plot_args, n_plots, output_fig_name='marker_velocity')
 
         # plot fourier transform of marker distances
         plot_args['title'] = 'Marker Velocity FFT'
@@ -759,7 +817,8 @@ def velocity_boxplot(conditions, user_unit_conversion):
         plot_customs = json.load(plot_customs_file)
     font = plot_customs['font']
 
-    plt.xticks([1,2], list(condition_avg_velocities.keys()), fontsize=plot_customs['value_text_size'], fontfamily=font)
+    tick_pos = list(range(1, len(condition_avg_velocities) + 1))
+    plt.xticks(tick_pos, list(condition_avg_velocities.keys()), fontsize=plot_customs['value_text_size'], fontfamily=font)
     plt.yticks(fontsize=plot_customs['value_text_size'], fontfamily=font) 
     plt.title("Average Cell Velocities Across Multiple Conditions")
     plt.ylabel(rf'Average Magnitude of cell velocity, $|\mathit{{v}}|$ $(\frac{{{conversion_units}}}{{{time_unit}}})$')
@@ -803,6 +862,7 @@ def marker_distance(user_unit_conversion):
     n_trackers = df['1-Tracker'].unique().shape[0] # get number of trackers
     data_labels = []
     rms_disps = []
+    times = []
     time = df[time_col].unique()
     print(n_trackers, num_tracker_datasets)
     n_plots = 0
@@ -823,6 +883,7 @@ def marker_distance(user_unit_conversion):
 
             data_labels.append(cur_df['1-data_label'].unique()[0])
             rms_disps.append(rms_displacement(np.diff(x), np.diff(y)))
+            times.append(time[:-1])
 
     elif data_multiplicity_type == DataMultiplicity.VIDEOS:
         n_plots = num_tracker_datasets
@@ -831,8 +892,12 @@ def marker_distance(user_unit_conversion):
         for dataset in range(num_tracker_datasets):
             x = df[f'{dataset+1}-x (px)'].values * conversion_factor
             y = df[f'{dataset+1}-y (px)'].values * conversion_factor
+            time_col, _, _ = get_time_labels(df, dataset+1)
+            time = df[time_col].unique()
+
             data_labels.append(df[f'{dataset+1}-data_label'].unique()[0])
             rms_disps.append(rms_displacement(np.diff(x), np.diff(y)))
+            times.append(time[:-1])
 
     plot_args = {
         'title': 'Root mean square Displacement',
@@ -842,7 +907,7 @@ def marker_distance(user_unit_conversion):
         'has_legend': True
     }
     # plot marker velocity
-    disp_fig, disp_ax = plot_scatter_data(time[:-1], rms_disps, plot_args, n_plots, output_fig_name='marker_RMS_displacement')
+    disp_fig, disp_ax = plot_scatter_data(times, rms_disps, plot_args, n_plots, output_fig_name='marker_RMS_displacement')
 
 def single_marker_spread(user_unit_conversion, df=None, will_save_figures=True, chosen_video_data=None):
     """

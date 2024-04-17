@@ -406,7 +406,7 @@ class TrackingUI:
         "Click Ok to continue, or Cancel to exit"
         user_resp = warning_prompt(msg)
         if user_resp: # if user indicated to cont
-            df.set_index('Frame')
+            df.set_index('1-Frame')
             print(df)
             df.to_csv(fp, index=False)
 
@@ -769,7 +769,7 @@ class OutlierRemoval:
             self.df = pd.read_csv(self.fp)
             self.x_col, self.x_label, _ = analysis.get_time_labels(self.df)
             relevant_columns = [col for col in self.df.columns if f"{self.which_dataset}-" in col]
-            relevant_columns = ['Frame', self.x_col] + relevant_columns
+            relevant_columns = [f'{self.which_dataset}-Frame', self.x_col] + relevant_columns
             self.df = self.df[relevant_columns]
 
         # get appropriate columns

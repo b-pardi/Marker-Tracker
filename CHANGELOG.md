@@ -1,17 +1,58 @@
 ## ISSUES
 
 ## TODO
+
+FIX
+- FIX OUTLIER REMOVAL TOOL (broken from recent refactor)
+- cell analysis does not work with different size datasets (given new system if should now)
+
 Housekeeping
-- catch up on documentation
 
 Hydrogel
+- add poissons ratio plot to outlier removal
+- necking point v2
+    - track vertical height of midpoint between 2 selected markers
 
 Multi purpose
+- interactive plot to select region of data to analyze
+    - if int plot selected, load and analyze data of button clicked, but load plots into int plot instead of saving
+    - save figure with x range from the int plot
 
 Cell Mechanics  
+- box plot for first and last 5 hours of
+- surface area spread work for multiple videos
 - see about surface tracking on the lighter videos
 
 # Changelog
+
+4/16
+- closed figures after saving to save memory
+- for marker elongation legend changed 'Horizontal Differences' to ' Horizontal Distances'
+- adjusted y axis labels for:
+    - marker deltas horizontal and euclidean differences
+    - horizontal location of necking point
+    - Diameter of necking point
+    - poissons ratio rate
+    - longitudinal strain rate
+    - radial strain rate
+- major refactor adding time and frames recorded when appending in tracking
+    - previously when appending multiple videos it was sufficient to just append the tracking data and keeping time and frames from the original since they should be the same across each recording
+    - in preparation for making poissons ratio work with multiple recordings, this needs to be changed since videos won't always be the same length
+    - so now when appending datasets, the system implemented previously incrementing a number to recorded data column headers and prepending it to the header now also applies for columns Time and Frame
+    - this leads to the next several refactors
+- Refactored the following due to this appending data change:
+    - updated previously appended removal tool
+    - updated plot scatter data tool to take in multiple separate x datasets
+    - marker deltas analysis
+    - necking point analysis
+    - poissons ratio plotting and csv output saving
+    - marker velocity (just passed times instead of times[0] in plotting)
+- the following now accepts multiple tracked videos:
+    - marker deltas
+    - necking point
+    - poissons ratio
+- added legends to poissons ratio plots since it can handle multiple videos tracked now
+- fixed velocity boxplot setting tick positions dynamically (would fail if not exactly 2 boxes)
 
 4/14
 - revived fourier transform plotting for marker velocity
