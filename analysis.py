@@ -411,7 +411,7 @@ def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True,
 
     print("Done")
 
-    return times, longitudinal_strains, plot_args
+    return times, longitudinal_strains, plot_args, n_datasets
 
 
 def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True, chosen_video_data=None):
@@ -500,7 +500,7 @@ def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True,
 
     print("Done")
 
-    return times, radial_strains, plot_args
+    return times, radial_strains, plot_args, n_datasets
 
 def poissons_ratio(user_unit_conversion):
     """
@@ -526,8 +526,8 @@ def poissons_ratio(user_unit_conversion):
         None: The function directly outputs CSV files and generates plots, but does not return any variables.
     """
     conversion_factor, conversion_units = user_unit_conversion
-    marker_times, longitudinal_strains, plot_args = analyze_marker_deltas(user_unit_conversion)
-    necking_times, radial_strains, _ = analyze_necking_point(user_unit_conversion)
+    marker_times, longitudinal_strains, plot_args, _ = analyze_marker_deltas(user_unit_conversion)
+    necking_times, radial_strains, _, _ = analyze_necking_point(user_unit_conversion)
     
     print("LABEL", plot_args['data_label'])
     print("Finding Poisson's ratio...")

@@ -30,6 +30,8 @@ class TrackingUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Marker Tracker - M3B Lab")
+        self.root.iconphoto(False, tk.PhotoImage(file="ico/m3b_comp.png"))
+
 
         # ttk widget stylings
         radio_btn_style = ttk.Style()
@@ -142,7 +144,7 @@ class TrackingUI:
         self.range_identifier_entry = ttk.Entry(self.section1)
         self.range_identifier_entry.grid(row=10, column=0, pady=(0,8))
 
-        # radios for selecting operation
+        # buttons for selecting operation
         self.operation_intvar = tk.IntVar()
         self.operation_intvar.set(TrackingOperation.UNSELECTED.value)
         operation_frame = tk.Frame(self.section1)
@@ -151,7 +153,7 @@ class TrackingUI:
         operation_necking_radio = ttk.Radiobutton(operation_frame, text="Necking point detection", variable=self.operation_intvar, value=TrackingOperation.NECKING.value, command=self.handle_radios, width=25, style='Outline.TButton')
         operation_necking_radio.grid(row=0, column=1, padx=4, pady=(16, 4))
         operation_area_radio = ttk.Radiobutton(operation_frame, text="Surface area tracking", variable=self.operation_intvar, value=TrackingOperation.AREA.value, command=self.handle_radios, width=25, style='Outline.TButton')
-        operation_area_radio.grid(row=1, column=0, columnspan=2, padx=4, pady=(4, 16))
+        operation_area_radio.grid(row=0, column=2, padx=4, pady=(16,4))
         operation_frame.grid(row=11, column=0)
         self.select_msg = ttk.Label(self.section1, text="Select from above for more customizable parameters")
         self.select_msg.grid(row=12, column=0)
@@ -214,6 +216,7 @@ class TrackingUI:
         track_btn.grid(row=0, column=0, columnspan=2, padx=32, pady=(24,4))
         remove_outliers_button = ttk.Button(track_record_frame, text="Remove outliers", command=self.remove_outliers, style='Regular.TButton')
         remove_outliers_button.grid(row=1, column=0, columnspan=2, padx=32, pady=(4,24))
+        
         undo_buttons_frame = tk.Frame(track_record_frame)
         undo_label = ttk.Label(undo_buttons_frame, text="Undo previous appended tracking data recording.")
         undo_label.grid(row=0, column=0, columnspan=3)
@@ -224,7 +227,7 @@ class TrackingUI:
         undo_surface_tracking_append_btn = ttk.Button(undo_buttons_frame, text="Surface area", command=lambda: self.undo_last_tracking_append("output/Surface_Area_Output.csv"), style='Regular.TButton')
         undo_surface_tracking_append_btn.grid(row=1, column=2)
         undo_buttons_frame.grid(row=2, column=0, columnspan=2, pady=(8,20))
-        track_record_frame.grid(row=18, column=0)
+        track_record_frame.grid(row=18, column=0, pady=(8,20))
         self.section1.grid(row=0, column=0)
 
         # section 2 pertains to data analysis
@@ -288,6 +291,8 @@ class TrackingUI:
         self.boxplot_button = ttk.Button(self.cell_velocity_boxplot_opts_frame, text="Cell velocities boxplot", command=self.call_boxplot, style='Regular.TButton')
         self.boxplot_button.grid(row=2, column=0, pady=(8, 20))
 
+        data_selector_button = ttk.Button(submission_frame, text="Data selector", command=self.data_selector, style='Regular.TButton')
+        data_selector_button.grid(row=19, column=0, columnspan=2, pady=(24,0))
         exit_btn = ttk.Button(submission_frame, text='Exit', command=sys.exit, style='Regular.TButton')
         exit_btn.grid(row=20, column=0, columnspan=2, padx=32, pady=(24,12))
         submission_frame.grid(row=2, column=0)
@@ -366,6 +371,9 @@ class TrackingUI:
 
     def remove_outliers(self):
         OutlierRemoval(self.root, (float(self.conversion_factor_entry.get()), self.conversion_units_entry.get()))
+
+    def data_selector(self):
+        DataSelector(self.root, (float(self.conversion_factor_entry.get()), self.conversion_units_entry.get()))
 
     def on_mousewheel(self, event):
         self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
@@ -623,6 +631,8 @@ class FrameSelector:
         self.end_selection_flag = False
 
         self.child_window = tk.Toplevel(self.parent)
+        self.child_window.iconphoto(False, tk.PhotoImage(file="ico/m3b_comp.png"))
+
         self.child_window.title("Select Start and End Frames")
         self.child_window.geometry("+50+50")  # Adjust the values as needed
 
@@ -720,7 +730,8 @@ class OutlierRemoval:
         self.parent = parent
         self.user_units = user_units
         self.window = tk.Toplevel(self.parent)
-        self.parent.title("Select outlier points to remove them")
+        self.window.title("Select outlier points to remove them")
+        self.window.iconphoto(False, tk.PhotoImage(file="ico/m3b_comp.png"))
 
         self.fig = None
         self.canvas = None
@@ -872,6 +883,111 @@ class OutlierRemoval:
     def load_plot(self):
         self.create_figure()
         self.plot_data()
+
+
+class DataSelector:
+    def __init__(self, parent, user_units):
+        self.parent = parent
+        self.user_units = user_units
+        self.window = tk.Toplevel(self.parent)
+        self.window.title("Select a region of a plot")
+        self.window.iconphoto(False, tk.PhotoImage(file="ico/m3b_comp.png"))
+
+        self.output_files = {
+            'longitudinal strain': 'output/Tracking_Output.csv',
+            'Radial strain': 'output/Necking_Point_Output.csv',
+            'Marker velocity': 'output/Tracking_Output.csv',
+            'Surface area': 'output/Surface_Area_Output.csv'
+        }
+
+        # Create a combobox widget for user units selection
+        data_selection_frame = tk.Frame(self.window)
+        analysis_selector_label = ttk.Label(data_selection_frame, text="Select analysis option")
+        analysis_selector_label.grid(row=0, column=0)
+        self.analysis_selector = ttk.Combobox(data_selection_frame, values=list(self.output_files.keys()))
+        self.analysis_selector.set('Select analysis option')  # Set default placeholder text
+        self.analysis_selector.grid(row=1, column=0, padx=8, pady=12)  # Pack the combobox into the window
+
+        # Create a second combobox for data labels, initially empty
+        data_label_selector_label = ttk.Label(data_selection_frame, text="Select analysis option")
+        data_label_selector_label.grid(row=0, column=1)
+        self.data_label_selector = ttk.Combobox(data_selection_frame)
+        self.data_label_selector.set('Choose from first selector')  # Default placeholder text
+        self.data_label_selector.grid(row=1, column=1, padx=8, pady=12)
+
+        self.go_button = ttk.Button(data_selection_frame, text='Go', command=self.execute_analysis)
+        self.go_button.grid(row=2, column=0, columnspan=2, pady=20)
+
+        data_selection_frame.grid(row=0, column=0)
+
+        # Bind the first selector to update the second selector when an option is selected
+        self.analysis_selector.bind('<<ComboboxSelected>>', self.update_data_label_selector)
+
+        # Set up the matplotlib figure and canvas
+        self.figure = plt.Figure(figsize=(5, 4), dpi=100)
+        self.ax = self.figure.add_subplot(111)
+        self.canvas = FigureCanvasTkAgg(self.figure, self.window)
+        self.canvas.get_tk_widget().grid(row=1, column=0, padx=10, pady=10)
+        self.canvas.mpl_connect('key_press_event', self.on_key_press)
+
+    def update_data_label_selector(self, event):
+        selected_analysis = self.analysis_selector.get()
+        csv_file_path = self.output_files.get(selected_analysis)
+        if csv_file_path:
+            self.df = pd.read_csv(csv_file_path)
+            label_columns = [col for col in self.df.columns if 'data_label' in col]
+            unique_values = set()
+            self.label_to_dataset = {}
+            for col in label_columns:
+                dataset_num = int(col[0])  # Assuming the first character is the dataset number
+                values = self.df[col].dropna().unique()
+                for value in values:
+                    unique_values.add(value)
+                    self.label_to_dataset[value] = dataset_num
+            self.data_label_selector['values'] = sorted(unique_values)
+        else:
+            self.data_label_selector.set('Choose from first selector')
+            self.data_label_selector['values'] = []
+
+    def execute_analysis(self):
+        selected_label = self.data_label_selector.get()
+        self.which_dataset = self.label_to_dataset.get(selected_label, 0)  # Default to 0 if not found
+        selected_analysis = self.analysis_selector.get()
+        function_map = {
+            'longitudinal strain': analysis.analyze_marker_deltas,
+            'Radial strain': analysis.analyze_necking_point,
+            'Marker velocity': analysis.marker_velocity,
+            'Surface area': analysis.single_marker_spread
+        }
+        analysis_func = function_map.get(selected_analysis)
+        if analysis_func and self.which_dataset:
+            result = analysis_func(self.user_units, self.df, False, self.which_dataset)
+            if result:
+                times, y_values, plot_args, num_datasets = result
+                print(times, y_values, plot_args, num_datasets)
+                self.plot_data(times[0], y_values[0], plot_args)
+
+    def plot_data(self, times, y_values, plot_args):
+        self.ax.clear()
+        self.ax.plot(times, y_values, 'o', markersize=1)
+        self.ax.set_xlabel('Time')
+        self.ax.set_ylabel('Y Values')
+        self.ax.set_title('Analysis Result')
+        self.canvas.draw()
+
+        # Set up the span selector
+        self.span = matplotlib.widgets.SpanSelector(self.ax, self.onselect, 'horizontal', useblit=True,
+                                        props=dict(alpha=0.25, facecolor='blue'))
+        
+    def onselect(self, xmin, xmax):
+        self.ax.set_xlim(xmin, xmax)
+        self.canvas.draw_idle()
+
+    def on_key_press(self, event):
+        if event.key == 'escape':
+            self.ax.set_xlim(auto=True)
+            self.canvas.draw_idle()
+
 
 
 if __name__ == '__main__':

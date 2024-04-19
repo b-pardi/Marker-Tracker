@@ -8,6 +8,7 @@ Housekeeping
 
 Hydrogel
 - add poissons ratio plot to outlier removal
+- add poissons plot to DataSelector
 - necking point v2
     - track vertical height of midpoint between 2 selected markers
 
@@ -36,7 +37,14 @@ Cell Mechanics
     - outlier removal for necking point
 
 - now actually adding new features instead of just fixing things that one feature broke
-
+- small button move to tracking operation options are now all on same line
+- added ui button for data selector selector
+- beginning implementation of data selector
+    - DataSelector class opens child window
+    - first selector box chooses from available options to analyze
+    - 2nd selector box gets populated with available data labels once first box selected
+        - else empty
+    - go button takes those options and sends to appropriate analysis function
 
 4/16
 - closed figures after saving to save memory
