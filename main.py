@@ -767,20 +767,21 @@ class OutlierRemoval:
             self.data_type = self.selected_data.get()
             self.fp = self.output_files[self.selected_data.get()]
             self.df = pd.read_csv(self.fp)
-            self.x_col, self.x_label, _ = analysis.get_time_labels(self.df)
+            print('uidf before\n', self.df)
+            self.x_col, self.x_label, _ = analysis.get_time_labels(self.df, self.which_dataset)
             relevant_columns = [col for col in self.df.columns if f"{self.which_dataset}-" in col]
-            relevant_columns = [f'{self.which_dataset}-Frame', self.x_col] + relevant_columns
             self.df = self.df[relevant_columns]
+            print('uidf before\n', self.df)
 
         # get appropriate columns
         self.x, self.y = None, None
         if self.data_type == 'marker_deltas':
             # time and marker distances
-            self.x, self.y, self.plot_args = analysis.analyze_marker_deltas(self.user_units, self.df, False)
+            self.x, self.y, self.plot_args = analysis.analyze_marker_deltas(self.user_units, self.df, False, self.which_dataset)
             self.n_sets = 2
         elif self.data_type == 'necking_point':
             # time and necking radial strain (necking pt length as a ratio)
-            self.x, self.y, self.plot_args = analysis.analyze_necking_point(self.user_units, self.df, False)
+            self.x, self.y, self.plot_args = analysis.analyze_necking_point(self.user_units, self.df, False, self.which_dataset)
             self.n_sets = 1
         elif self.data_type == 'marker_tracking':
             # time and velocity of marker
@@ -843,7 +844,7 @@ class OutlierRemoval:
             idx_remove = self.df[self.df[self.x_col] == x].index
             print(idx_remove)
             self.df.drop(index=idx_remove, inplace=True)
-            self.df.reset_index(inplace=True, drop=True)
+            #self.df.reset_index(inplace=True, drop=True)
 
             # update plot
             self.plot_data(True)
@@ -865,7 +866,6 @@ class OutlierRemoval:
         for col in self.df.columns:
             orig_df[col] = self.df[col]
         orig_df.dropna(inplace=True)
-        orig_df.set_index('Frame')
         print(orig_df)
         orig_df.to_csv(self.output_files[self.data_type], index=False)
 

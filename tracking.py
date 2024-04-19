@@ -177,7 +177,7 @@ def track_markers(
 
     # init tracking data dict
     tracker_data = {'1-Frame': [], f'1-Time({time_units})': [], '1-Tracker': [], '1-x (px)': [], '1-y (px)': [], '1-video_file_name': video_file_name, '1-data_label': data_label}
-    frame_num = 0
+    frame_num = frame_start
 
     # tracking loop
     while True:
@@ -200,10 +200,10 @@ def track_markers(
 
                 # record tracker locations using original resolution
                 if frame_interval == 0:
-                    tracker_data[f'1-Time({time_units})'].append(np.float32(frame_num / cap.get(5)))
+                    tracker_data[f'1-Time({time_units})'].append(np.float16((frame_num - frame_start) / cap.get(5)))
                 else:
-                    tracker_data[f'1-Time({time_units})'].append(np.float16(frame_num * frame_interval))
-                tracker_data['1-Frame'].append(frame_num)
+                    tracker_data[f'1-Time({time_units})'].append(np.float16((frame_num - frame_start) * frame_interval))
+                tracker_data['1-Frame'].append(frame_num - frame_start)
                 tracker_data['1-Tracker'].append(i + 1)
                 tracker_data['1-x (px)'].append(int((marker_center[0] / scale_factor)))  # scale back to the original frame resolution
                 tracker_data['1-y (px)'].append(int((marker_center[1] / scale_factor)))
@@ -218,7 +218,7 @@ def track_markers(
 
         cv2.imshow("Tracking...", scaled_frame)  # show updated frame tracking
 
-        if cv2.waitKey(1) == 27 or frame_num >= frame_end - frame_start:  # cut tracking loop short if ESC hit
+        if cv2.waitKey(1) == 27 or frame_num >= frame_end:  # cut tracking loop short if ESC hit
             break
     
     if file_mode == FileMode.OVERWRITE:
@@ -292,7 +292,7 @@ def necking_point(
         data_label (str): Unique identifier for the data session.
     """    
     x_interval = 50 # interval for how many blue line visuals to display
-    frame_num = 0
+    frame_num = frame_start
     dist_data = {'1-Frame': [], f'1-Time({time_units})': [], '1-x at necking point (px)': [], '1-y necking distance (px)': [], '1-video_file_name': video_file_name, '1-data_label': data_label}
     percent_crop_left *= 0.01
     percent_crop_right *= 0.01
@@ -300,7 +300,7 @@ def necking_point(
     while True:  # read frame by frame until the end of the video
         ret, frame = cap.read()
         frame_num += frame_record_interval
-        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_start + frame_num)
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
 
         if not ret:
             break
@@ -357,17 +357,18 @@ def necking_point(
 
         # record and save data using original resolution
         if frame_interval == 0:
-            dist_data[f'1-Time({time_units})'].append(np.float32(frame_num / cap.get(5)))
+            dist_data[f'1-Time({time_units})'].append(np.float16((frame_num - frame_start) / cap.get(5)))
         else:
-            dist_data[f'1-Time({time_units})'].append(np.float16(frame_num * frame_interval))
-        dist_data['1-Frame'].append(frame_num)
+            dist_data[f'1-Time({time_units})'].append(np.float16((frame_num - frame_start) * frame_interval))
+        dist_data['1-Frame'].append(frame_num - frame_start)
         dist_data['1-x at necking point (px)'].append(int(x_samples[necking_pt_ind] / scale_factor))
         dist_data['1-y necking distance (px)'].append(int(necking_distance / scale_factor))
 
         cv2.line(frame_draw, (x_samples[necking_pt_ind], y_line_values[necking_pt_ind][0]), (x_samples[necking_pt_ind], y_line_values[necking_pt_ind][1]), (0, 0, 255), 2)     
 
         cv2.imshow('Necking Point Visualization', frame_draw)
-        if cv2.waitKey(1) == 27 or frame_end <= frame_num + frame_start:
+        
+        if cv2.waitKey(1) == 27 or frame_end <= frame_num:
             break
 
     if file_mode == FileMode.OVERWRITE:

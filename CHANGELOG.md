@@ -3,8 +3,6 @@
 ## TODO
 
 FIX
-- FIX OUTLIER REMOVAL TOOL (broken from recent refactor)
-- cell analysis does not work with different size datasets (given new system if should now)
 
 Housekeeping
 
@@ -24,6 +22,21 @@ Cell Mechanics
 - see about surface tracking on the lighter videos
 
 # Changelog
+
+4/18
+- after all these fixes from 4/16 and the ones below, the end result is datasets with different times can be plotted together, no more needing all tracked videos to be the same length. Consequently poissons ratio plotting can now handle multiple datsets
+- the following are fixes that were broken by the append data refactor on 4/16
+    - fixed cell velocity outlier removal
+    - surface area plotting
+    - surface area outlier removal
+    - necking point adds frame start to saved data so if start frame is not frame 0 the first time point will reflect that
+    - ^^^ damn that was a dumb idea forget that, time always starts at 0 regardless of start frame
+        - made plots weird
+    - outlier removal for marker deltas
+    - outlier removal for necking point
+
+- now actually adding new features instead of just fixing things that one feature broke
+
 
 4/16
 - closed figures after saving to save memory

@@ -297,7 +297,7 @@ def get_marker_data(user_unit_conversion, df):
 
     return list(x_locations), list(y_locations)
 
-def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True):
+def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True, chosen_video_data=None):
     """
     Analyzes and plots the Euclidean distances between two tracked markers to evaluate marker deltas and 
     calculates longitudinal strain from these distances. Optionally saves the plots to a specified directory.
@@ -339,7 +339,12 @@ def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True)
     elongation_differences = []
     data_labels = []
 
-    for i in range(1, n_datasets+1):
+    if chosen_video_data: # if called by outlier removal tool
+        for_range = (chosen_video_data, chosen_video_data+1)
+    else:
+        for_range = (1, n_datasets+1)
+
+    for i in range(for_range[0], for_range[1]):
         # ensure only 2 markers were selected
         if df[f'{i}-Tracker'].dropna().unique().shape[0] != 2:
             msg = "Found more/less than 2 markers.\n\nPlease ensure exactly 2 markers are tracked in each dataset"
@@ -394,7 +399,7 @@ def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True)
         plot_args['title'] = 'Marker Delta Tracking'
         plot_args['y_label'] = rf'Marker elongation, $\mathit{{\Delta {conversion_units}}}$'
         plot_args['data_label'] = ['Euclidean Distances ' + label for label in data_labels]
-        fig, ax = plot_scatter_data(times, marker_distances, plot_args, n_datasets=2)
+        fig, ax = plot_scatter_data(times, marker_distances, plot_args, n_datasets)
         plot_args['data_label'] = ['Horizontal Distances ' + label for label in data_labels]
         plot_scatter_data(times, horizontal_distances, plot_args, n_datasets, fig=fig, ax=ax, output_fig_name='marker_deltas') # plot x distance as well for control/comparison
 
@@ -409,7 +414,7 @@ def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True)
     return times, longitudinal_strains, plot_args
 
 
-def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True):
+def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True, chosen_video_data=None):
     """
     Analyzes and plots data related to the necking point of materials, such as the horizontal location and diameter over time,
     as well as calculating radial strain. The function reads from a specified CSV file and optionally saves plots to a directory.
@@ -449,7 +454,12 @@ def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True)
     necking_pt_x_locs = []
     necking_pt_lens = []
 
-    for i in range(1, n_datasets+1):
+    if chosen_video_data: # if called by outlier removal tool
+        for_range = (chosen_video_data, chosen_video_data+1)
+    else:
+        for_range = (1, n_datasets+1)
+
+    for i in range(for_range[0], for_range[1]):
         cur_df = get_relevant_columns(df, i).dropna()
         time_col, time_label, _ = get_time_labels(df, i)
         print(time_col)
@@ -635,7 +645,10 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chose
         df = pd.read_csv("output/Tracking_Output.csv") # open csv created/modified from marker tracking process
     print(df.head())
 
-    time_col, time_label, time_unit = get_time_labels(df)
+    if chosen_video_data is None:
+        chosen_video_data = 1
+    
+    time_col, time_label, time_unit = get_time_labels(df, chosen_video_data)
     _, _, num_tracker_datasets = get_num_datasets(df) # get num datasets
     if chosen_video_data is None:
         tracker_cols = [col for col in df.columns if col.__contains__('Tracker')]
@@ -660,6 +673,7 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chose
         num_sets = num_tracker_datasets
 
     # grab relevant values from df
+    print('asdfasdf\n', df[time_col])
     vel_df = pd.DataFrame({time_col: df[time_col].unique()[:-1]})
     for n in range(num_sets):
         if data_multiplicity_type == DataMultiplicity.SINGLE:
@@ -856,8 +870,8 @@ def marker_distance(user_unit_conversion):
     conversion_factor, conversion_units = user_unit_conversion
     df = pd.read_csv("output/Tracking_Output.csv") # open csv created/modified from marker tracking process
     print(df.head())
-
-    time_col, time_label, _ = get_time_labels(df)
+    
+    time_col, time_label, time_unit = get_time_labels(df)
     _, _, num_tracker_datasets = get_num_datasets(df) # get num datasets
     n_trackers = df['1-Tracker'].unique().shape[0] # get number of trackers
     data_labels = []
@@ -939,14 +953,18 @@ def single_marker_spread(user_unit_conversion, df=None, will_save_figures=True, 
         df = pd.read_csv("output/Surface_Area_Output.csv") # open csv created/modified from marker tracking process
     print(df.head())
 
+    if chosen_video_data is None:
+        chosen_video_data = 1
+    
+    time_col, time_label, time_unit = get_time_labels(df, chosen_video_data)
     _, _, num_tracker_datasets = get_num_datasets(df)
-    time_col, time_label, time_unit = get_time_labels(df)
     data_multiplicity_type = check_num_trackers_with_num_datasets(1, num_tracker_datasets)
 
     surface_areas = []
     data_labels = []
-    time = df[time_col].values
+    times = []
     for i in range(num_tracker_datasets):
+        time = df[time_col].values
         if data_multiplicity_type == DataMultiplicity.SINGLE:
             if chosen_video_data is None:
                 chosen_video_data = 1
@@ -956,6 +974,7 @@ def single_marker_spread(user_unit_conversion, df=None, will_save_figures=True, 
             surface_area = df[f'{i+1}-cell surface area (px^2)'].values * conversion_factor
             data_labels.append(df[f'{i+1}-data_label'].unique()[0])
 
+        times.append(time)
         surface_areas.append(surface_area)
 
     # plot
@@ -964,14 +983,14 @@ def single_marker_spread(user_unit_conversion, df=None, will_save_figures=True, 
         'x_label': time_label,
         'y_label': rf'Projected cell area, $\mathit{{A}}$ ' + rf'({conversion_units})$^{{2}}$',
         'data_label': data_labels,
-        'has_legend': True,
+        'has_legend': True
     }
 
     if will_save_figures:
         # plot marker velocity
-        area_fig, area_ax = plot_scatter_data(time, surface_areas, plot_args, num_tracker_datasets, output_fig_name='marker_surface_area')
+        area_fig, area_ax = plot_scatter_data(times, surface_areas, plot_args, num_tracker_datasets, output_fig_name='marker_surface_area')
 
-    return time, surface_area, plot_args, num_tracker_datasets
+    return times, surface_areas, plot_args, num_tracker_datasets
 
 if __name__=='__main__':
     analyze_marker_deltas()
