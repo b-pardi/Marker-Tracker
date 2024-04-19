@@ -915,20 +915,27 @@ class DataSelector:
         self.data_label_selector.set('Choose from first selector')  # Default placeholder text
         self.data_label_selector.grid(row=1, column=1, padx=8, pady=12)
 
-        self.go_button = ttk.Button(data_selection_frame, text='Go', command=self.execute_analysis)
-        self.go_button.grid(row=2, column=0, columnspan=2, pady=20)
+        buttons_frame = tk.Frame(self.window)
+        self.go_button = ttk.Button(buttons_frame, text='Go', command=self.execute_analysis)
+        self.go_button.grid(row=2, column=0, pady=20, padx=4)
+
+        self.reset_zoom_button = ttk.Button(buttons_frame, text="Reset zoom", command=self.reset_zoom)
+        self.reset_zoom_button.grid(row=2, column=1, padx=4)
+
+        self.save_plot_button = ttk.Button(buttons_frame, text="Save figure", command=self.save_plot)
+        self.save_plot_button.grid(row=2, column=2, columnspan=2, padx=4)
 
         data_selection_frame.grid(row=0, column=0)
+        buttons_frame.grid(row=1, column=0)
 
         # Bind the first selector to update the second selector when an option is selected
         self.analysis_selector.bind('<<ComboboxSelected>>', self.update_data_label_selector)
 
         # Set up the matplotlib figure and canvas
-        self.figure = plt.Figure(figsize=(5, 4), dpi=100)
+        self.figure = plt.Figure(figsize=(8, 6), dpi=100)
         self.ax = self.figure.add_subplot(111)
         self.canvas = FigureCanvasTkAgg(self.figure, self.window)
-        self.canvas.get_tk_widget().grid(row=1, column=0, padx=10, pady=10)
-        self.canvas.mpl_connect('key_press_event', self.on_key_press)
+        self.canvas.get_tk_widget().grid(row=5, column=0, padx=10, pady=10)
 
     def update_data_label_selector(self, event):
         selected_analysis = self.analysis_selector.get()
@@ -965,15 +972,29 @@ class DataSelector:
             if result:
                 times, y_values, plot_args, num_datasets = result
                 print(times, y_values, plot_args, num_datasets)
-                self.plot_data(times[0], y_values[0], plot_args)
+                self.plot_data(times[0], y_values[0], plot_args, num_datasets)
 
-    def plot_data(self, times, y_values, plot_args):
+    def plot_data(self, times, y_values, plot_args, num_datasets=1):
+        with open("plot_opts/plot_customizations.json", 'r') as plot_customs_file:
+            plot_customs = json.load(plot_customs_file)
+        
+        # adding legend depending on plot args
+        if plot_args['has_legend']:
+            if num_datasets <= 3:
+                legend = self.ax.legend(loc='best', fontsize=plot_customs['legend_text_size'], prop={'family': font}, framealpha=0.3)
+            else: # put legend outside plot if more than 3 datasets for readability
+                legend = self.ax.legend(loc='upper left', bbox_to_anchor=(1, 1), fontsize=plot_customs['legend_text_size'], prop={'family': font}, framealpha=0.3)
+        else:
+            legend = None
+
         self.ax.clear()
+
         self.ax.plot(times, y_values, 'o', markersize=1)
         self.ax.set_xlabel('Time')
         self.ax.set_ylabel('Y Values')
-        self.ax.set_title('Analysis Result')
+        self.ax.set_title(plot_args['title'], fontsize=plot_customs['title_text_size'], fontfamily=font)
         self.canvas.draw()
+        plt.tight_layout()
 
         # Set up the span selector
         self.span = matplotlib.widgets.SpanSelector(self.ax, self.onselect, 'horizontal', useblit=True,
@@ -983,12 +1004,17 @@ class DataSelector:
         self.ax.set_xlim(xmin, xmax)
         self.canvas.draw_idle()
 
-    def on_key_press(self, event):
-        if event.key == 'escape':
-            self.ax.set_xlim(auto=True)
-            self.canvas.draw_idle()
+    def reset_zoom(self):
+        self.ax.autoscale(True)
+        self.canvas.draw_idle()
 
-
+    def save_plot(self):
+        # Save the current view of the figure
+        file_path = filedialog.asksaveasfilename(defaultextension=".png",
+                                                 initialdir="figures/",
+                                                 filetypes=[("PNG files", "*.png"), ("PDF files", "*.pdf"), ("TIFF files", "*.tiff")])
+        if file_path:
+            self.figure.savefig(file_path)
 
 if __name__ == '__main__':
     root = tk.Tk()

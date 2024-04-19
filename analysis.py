@@ -133,7 +133,7 @@ def plot_scatter_data(x, y, plot_args, n_datasets, fig=None, ax=None, output_fig
         tuple: A tuple containing the matplotlib figure and axes objects (`fig`, `ax`) used or created.
     """
     if fig is None and ax is None:
-        fig, ax = plt.subplots(figsize=(8,5))
+        fig, ax = plt.subplots(figsize=(8,6))
         n_prev_plots = 0 # if adding to existing plot, continue color index
     else:
         n_prev_plots = len(ax.lines)
