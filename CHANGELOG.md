@@ -13,8 +13,8 @@ Hydrogel
     - track vertical height of midpoint between 2 selected markers
 
 Multi purpose
-- interactive plot to select region of data to analyze
-    - if int plot selected, load and analyze data of button clicked, but load plots into int plot instead of saving
+- for dataselector:
+    - fmt plot generated with plot args
     - save figure with x range from the int plot
 
 Cell Mechanics  
@@ -23,6 +23,10 @@ Cell Mechanics
 - see about surface tracking on the lighter videos
 
 # Changelog
+
+4/22
+- proper formatting for data selector tool
+- set fig size of data selector to dynamically adjust its size based on a percentage of monitor's resolution and dpi
 
 4/18
 - after all these fixes from 4/16 and the ones below, the end result is datasets with different times can be plotted together, no more needing all tracked videos to be the same length. Consequently poissons ratio plotting can now handle multiple datsets

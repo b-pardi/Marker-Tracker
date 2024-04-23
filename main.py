@@ -900,6 +900,12 @@ class DataSelector:
             'Surface area': 'output/Surface_Area_Output.csv'
         }
 
+        screen_width = self.window.winfo_screenwidth()
+        screen_height = self.window.winfo_screenheight()
+        system_dpi = self.window.winfo_fpixels('1i')  # This fetches the DPI in some environments
+        fig_width_in = (screen_width * 0.6) / system_dpi
+        fig_height_in = (screen_height * 0.5) / system_dpi
+
         # Create a combobox widget for user units selection
         data_selection_frame = tk.Frame(self.window)
         analysis_selector_label = ttk.Label(data_selection_frame, text="Select analysis option")
@@ -932,7 +938,7 @@ class DataSelector:
         self.analysis_selector.bind('<<ComboboxSelected>>', self.update_data_label_selector)
 
         # Set up the matplotlib figure and canvas
-        self.figure = plt.Figure(figsize=(8, 6), dpi=100)
+        self.figure = plt.Figure(figsize=(fig_width_in, fig_height_in), dpi=system_dpi)
         self.ax = self.figure.add_subplot(111)
         self.canvas = FigureCanvasTkAgg(self.figure, self.window)
         self.canvas.get_tk_widget().grid(row=5, column=0, padx=10, pady=10)
@@ -977,7 +983,11 @@ class DataSelector:
     def plot_data(self, times, y_values, plot_args, num_datasets=1):
         with open("plot_opts/plot_customizations.json", 'r') as plot_customs_file:
             plot_customs = json.load(plot_customs_file)
+        font = plot_customs['font']
         
+        self.ax.clear()
+        self.ax.plot(times, y_values, 'o', markersize=1, label=plot_args['data_label'])
+
         # adding legend depending on plot args
         if plot_args['has_legend']:
             if num_datasets <= 3:
@@ -987,12 +997,15 @@ class DataSelector:
         else:
             legend = None
 
-        self.ax.clear()
-
-        self.ax.plot(times, y_values, 'o', markersize=1)
-        self.ax.set_xlabel('Time')
-        self.ax.set_ylabel('Y Values')
+        plt.xticks(fontsize=plot_customs['value_text_size'], fontfamily=font)
+        plt.yticks(fontsize=plot_customs['value_text_size'], fontfamily=font) 
+        self.ax.set_xlabel(plot_args['x_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
+        self.ax.set_ylabel(plot_args['y_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
+        plt.tick_params(axis='both', direction=plot_customs['tick_dir'])
         self.ax.set_title(plot_args['title'], fontsize=plot_customs['title_text_size'], fontfamily=font)
+        y_lower_bound = None if plot_customs['y_lower_bound'] == 'auto' else float(plot_customs['y_lower_bound'])
+        y_upper_bound = None if plot_customs['y_upper_bound'] == 'auto' else float(plot_customs['y_upper_bound'])    
+        plt.ylim(y_lower_bound, y_upper_bound)
         self.canvas.draw()
         plt.tight_layout()
 
