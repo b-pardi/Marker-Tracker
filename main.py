@@ -733,136 +733,151 @@ class OutlierRemoval:
         self.window.title("Select outlier points to remove them")
         self.window.iconphoto(False, tk.PhotoImage(file="ico/m3b_comp.png"))
 
-        self.fig = None
-        self.canvas = None
-        self.labels = []
+        # Get monitor resolution and set figure size
+        screen_width = self.window.winfo_screenwidth()
+        screen_height = self.window.winfo_screenheight()
+        system_dpi = self.window.winfo_fpixels('1i')  # Fetches the DPI in some environments
+        fig_width_in = (screen_width * 0.6) / system_dpi
+        fig_height_in = (screen_height * 0.5) / system_dpi
+        self.fig = plt.Figure(figsize=(fig_width_in, fig_height_in), dpi=system_dpi)
+        self.ax = self.fig.add_subplot(111)
 
         # file options
         self.output_files = {
-            'marker_deltas': 'output/Tracking_Output.csv',
-            'necking_point': 'output/Necking_Point_Output.csv',
-            'marker_tracking': 'output/Tracking_Output.csv',
-            'surface_area': 'output/Surface_Area_Output.csv'
+            'Longitudinal strain': 'output/Tracking_Output.csv',
+            'Radial strain': 'output/Necking_Point_Output.csv',
+            'Marker velocity': 'output/Tracking_Output.csv',
+            'Surface area': 'output/Surface_Area_Output.csv'
         }
 
-        # prompt for input of which dataset
-        self.which_dataset = 1
-        self.which_dataset_label = ttk.Label(self.window, text="Enter number of which dataset to remove outliers from: ")
-        self.which_dataset_label.grid(row=0, column=0, columnspan=2)
-        self.which_dataset_entry = ttk.Entry(self.window)
-        self.which_dataset_entry.insert(0, "1")
-        self.which_dataset_entry.grid(row=0, column=2, padx=4, pady=8, columnspan=2)
+        self.function_map = {
+            'Longitudinal strain': analysis.analyze_marker_deltas,
+            'Radial strain': analysis.analyze_necking_point,
+            'Marker velocity': analysis.marker_velocity,
+            'Surface area': analysis.single_marker_spread
+        }
 
-        # radio buttons for file selection
-        self.selected_data = tk.StringVar()
-        self.marker_radio = ttk.Radiobutton(self.window, text="Marker deltas (Hydrogels)", variable=self.selected_data, value='marker_deltas', command=self.load_plot)
-        self.marker_radio.grid(row=1, column=0, padx=6, pady=8)
-        self.necking_radio = ttk.Radiobutton(self.window, text="Necking point (Hydrogels)", variable=self.selected_data, value='necking_point', command=self.load_plot)
-        self.necking_radio.grid(row=1, column=1, padx=6, pady=8)
-        self.marker_vel_radio = ttk.Radiobutton(self.window, text="Marker velocities (Cell tracking)", variable=self.selected_data, value='marker_tracking', command=self.load_plot)
-        self.marker_vel_radio.grid(row=1, column=2, padx=6, pady=8)
-        self.surface_area_radio = ttk.Radiobutton(self.window, text="Surface area (Cell tracking)", variable=self.selected_data, value='surface_area', command=self.load_plot)
-        self.surface_area_radio.grid(row=1, column=3, padx=6, pady=8)
+        # dynamically set figure/window size
+        screen_width = self.window.winfo_screenwidth()
+        screen_height = self.window.winfo_screenheight()
+        system_dpi = self.window.winfo_fpixels('1i')  # This fetches the DPI in some environments
+        fig_width_in = (screen_width * 0.4) / system_dpi
+        fig_height_in = (screen_height * 0.5) / system_dpi
 
-        self.undo_removals_button = ttk.Button(self.window, text="Undo Selections", command=self.undo_selections)
-        self.undo_removals_button.grid(row=5, column=0, columnspan=2, pady=8)
-        self.confirm_button = ttk.Button(self.window, text="Confirm Removal", comman=self.confirm)
-        self.confirm_button.grid(row=5, column=2, columnspan=2, pady=8)
+        # Setup for file selection and data label listbox
+        file_selection_frame = tk.Frame(self.window)
+        file_selector_label = ttk.Label(file_selection_frame, text="Select file type:")
+        file_selector_label.grid(row=0, column=0)
+        self.file_selector = ttk.Combobox(file_selection_frame, values=list(self.output_files.keys()))
+        self.file_selector.set('Select file type')
+        self.file_selector.grid(row=1, column=0, padx=8, pady=12)
 
+        data_label_selector_label = ttk.Label(file_selection_frame, text="Select data labels:")
+        data_label_selector_label.grid(row=0, column=1)
+        self.data_label_selector = tk.Listbox(file_selection_frame, selectmode='multiple', exportselection=0, height=4)
+        self.data_label_selector.grid(row=1, column=1, padx=8, pady=12)
+        file_selection_frame.grid(row=0, column=0)
+
+        # Control buttons
+        buttons_frame = tk.Frame(self.window)
+        self.generate_button = ttk.Button(buttons_frame, text='Generate plot', command=self.generate_plot)
+        self.generate_button.grid(row=0, column=0, pady=20, padx=4)
+        self.undo_removals_button = ttk.Button(buttons_frame, text="Undo Selections", command=self.undo_selections)
+        self.undo_removals_button.grid(row=0, column=1, pady=8)
+        self.confirm_button = ttk.Button(buttons_frame, text="Confirm Removal", command=self.confirm)
+        self.confirm_button.grid(row=0, column=2, pady=8)
+        buttons_frame.grid(row=1, column=0)
+
+        # notif labels (show when clicking confirm or undo)
         self.confirm_label = ttk.Label(self.window, text="Points removed!", font=('TkDefaultFont', 12, 'bold'))
         self.removed_label = ttk.Label(self.window, text="Selections undone", font=('TkDefaultFont', 12, 'bold'))
+        
+        # Set up the matplotlib figure and canvas
+        self.figure = plt.Figure(figsize=(fig_width_in, fig_height_in), dpi=system_dpi)
+        self.ax = self.figure.add_subplot(111)
+        self.canvas = FigureCanvasTkAgg(self.figure, master=self.window)
+        self.canvas.get_tk_widget().grid(row=5, column=0, padx=10, pady=10)
 
-    def load_data(self, is_updating=False):
-        self.which_dataset = int(self.which_dataset_entry.get())
-        if not is_updating: # initial loading and grabbing of relevant columns of dataset
-            self.data_type = self.selected_data.get()
-            self.fp = self.output_files[self.selected_data.get()]
-            self.df = pd.read_csv(self.fp)
-            print('uidf before\n', self.df)
-            self.x_col, self.x_label, _ = analysis.get_time_labels(self.df, self.which_dataset)
-            relevant_columns = [col for col in self.df.columns if f"{self.which_dataset}-" in col]
-            self.df = self.df[relevant_columns]
-            print('uidf before\n', self.df)
+        # Bind combobox selection change to load data and update listbox
+        self.file_selector.bind('<<ComboboxSelected>>', self.load_data_labels)
+        self.cid = self.canvas.mpl_connect('button_press_event', self.on_click)
 
-        # get appropriate columns
-        self.x, self.y = None, None
-        if self.data_type == 'marker_deltas':
-            # time and marker distances
-            self.x, self.y, self.plot_args = analysis.analyze_marker_deltas(self.user_units, self.df, False, self.which_dataset)
-            self.n_sets = 2
-        elif self.data_type == 'necking_point':
-            # time and necking radial strain (necking pt length as a ratio)
-            self.x, self.y, self.plot_args = analysis.analyze_necking_point(self.user_units, self.df, False, self.which_dataset)
-            self.n_sets = 1
-        elif self.data_type == 'marker_tracking':
-            # time and velocity of marker
-            try:
-                self.x, self.y, self.plot_args, self.n_sets = analysis.marker_velocity(self.user_units, self.df, False, self.which_dataset)
-            except IndexError as e:
-                print(e)
-                msg = f"Could not find dataset: {self.which_dataset} in the output data file"
-                error_popup(msg)
-        elif self.data_type == 'surface_area':
-            # time and surface area of object being tracked
-            try:
-                self.x, self.y, self.plot_args, self.n_sets = analysis.single_marker_spread(self.user_units, self.df, False, self.which_dataset)
-            except IndexError as e:
-                print(e)
-                msg = f"Could not find dataset: {self.which_dataset} in the output data file"
-                error_popup(msg)
+    def load_data_labels(self, event):
+        file_type = self.file_selector.get()
+        self.csv_file_path = self.output_files.get(file_type)
+        if self.csv_file_path:
+            self.df = pd.read_csv(self.csv_file_path)
+            label_columns = [col for col in self.df.columns if 'data_label' in col]
+            unique_values = set()
+            self.label_to_dataset = {}  # Initialize or clear previous entries
+            for col in label_columns:
+                dataset_num = int(col.split('-')[0])  # Assumes 'data_label' columns start with a dataset number, e.g., '1-data_label'
+                values = self.df[col].dropna().unique()
+                for value in values:
+                    unique_values.add(value)
+                    self.label_to_dataset[value] = dataset_num
+            self.data_label_selector.delete(0, tk.END)  # Clear existing entries
+            for value in sorted(unique_values):
+                self.data_label_selector.insert(tk.END, value)
 
-    def create_figure(self):
-        # Create a new figure and axes
-        if not self.fig:
-            self.fig, self.ax = plt.subplots()
+    def generate_plot(self):
+        print("Generating plot...")
+        analysis_choice = self.file_selector.get()
+        analysis_function = self.function_map.get(analysis_choice)
+        selected_labels = [self.data_label_selector.get(idx) for idx in self.data_label_selector.curselection()]
 
-    def plot_data(self, is_updating=False):
-        self.load_data(is_updating)
-        # Clear existing figure and axes
-        if self.ax:
-            self.ax.clear()
-        else:
-            self.create_figure()
+        dataset_index = None
+        if selected_labels:
+            for column in self.df.columns:
+                if self.df[column].isin(selected_labels).any():
+                    dataset_index = int(column.split('-')[0])
+                    print(f"Dataset index found: {dataset_index} in column: {column}")
+                    break
 
-        # check if list 1D or 2D and plot accordingly   
-        if all(isinstance(item, list) for item in self.y) or all(isinstance(item, np.ndarray) for item in self.y):
-            for i, (self.cur_x, self.cur_y) in enumerate(zip(self.x, self.y)):
-                self.plot = self.ax.plot(self.cur_x, self.cur_y, 'o', label=f"Tracker {i}", picker=True)
-            self.ax.legend(loc='best')
+        self.x_data, self.y_data, plot_args, _ = analysis_function(self.user_units, self.df, False, dataset_index)
 
-        elif all(not isinstance(item, list) for item in self.y):
-            self.plot = self.ax.plot(self.x, self.y, 'o', label=None, picker=True)
+        with open("plot_opts/plot_customizations.json", 'r') as plot_customs_file:
+            plot_customs = json.load(plot_customs_file)
+        font = plot_customs['font']
 
-        plt.xlabel(self.plot_args['x_label'])
-        plt.ylabel(self.plot_args['y_label'])
-        plt.title(f"Outlier Removal for {self.data_type}")
+        self.ax.clear()  # Clear current plot
+        self.ax.plot(self.x_data[0], self.y_data[0], 'o', markersize=4, label=plot_args['data_label'][0])  # Plot new data
+        plt.xticks(fontsize=plot_customs['value_text_size'], fontfamily=font)
+        plt.yticks(fontsize=plot_customs['value_text_size'], fontfamily=font) 
+        self.ax.set_xlabel(plot_args['x_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
+        self.ax.set_ylabel(plot_args['y_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
+        plt.tick_params(axis='both', direction=plot_customs['tick_dir'])
+        self.ax.set_title(plot_args['title'], fontsize=plot_customs['title_text_size'], fontfamily=font)
+        y_lower_bound = None if plot_customs['y_lower_bound'] == 'auto' else float(plot_customs['y_lower_bound'])
+        y_upper_bound = None if plot_customs['y_upper_bound'] == 'auto' else float(plot_customs['y_upper_bound'])    
+        plt.ylim(y_lower_bound, y_upper_bound)
+        self.canvas.draw()
+        plt.tight_layout()
 
-        # only draw if new canvas
-        if self.canvas:
-            self.canvas.get_tk_widget().destroy()
-        self.canvas = FigureCanvasTkAgg(self.fig, master=self.window)
-        self.canvas.get_tk_widget().grid(row=10, column=0, columnspan=4)
-        self.fig.canvas.mpl_connect('pick_event', self.onclick)
+    def on_click(self, event):
+        print('clciksaerfnklasdgrg')
+        # Ignore clicks outside axes
+        if event.inaxes is not self.ax:
+            return
 
-    def onclick(self, event):
-        if event.name == 'pick_event':
-            x_click = event.mouseevent.xdata
-            # n_sets entries for each time point
-            idx = (np.abs(self.x - x_click)).argmin() * self.n_sets
+        # find index of the nearest point
+        distances = np.sqrt((event.xdata - np.array(self.x_data[0]))**2 + (event.ydata - np.array(self.y_data[0]))**2)
+        index = np.argmin(distances)
 
-            # find and remove clicked pt
-            x = self.df.iloc[idx][self.x_col]
-            idx_remove = self.df[self.df[self.x_col] == x].index
-            print(idx_remove)
-            self.df.drop(index=idx_remove, inplace=True)
-            #self.df.reset_index(inplace=True, drop=True)
+        print(f"Point clicked at index {index}")
+        # Remove the point from the DataFrame
+        self.df.drop(self.df.index[index], inplace=True)
+        # Update the plot
+        self.update_plot()
 
-            # update plot
-            self.plot_data(True)
-            self.canvas.draw()
+    def update_plot(self):
+        # Clear the axes and replot with updated DataFrame
+        self.ax.clear()
+        # Assuming you refresh x_data and y_data from self.df
+        self.generate_plot()  # Implement this based on your analysis function
 
     def undo_selections(self):
-        self.removed_label.grid(row=8, column=0, columnspan=4, pady=8)
+        self.removed_label.grid(row=2, column=0, pady=8)
         self.window.after(5000, lambda: self.removed_label.grid_forget())
         plt.clf()
         self.fig = None
@@ -870,19 +885,15 @@ class OutlierRemoval:
         self.plot_data()
         
     def confirm(self):
-        self.confirm_label.grid(row=9, column=0, columnspan=4, pady=8)
+        self.confirm_label.grid(row=3, column=0, pady=8)
         self.window.after(5000, lambda: self.confirm_label.grid_forget())
-        orig_df = pd.read_csv(self.fp)
+        orig_df = pd.read_csv(self.csv_file_path)
         print(orig_df)
         for col in self.df.columns:
             orig_df[col] = self.df[col]
         orig_df.dropna(inplace=True)
         print(orig_df)
-        orig_df.to_csv(self.output_files[self.data_type], index=False)
-
-    def load_plot(self):
-        self.create_figure()
-        self.plot_data()
+        orig_df.to_csv(self.csv_file_path, index=False)
 
 
 class DataSelector:
@@ -895,16 +906,23 @@ class DataSelector:
 
         self.label_to_dataset = {}
         self.output_files = {
-            'longitudinal strain': 'output/Tracking_Output.csv',
+            'Longitudinal strain': 'output/Tracking_Output.csv',
             'Radial strain': 'output/Necking_Point_Output.csv',
             'Marker velocity': 'output/Tracking_Output.csv',
             'Surface area': 'output/Surface_Area_Output.csv'
         }
 
+        self.function_map = {
+            'Longitudinal strain': analysis.analyze_marker_deltas,
+            'Radial strain': analysis.analyze_necking_point,
+            'Marker velocity': analysis.marker_velocity,
+            'Surface area': analysis.single_marker_spread
+        }
+
         screen_width = self.window.winfo_screenwidth()
         screen_height = self.window.winfo_screenheight()
         system_dpi = self.window.winfo_fpixels('1i')  # This fetches the DPI in some environments
-        fig_width_in = (screen_width * 0.6) / system_dpi
+        fig_width_in = (screen_width * 0.4) / system_dpi
         fig_height_in = (screen_height * 0.5) / system_dpi
 
         # Create a combobox widget for user units selection
@@ -952,7 +970,7 @@ class DataSelector:
             unique_values = set()
             self.label_to_dataset = {}  # Reinitialize to avoid holding outdated entries
             for col in label_columns:
-                dataset_num = int(col[0])  # Assuming the first character is the dataset number
+                dataset_num = int(col.split('-')[0])  # Assuming the first character is the dataset number
                 values = self.df[col].dropna().unique()
                 for value in values:
                     unique_values.add(value)
@@ -968,15 +986,10 @@ class DataSelector:
         selected_indices = self.data_label_selector.curselection()
         selected_labels = [self.data_label_selector.get(i) for i in selected_indices]
         selected_analysis = self.analysis_selector.get()
-
-        function_map = {
-            'longitudinal strain': analysis.analyze_marker_deltas,
-            'Radial strain': analysis.analyze_necking_point,
-            'Marker velocity': analysis.marker_velocity,
-            'Surface area': analysis.single_marker_spread
-        }
-        analysis_func = function_map.get(selected_analysis)
-
+        analysis_func = self.function_map.get(selected_analysis)
+        if not selected_indices:
+            error_popup("No data labels selected.")
+            return
         # Handle multiple results
         num_datasets = len(selected_labels)
         print(selected_labels)

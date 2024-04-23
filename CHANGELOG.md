@@ -13,14 +13,11 @@ Hydrogel
     - track vertical height of midpoint between 2 selected markers
 
 Multi purpose
-- for dataselector:
-    - fmt plot generated with plot args
-    - save figure with x range from the int plot
+
 
 Cell Mechanics  
 - box plot for first and last 5 hours of
-- surface area spread work for multiple videos
-- see about surface tracking on the lighter videos
+- see about surface tracking on the stained videos
 
 # Changelog
 
