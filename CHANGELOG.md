@@ -27,6 +27,8 @@ Cell Mechanics
 4/22
 - proper formatting for data selector tool
 - set fig size of data selector to dynamically adjust its size based on a percentage of monitor's resolution and dpi
+- dataselector changed second combobox to listbox to select multiple datasets
+- dataselector can now plot either single or multiple datasets
 
 4/18
 - after all these fixes from 4/16 and the ones below, the end result is datasets with different times can be plotted together, no more needing all tracked videos to be the same length. Consequently poissons ratio plotting can now handle multiple datsets

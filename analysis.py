@@ -339,7 +339,7 @@ def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True,
     elongation_differences = []
     data_labels = []
 
-    if chosen_video_data: # if called by outlier removal tool
+    if chosen_video_data: # if called by outlier removal or data selector tool
         for_range = (chosen_video_data, chosen_video_data+1)
     else:
         for_range = (1, n_datasets+1)

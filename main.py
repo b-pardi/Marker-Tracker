@@ -893,6 +893,7 @@ class DataSelector:
         self.window.title("Select a region of a plot")
         self.window.iconphoto(False, tk.PhotoImage(file="ico/m3b_comp.png"))
 
+        self.label_to_dataset = {}
         self.output_files = {
             'longitudinal strain': 'output/Tracking_Output.csv',
             'Radial strain': 'output/Necking_Point_Output.csv',
@@ -915,10 +916,9 @@ class DataSelector:
         self.analysis_selector.grid(row=1, column=0, padx=8, pady=12)  # Pack the combobox into the window
 
         # Create a second combobox for data labels, initially empty
-        data_label_selector_label = ttk.Label(data_selection_frame, text="Select analysis option")
+        data_label_selector_label = ttk.Label(data_selection_frame, text="Select data label(s)")
         data_label_selector_label.grid(row=0, column=1)
-        self.data_label_selector = ttk.Combobox(data_selection_frame)
-        self.data_label_selector.set('Choose from first selector')  # Default placeholder text
+        self.data_label_selector = tk.Listbox(data_selection_frame, selectmode='multiple', exportselection=0, height=5)
         self.data_label_selector.grid(row=1, column=1, padx=8, pady=12)
 
         buttons_frame = tk.Frame(self.window)
@@ -950,22 +950,25 @@ class DataSelector:
             self.df = pd.read_csv(csv_file_path)
             label_columns = [col for col in self.df.columns if 'data_label' in col]
             unique_values = set()
-            self.label_to_dataset = {}
+            self.label_to_dataset = {}  # Reinitialize to avoid holding outdated entries
             for col in label_columns:
                 dataset_num = int(col[0])  # Assuming the first character is the dataset number
                 values = self.df[col].dropna().unique()
                 for value in values:
                     unique_values.add(value)
-                    self.label_to_dataset[value] = dataset_num
-            self.data_label_selector['values'] = sorted(unique_values)
+                    self.label_to_dataset[value] = dataset_num  # Map each unique value to its dataset number
+            self.data_label_selector.delete(0, tk.END)  # Clear the current listbox entries
+            for value in sorted(unique_values):
+                self.data_label_selector.insert(tk.END, value)
         else:
-            self.data_label_selector.set('Choose from first selector')
-            self.data_label_selector['values'] = []
+            self.data_label_selector.delete(0, tk.END)  # Clear the listbox if no csv file is selected
+            self.data_label_selector.insert(tk.END, 'Choose from first selector')
 
     def execute_analysis(self):
-        selected_label = self.data_label_selector.get()
-        self.which_dataset = self.label_to_dataset.get(selected_label, 0)  # Default to 0 if not found
+        selected_indices = self.data_label_selector.curselection()
+        selected_labels = [self.data_label_selector.get(i) for i in selected_indices]
         selected_analysis = self.analysis_selector.get()
+
         function_map = {
             'longitudinal strain': analysis.analyze_marker_deltas,
             'Radial strain': analysis.analyze_necking_point,
@@ -973,20 +976,26 @@ class DataSelector:
             'Surface area': analysis.single_marker_spread
         }
         analysis_func = function_map.get(selected_analysis)
-        if analysis_func and self.which_dataset:
-            result = analysis_func(self.user_units, self.df, False, self.which_dataset)
-            if result:
-                times, y_values, plot_args, num_datasets = result
-                print(times, y_values, plot_args, num_datasets)
-                self.plot_data(times[0], y_values[0], plot_args, num_datasets)
 
-    def plot_data(self, times, y_values, plot_args, num_datasets=1):
+        # Handle multiple results
+        num_datasets = len(selected_labels)
+        print(selected_labels)
+        self.ax.clear()
+        for selected_label in selected_labels:
+            which_dataset = self.label_to_dataset.get(selected_label, 0)  # Retrieve dataset number from label
+            if analysis_func and which_dataset:
+                result = analysis_func(self.user_units, self.df, False, which_dataset)
+                if result:
+                    x, y, plot_args, _ = result
+                    print(x, y, plot_args, num_datasets)
+                    self.plot_data(x[0], y[0], plot_args, num_datasets)
+
+    def plot_data(self, x, y, plot_args, num_datasets=1):
         with open("plot_opts/plot_customizations.json", 'r') as plot_customs_file:
             plot_customs = json.load(plot_customs_file)
         font = plot_customs['font']
-        
-        self.ax.clear()
-        self.ax.plot(times, y_values, 'o', markersize=1, label=plot_args['data_label'])
+
+        self.ax.plot(x, y, 'o', markersize=1, label=plot_args['data_label'][0])
 
         # adding legend depending on plot args
         if plot_args['has_legend']:
