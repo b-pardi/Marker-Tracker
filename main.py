@@ -766,15 +766,15 @@ class OutlierRemoval:
 
         # Setup for file selection and data label listbox
         file_selection_frame = tk.Frame(self.window)
-        file_selector_label = ttk.Label(file_selection_frame, text="Select file type:")
-        file_selector_label.grid(row=0, column=0)
-        self.file_selector = ttk.Combobox(file_selection_frame, values=list(self.output_files.keys()))
-        self.file_selector.set('Select file type')
-        self.file_selector.grid(row=1, column=0, padx=8, pady=12)
+        analysis_selector_label = ttk.Label(file_selection_frame, text="Select file type:")
+        analysis_selector_label.grid(row=0, column=0)
+        self.analysis_selector = ttk.Combobox(file_selection_frame, values=list(self.output_files.keys()))
+        self.analysis_selector.set('Select analysis type')
+        self.analysis_selector.grid(row=1, column=0, padx=8, pady=12)
 
         data_label_selector_label = ttk.Label(file_selection_frame, text="Select data labels:")
         data_label_selector_label.grid(row=0, column=1)
-        self.data_label_selector = tk.Listbox(file_selection_frame, selectmode='multiple', exportselection=0, height=4)
+        self.data_label_selector = tk.Listbox(file_selection_frame, selectmode='single', exportselection=0, height=4)
         self.data_label_selector.grid(row=1, column=1, padx=8, pady=12)
         file_selection_frame.grid(row=0, column=0)
 
@@ -799,55 +799,59 @@ class OutlierRemoval:
         self.canvas.get_tk_widget().grid(row=5, column=0, padx=10, pady=10)
 
         # Bind combobox selection change to load data and update listbox
-        self.file_selector.bind('<<ComboboxSelected>>', self.load_data_labels)
+        self.analysis_selector.bind('<<ComboboxSelected>>', self.load_data_labels)
         self.cid = self.canvas.mpl_connect('button_press_event', self.on_click)
 
     def load_data_labels(self, event):
-        file_type = self.file_selector.get()
-        self.csv_file_path = self.output_files.get(file_type)
+        selected_analysis = self.analysis_selector.get()
+        self.csv_file_path = self.output_files.get(selected_analysis)
         if self.csv_file_path:
             self.df = pd.read_csv(self.csv_file_path)
             label_columns = [col for col in self.df.columns if 'data_label' in col]
             unique_values = set()
-            self.label_to_dataset = {}  # Initialize or clear previous entries
+            self.label_to_dataset = {}
             for col in label_columns:
-                dataset_num = int(col.split('-')[0])  # Assumes 'data_label' columns start with a dataset number, e.g., '1-data_label'
+                dataset_num = int(col.split('-')[0])
                 values = self.df[col].dropna().unique()
                 for value in values:
                     unique_values.add(value)
-                    self.label_to_dataset[value] = dataset_num
-            self.data_label_selector.delete(0, tk.END)  # Clear existing entries
+                    self.label_to_dataset[value] = dataset_num  # Map each unique value to its dataset number
+            self.data_label_selector.delete(0, tk.END)  # Clear the current listbox entries
             for value in sorted(unique_values):
                 self.data_label_selector.insert(tk.END, value)
+        else:
+            self.data_label_selector.delete(0, tk.END)  # Clear the listbox if no csv file is selected
+            self.data_label_selector.insert(tk.END, 'Choose from first selector')
 
-    def generate_plot(self):
-        print("Generating plot...")
-        analysis_choice = self.file_selector.get()
-        analysis_function = self.function_map.get(analysis_choice)
-        selected_labels = [self.data_label_selector.get(idx) for idx in self.data_label_selector.curselection()]
 
-        dataset_index = None
-        if selected_labels:
-            for column in self.df.columns:
-                if self.df[column].isin(selected_labels).any():
-                    dataset_index = int(column.split('-')[0])
-                    print(f"Dataset index found: {dataset_index} in column: {column}")
-                    break
+    def generate_plot(self, is_refreshing=False):
+        self.analysis_choice = self.analysis_selector.get()
+        analysis_function = self.function_map.get(self.analysis_choice)
+        if not is_refreshing:
+            print("Generating plot...")
+            selected_labels = [self.data_label_selector.get(idx) for idx in self.data_label_selector.curselection()]
+            self.dataset_index = None
+            if selected_labels:
+                for column in self.df.columns:
+                    if self.df[column].isin(selected_labels).any():
+                        self.dataset_index = int(column.split('-')[0])
+                        print(f"Dataset index found: {self.dataset_index} in column: {column}")
+                        break
 
-        self.x_data, self.y_data, plot_args, _ = analysis_function(self.user_units, self.df, False, dataset_index)
+        self.x_data, self.y_data, self.plot_args, _ = analysis_function(self.user_units, self.df, False, self.dataset_index)
 
         with open("plot_opts/plot_customizations.json", 'r') as plot_customs_file:
             plot_customs = json.load(plot_customs_file)
         font = plot_customs['font']
 
         self.ax.clear()  # Clear current plot
-        self.ax.plot(self.x_data[0], self.y_data[0], 'o', markersize=4, label=plot_args['data_label'][0])  # Plot new data
+        self.ax.plot(self.x_data[0], self.y_data[0], 'o', markersize=4, label=self.plot_args['data_label'][0])  # Plot new data
         plt.xticks(fontsize=plot_customs['value_text_size'], fontfamily=font)
         plt.yticks(fontsize=plot_customs['value_text_size'], fontfamily=font) 
-        self.ax.set_xlabel(plot_args['x_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
-        self.ax.set_ylabel(plot_args['y_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
+        self.ax.set_xlabel(self.plot_args['x_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
+        self.ax.set_ylabel(self.plot_args['y_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
         plt.tick_params(axis='both', direction=plot_customs['tick_dir'])
-        self.ax.set_title(plot_args['title'], fontsize=plot_customs['title_text_size'], fontfamily=font)
+        self.ax.set_title(self.plot_args['title'], fontsize=plot_customs['title_text_size'], fontfamily=font)
         y_lower_bound = None if plot_customs['y_lower_bound'] == 'auto' else float(plot_customs['y_lower_bound'])
         y_upper_bound = None if plot_customs['y_upper_bound'] == 'auto' else float(plot_customs['y_upper_bound'])    
         plt.ylim(y_lower_bound, y_upper_bound)
@@ -855,7 +859,6 @@ class OutlierRemoval:
         plt.tight_layout()
 
     def on_click(self, event):
-        print('clciksaerfnklasdgrg')
         # Ignore clicks outside axes
         if event.inaxes is not self.ax:
             return
@@ -864,25 +867,37 @@ class OutlierRemoval:
         distances = np.sqrt((event.xdata - np.array(self.x_data[0]))**2 + (event.ydata - np.array(self.y_data[0]))**2)
         index = np.argmin(distances)
 
-        print(f"Point clicked at index {index}")
-        # Remove the point from the DataFrame
-        self.df.drop(self.df.index[index], inplace=True)
-        # Update the plot
+        relevant_columns = [col for col in self.df.columns if col.startswith(f"{self.dataset_index}-")]
+
+        '''if self.analysis_choice == 'Longitudinal strain': # 2 markers per time point entry
+            print("ASDFSADF")
+            df_index = self.df.index[index * 2]
+            if df_index % 2 == 0:
+                indices_to_remove = [df_index, df_index + 1]
+            else:
+                indices_to_remove = [df_index - 1, df_index]
+        else:
+            indices_to_remove = self.df.index[index]'''
+        time_col, _, _ = analysis.get_time_labels(self.df, self.dataset_index)
+        time_point = self.x_data[0][index]
+        indices_to_remove = self.df[(self.df[time_col] == time_point)].index.tolist()
+        print("indices:", indices_to_remove, "\nrel cols: ", relevant_columns)
+
+        for col in relevant_columns:
+            self.df.loc[indices_to_remove, col] = np.nan
+
         self.update_plot()
 
     def update_plot(self):
         # Clear the axes and replot with updated DataFrame
         self.ax.clear()
-        # Assuming you refresh x_data and y_data from self.df
-        self.generate_plot()  # Implement this based on your analysis function
+        self.generate_plot(is_refreshing=True)
 
     def undo_selections(self):
         self.removed_label.grid(row=2, column=0, pady=8)
         self.window.after(5000, lambda: self.removed_label.grid_forget())
-        plt.clf()
-        self.fig = None
-        self.ax = None
-        self.plot_data()
+        self.df = pd.read_csv(self.output_files[self.analysis_choice]) # reload original dataframe
+        self.update_plot()
         
     def confirm(self):
         self.confirm_label.grid(row=3, column=0, pady=8)
@@ -891,7 +906,7 @@ class OutlierRemoval:
         print(orig_df)
         for col in self.df.columns:
             orig_df[col] = self.df[col]
-        orig_df.dropna(inplace=True)
+        #orig_df.dropna(inplace=True)
         print(orig_df)
         orig_df.to_csv(self.csv_file_path, index=False)
 

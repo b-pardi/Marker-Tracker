@@ -21,6 +21,19 @@ Cell Mechanics
 
 # Changelog
 
+4/24
+- fixed outlier removal tool opting to remove points finding the indices at the time point selected
+    - easy remedy to account for marker deltas having multiple marker entries per time point entry
+    - fixed tool removing points across all data labels even when only one selected
+
+4/23
+- completed revamp of outlier removal tool
+    - similar to data selector, drop down selector allows for choice of analysis
+    - this choice populated the appropriate dataframe with the available datalabels in the datafile used by the corresponding analysis tool
+    - once selected analysis type and datalabel user can generate plot and view points to click on and remove
+        - only one datalabel can be viewed at a time
+    - buttons to confirm removals and update csv or undo selections
+
 4/22
 - proper formatting for data selector tool
 - set fig size of data selector to dynamically adjust its size based on a percentage of monitor's resolution and dpi
