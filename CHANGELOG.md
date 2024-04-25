@@ -25,6 +25,11 @@ Cell Mechanics
 - fixed outlier removal tool opting to remove points finding the indices at the time point selected
     - easy remedy to account for marker deltas having multiple marker entries per time point entry
     - fixed tool removing points across all data labels even when only one selected
+- added new button for poissons ratio to plot from csv, and changed old one state that it's a calculation
+    - figures saved from either will reflect this
+- added data labels to poissons ratio output csv
+- formatted poissons output time column to match output of other csv's
+- plotting from csv works
 
 4/23
 - completed revamp of outlier removal tool

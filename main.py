@@ -38,6 +38,8 @@ class TrackingUI:
         radio_btn_style.configure("Outline.TButton", borderwidth=2, relief="solid", padding=(2, 5), foreground="black")
         btn_style = ttk.Style()
         btn_style.configure("Regular.TButton", padding=(10,5), relief="raised", width=20)
+        small_text_btn_style = ttk.Style()
+        small_text_btn_style.configure("LessYPadding.TButton", padding=(10,0), relief="raised", width=20, anchor='center')
 
         # "Outline.TButton" style map
         radio_btn_style.map("Outline.TButton",
@@ -270,8 +272,10 @@ class TrackingUI:
         marker_deltas_btn.grid(row=6, column=0, padx=4, pady=4)
         necking_pt_btn = ttk.Button(submission_frame, text="Necking point analysis", command=lambda: analysis.analyze_necking_point((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
         necking_pt_btn.grid(row=7, column=0, padx=4, pady=4)
-        poissons_ratio_btn = ttk.Button(submission_frame, text="Poisson's ratio", command=lambda: analysis.poissons_ratio((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
-        poissons_ratio_btn.grid(row=8, column=0, padx=4, pady=4)
+        poissons_ratio_calc_btn = ttk.Button(submission_frame, text="Poisson's ratio\n(calculate)", command=lambda: analysis.poissons_ratio((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='LessYPadding.TButton')
+        poissons_ratio_calc_btn.grid(row=8, column=0, padx=4, pady=4)
+        poissons_ratio_csv_btn = ttk.Button(submission_frame, text="Poisson's ratio\n(from csv)", command=lambda: analysis.poissons_ratio_csv((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='LessYPadding.TButton')
+        poissons_ratio_csv_btn.grid(row=9, column=0, padx=4, pady=4)
 
         cell_distance_btn = ttk.Button(submission_frame, text="Marker distance", command=lambda: analysis.marker_distance((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
         cell_distance_btn.grid(row=6, column=1, padx=4, pady=4)
@@ -746,14 +750,19 @@ class OutlierRemoval:
         self.output_files = {
             'Longitudinal strain': 'output/Tracking_Output.csv',
             'Radial strain': 'output/Necking_Point_Output.csv',
+            "Poisson's ratio (calculate)": 'output/Necking_Point_Output.csv',
+            "Poisson's ratio (from csv)": 'output/poissons_ratio.csv',
             'Marker velocity': 'output/Tracking_Output.csv',
+            'Marker RMS distance': 'output/Tracking_Output.csv',
             'Surface area': 'output/Surface_Area_Output.csv'
         }
 
         self.function_map = {
             'Longitudinal strain': analysis.analyze_marker_deltas,
             'Radial strain': analysis.analyze_necking_point,
+            "Poisson's ratio": analysis.poissons_ratio,
             'Marker velocity': analysis.marker_velocity,
+            'Marker RMS distance': analysis.marker_distance,
             'Surface area': analysis.single_marker_spread
         }
 
@@ -834,7 +843,7 @@ class OutlierRemoval:
             if selected_labels:
                 for column in self.df.columns:
                     if self.df[column].isin(selected_labels).any():
-                        self.dataset_index = int(column.split('-')[0])
+                        self.dataset_index = int(column.split('-', 1)[0])
                         print(f"Dataset index found: {self.dataset_index} in column: {column}")
                         break
 
@@ -869,15 +878,6 @@ class OutlierRemoval:
 
         relevant_columns = [col for col in self.df.columns if col.startswith(f"{self.dataset_index}-")]
 
-        '''if self.analysis_choice == 'Longitudinal strain': # 2 markers per time point entry
-            print("ASDFSADF")
-            df_index = self.df.index[index * 2]
-            if df_index % 2 == 0:
-                indices_to_remove = [df_index, df_index + 1]
-            else:
-                indices_to_remove = [df_index - 1, df_index]
-        else:
-            indices_to_remove = self.df.index[index]'''
         time_col, _, _ = analysis.get_time_labels(self.df, self.dataset_index)
         time_point = self.x_data[0][index]
         indices_to_remove = self.df[(self.df[time_col] == time_point)].index.tolist()
@@ -923,14 +923,20 @@ class DataSelector:
         self.output_files = {
             'Longitudinal strain': 'output/Tracking_Output.csv',
             'Radial strain': 'output/Necking_Point_Output.csv',
+            "Poisson's ratio (calculate)": 'output/Necking_Point_Output.csv',
+            "Poisson's ratio (from csv)": 'output/poissons_ratio.csv',
             'Marker velocity': 'output/Tracking_Output.csv',
+            'Marker RMS distance': 'output/Tracking_Output.csv',
             'Surface area': 'output/Surface_Area_Output.csv'
         }
 
         self.function_map = {
             'Longitudinal strain': analysis.analyze_marker_deltas,
             'Radial strain': analysis.analyze_necking_point,
+            "Poisson's ratio (calculate)": analysis.poissons_ratio,
+            "Poisson's ratio (from csv)": self.plot_poissons_from_csv,
             'Marker velocity': analysis.marker_velocity,
+            'Marker RMS distance': analysis.marker_distance,
             'Surface area': analysis.single_marker_spread
         }
 
@@ -985,7 +991,7 @@ class DataSelector:
             unique_values = set()
             self.label_to_dataset = {}  # Reinitialize to avoid holding outdated entries
             for col in label_columns:
-                dataset_num = int(col.split('-')[0])  # Assuming the first character is the dataset number
+                dataset_num = int(col.split('-', 1)[0])  # Assuming the first character is the dataset number
                 values = self.df[col].dropna().unique()
                 for value in values:
                     unique_values.add(value)
@@ -1050,6 +1056,20 @@ class DataSelector:
         self.span = matplotlib.widgets.SpanSelector(self.ax, self.onselect, 'horizontal', useblit=True,
                                         props=dict(alpha=0.25, facecolor='blue'))
         
+    def plot_poissons_from_csv(self, user_units, df, will_save_plot, which_dataset):
+        pass
+        '''plot_args = {
+            'title': r"Poisson's Ratio - $\mathit{\nu(t)}$",
+            'x_label': time_label,
+            'y_label': r"Poisson's ratio, $\mathit{\nu}$",
+            'data_label': data_labels,
+            'has_legend': True
+        }
+        
+        
+        return times, radial_strains, plot_args, n_datasets
+
+        '''
     def onselect(self, xmin, xmax):
         self.ax.set_xlim(xmin, xmax)
         self.canvas.draw_idle()

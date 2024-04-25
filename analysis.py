@@ -49,7 +49,7 @@ def get_time_labels(df, col_num=1):
         - plot x axis label
         - specific time unit
     '''
-    time_col = f'{col_num}-' + (df.filter(like='Time').columns[0]).split('-')[1] # accounts for any kind of units in time col
+    time_col = f'{col_num}-' + (df.filter(like='Time').columns[0]).split('-', 1)[1] # accounts for any kind of units in time col
     time_label = r'Time, $\mathit{t}$ (s)'
     time_unit = TimeUnits.SECONDS.value
     if time_col.__contains__('min'):
@@ -502,7 +502,7 @@ def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True,
 
     return times, radial_strains, plot_args, n_datasets
 
-def poissons_ratio(user_unit_conversion):
+def poissons_ratio(user_unit_conversion, is_removing=False):
     """
     Calculates Poisson's ratio for a material by analyzing longitudinal and radial strains, and additionally computes
     the derivatives of these strains over time. The function integrates data from previous tracking and necking operations,
@@ -513,7 +513,7 @@ def poissons_ratio(user_unit_conversion):
         - It verifies that the data from both functions cover the same time period and handles potential discrepancies.
         - A DataFrame is created to align and merge the strains, and Poisson's ratio is calculated as the negative ratio of radial to longitudinal strain.
         - The time derivatives of Poisson's ratio, longitudinal strain, and radial strain are also calculated and plotted.
-        - Results are saved to 'output/poissons_ratio.csv', and plots are saved in the 'figures' folder.
+        - Results are saved to 'output/poissons_ratio_calc.csv', and plots are saved in the 'figures' folder.
 
     Note:
         - Ensure that both the `analyze_marker_deltas` and `analyze_necking_point` functions are run prior to this with compatible data sets.
@@ -521,7 +521,8 @@ def poissons_ratio(user_unit_conversion):
 
     Args:
         user_unit_conversion (tuple): Tuple containing a conversion factor and unit name to convert pixel measurements to a desired unit.
-
+        will_calculate (Bool): determines if will calculate from recorded data, or if read from csv (False when removing points in OutlierRemoval)
+        
     Returns:
         None: The function directly outputs CSV files and generates plots, but does not return any variables.
     """
@@ -549,6 +550,10 @@ def poissons_ratio(user_unit_conversion):
     rad_strain_primes = []
     poisson_primes = []
 
+    temp_df = pd.read_csv("output/Necking_Point_Output.csv")
+    time_col, time_label, _ = get_time_labels(temp_df)
+    time_col = time_col[2:]
+
     for i in range(n_datasets):
         # ensure tracking operations previously ran on the same data in the same time range
         if not (marker_times[i][0] == necking_times[i][0] and marker_times[i][-1] == necking_times[i][-1] and len(marker_times[i]) == len(necking_times[i])):
@@ -559,29 +564,30 @@ def poissons_ratio(user_unit_conversion):
 
         # align values, as time values in one may have some missing from the other (from outlier removal)
         marker_df = pd.DataFrame({
-            f'{i+1}-time': marker_times[i],
+            f'{i+1}-{time_col}': marker_times[i],
             f'{i+1}-long_strain': longitudinal_strains[i]
         })
         necking_df = pd.DataFrame({
-            f'{i+1}-time': necking_times[i],
+            f'{i+1}-{time_col}': necking_times[i],
             f'{i+1}-rad_strain': radial_strains[i]
         })
 
         time_unit = re.findall(r'\((.*?)\)', plot_args['x_label'])[0] # grab time unit from x axis label for use in y axis labels here
 
         # calculate poisson's ratio, radial / longitudinal
-        cur_poissons_df = pd.merge(marker_df, necking_df, 'inner', f'{i+1}-time')
-        times.append(cur_poissons_df[f'{i+1}-time'])
+        cur_poissons_df = pd.merge(marker_df, necking_df, 'inner', f'{i+1}-{time_col}')
+        times.append(cur_poissons_df[f'{i+1}-{time_col}'])
+        cur_poissons_df[f'{i+1}-data_label'] = plot_args['data_label'][i]
         print(cur_poissons_df)
         # calculates poissons ratio while also avoiding divide by 0 errors
         cur_poissons_df[f'{i+1}-v'] = np.where(cur_poissons_df[f'{i+1}-long_strain'] != 0, -1 * cur_poissons_df[f'{i+1}-rad_strain'] / cur_poissons_df[f'{i+1}-long_strain'], 0)
         poissons_ratios.append(cur_poissons_df[f'{i+1}-v'])
         
-        cur_poissons_df[f'{i+1}-d(long_strain)/dt'] = cur_poissons_df[f'{i+1}-long_strain'].diff() / cur_poissons_df[f'{i+1}-time']
+        cur_poissons_df[f'{i+1}-d(long_strain)/dt'] = cur_poissons_df[f'{i+1}-long_strain'].diff() / cur_poissons_df[f'{i+1}-{time_col}']
         long_strain_primes.append(cur_poissons_df[f'{i+1}-d(long_strain)/dt'])
-        cur_poissons_df[f'{i+1}-d(rad_strain)/dt'] = cur_poissons_df[f'{i+1}-rad_strain'].diff() / cur_poissons_df[f'{i+1}-time']
+        cur_poissons_df[f'{i+1}-d(rad_strain)/dt'] = cur_poissons_df[f'{i+1}-rad_strain'].diff() / cur_poissons_df[f'{i+1}-{time_col}']
         rad_strain_primes.append(cur_poissons_df[f'{i+1}-d(rad_strain)/dt'])
-        cur_poissons_df[f'{i+1}-d(v)/dt'] = cur_poissons_df[f'{i+1}-v'].diff() / cur_poissons_df[f'{i+1}-time']
+        cur_poissons_df[f'{i+1}-d(v)/dt'] = cur_poissons_df[f'{i+1}-v'].diff() / cur_poissons_df[f'{i+1}-{time_col}']
         poisson_primes.append(cur_poissons_df[f'{i+1}-d(v)/dt'])
 
         poissons_df = pd.concat([poissons_df, cur_poissons_df], axis=1)
@@ -593,7 +599,7 @@ def poissons_ratio(user_unit_conversion):
     plot_args['y_label'] = r"Poisson's ratio, $\mathit{\nu}$"
 
     # plot poissons ratio against time
-    poisson_fig, poisson_ax = plot_scatter_data(times, poissons_ratios, plot_args, n_datasets, output_fig_name='poissons_ratio')
+    poisson_fig, poisson_ax = plot_scatter_data(times, poissons_ratios, plot_args, n_datasets, output_fig_name='poissons_ratio_calc')
 
     # plot rates
     plot_args['title'] = r"Rate of Poissons Ratio - $\dot{\nu} (t)$"
@@ -609,6 +615,33 @@ def poissons_ratio(user_unit_conversion):
     rad_strain_prime_fig, rad_strain_prime_ax = plot_scatter_data(times, rad_strain_primes, plot_args, n_datasets, output_fig_name='rad_strain_prime')
 
     print("Done")
+
+def poissons_ratio_csv(user_unit_conversion, df=None, will_save_figures=True, chosen_video_data=None):
+    df = pd.read_csv('output/poissons_ratio.csv')
+    times, poissons_ratios, data_labels = [], [], []
+
+    n_datasets = int(df.columns[-1].split('-', 1)[0])
+
+    for i in range(1, n_datasets+1):
+        cur_df = get_relevant_columns(df, i).dropna()
+        time_col, time_label, _ = get_time_labels(df, i)
+        time = cur_df[time_col].values
+        data_labels.append(cur_df[f'{i}-data_label'].unique()[0])
+        ratios = cur_df[f'{i}-v'].values
+
+        times.append(time)
+        poissons_ratios.append(ratios)
+
+    plot_args = {
+        'title': r"Poisson's Ratio - $\mathit{\nu(t)}$",
+        'x_label': time_label,
+        'y_label': r"Poisson's ratio, $\mathit{\nu}$",
+        'data_label': data_labels,
+        'has_legend': True
+    }
+
+    poisson_fig, poisson_ax = plot_scatter_data(times, poissons_ratios, plot_args, n_datasets, output_fig_name='poissons_ratio_csv')
+
 
 def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chosen_video_data=None):
     """
