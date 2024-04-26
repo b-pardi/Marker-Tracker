@@ -21,6 +21,18 @@ Cell Mechanics
 
 # Changelog
 
+4/25
+- added poissons ratio to outliar removal tool
+    - reads from poissons ratio csv file, meaning calculation of poissons must be run first
+    - this is because removing index of selected point in poissons does not directly correlate to its predecessor values due to the various calculations done
+- added rms displacement to outlier removal
+- added poissons ratio to dataselector
+- added rms displacement to data selector
+- fixed bug in marker velocity and distance where if points removed in one data label they would not plot points from other data labels at those same time stamps
+- fixed bug where removing outliars in one data label removed them in others as well
+- fixed bug where subsequent datalabels referenced the first data labels time column
+- jfc I need to clean up these two functions but for now they work as expected and can plot/remove/analyze different length tracked datasets
+
 4/24
 - fixed outlier removal tool opting to remove points finding the indices at the time point selected
     - easy remedy to account for marker deltas having multiple marker entries per time point entry

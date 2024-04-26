@@ -750,7 +750,6 @@ class OutlierRemoval:
         self.output_files = {
             'Longitudinal strain': 'output/Tracking_Output.csv',
             'Radial strain': 'output/Necking_Point_Output.csv',
-            "Poisson's ratio (calculate)": 'output/Necking_Point_Output.csv',
             "Poisson's ratio (from csv)": 'output/poissons_ratio.csv',
             'Marker velocity': 'output/Tracking_Output.csv',
             'Marker RMS distance': 'output/Tracking_Output.csv',
@@ -760,7 +759,7 @@ class OutlierRemoval:
         self.function_map = {
             'Longitudinal strain': analysis.analyze_marker_deltas,
             'Radial strain': analysis.analyze_necking_point,
-            "Poisson's ratio": analysis.poissons_ratio,
+            "Poisson's ratio (from csv)": analysis.poissons_ratio_csv,
             'Marker velocity': analysis.marker_velocity,
             'Marker RMS distance': analysis.marker_distance,
             'Surface area': analysis.single_marker_spread
@@ -920,10 +919,10 @@ class DataSelector:
         self.window.iconphoto(False, tk.PhotoImage(file="ico/m3b_comp.png"))
 
         self.label_to_dataset = {}
+        # file options
         self.output_files = {
             'Longitudinal strain': 'output/Tracking_Output.csv',
             'Radial strain': 'output/Necking_Point_Output.csv',
-            "Poisson's ratio (calculate)": 'output/Necking_Point_Output.csv',
             "Poisson's ratio (from csv)": 'output/poissons_ratio.csv',
             'Marker velocity': 'output/Tracking_Output.csv',
             'Marker RMS distance': 'output/Tracking_Output.csv',
@@ -933,8 +932,7 @@ class DataSelector:
         self.function_map = {
             'Longitudinal strain': analysis.analyze_marker_deltas,
             'Radial strain': analysis.analyze_necking_point,
-            "Poisson's ratio (calculate)": analysis.poissons_ratio,
-            "Poisson's ratio (from csv)": self.plot_poissons_from_csv,
+            "Poisson's ratio (from csv)": analysis.poissons_ratio_csv,
             'Marker velocity': analysis.marker_velocity,
             'Marker RMS distance': analysis.marker_distance,
             'Surface area': analysis.single_marker_spread
