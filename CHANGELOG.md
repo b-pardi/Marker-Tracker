@@ -17,6 +17,19 @@ Multi purpose
 
 Cell Mechanics  
 - box plot for first and last 5 hours of
+    - new class/window for boxplot
+    - akin to other tools, prompt for analysis (3 cell ones only) and datalabels
+    - prompt for grouping boxes by conditions or by time ranges
+        - by conditions,
+            - move from main ui to new window
+            - prompt for user to enter a condition name, then select all labels that belong in that condition, then a button to add the label/condition combo to a list displayed in the ui, condition dict where key is condition and value is list of applicable data labels
+            - modify to generalize the current cell velocity boxplot function
+            - average velocity of each label across whole video becomes a point in the box, each condition becomes a box
+        - by time points, 
+            - prompt user to select all data labels they want analyzed
+            - two labelled entries for a t0 and tf of time range, with a button to pop up a new pair of labelled entries for user to keep iteratively entering time ranges they want analyzed
+            - each time range becomes a box, the average value of the maker thing in that time range becomes a point
+                - each cell will have n_ranges points in the whole graph, one average value in each box
 - see about surface tracking on the stained videos
 
 # Changelog
@@ -29,7 +42,7 @@ Cell Mechanics
 - added poissons ratio to dataselector
 - added rms displacement to data selector
 - fixed bug in marker velocity and distance where if points removed in one data label they would not plot points from other data labels at those same time stamps
-- fixed bug where removing outliars in one data label removed them in others as well
+- fixed bug where removing outliers in one data label removed them in others as well
 - fixed bug where subsequent datalabels referenced the first data labels time column
 - jfc I need to clean up these two functions but for now they work as expected and can plot/remove/analyze different length tracked datasets
 
