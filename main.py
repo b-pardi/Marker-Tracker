@@ -318,8 +318,12 @@ class TrackingUI:
 
         data_selector_button = ttk.Button(submission_frame, text="Data selector", command=self.data_selector, style='Regular.TButton')
         data_selector_button.grid(row=19, column=0, columnspan=2, pady=(24,0))
+        
+        data_selector_button = ttk.Button(submission_frame, text="Box plotter", command=self.box_plotter, style='Regular.TButton')
+        data_selector_button.grid(row=20, column=0, columnspan=2, pady=(4,0))
+        
         exit_btn = ttk.Button(submission_frame, text='Exit', command=sys.exit, style='Regular.TButton')
-        exit_btn.grid(row=20, column=0, columnspan=2, padx=32, pady=(24,12))
+        exit_btn.grid(row=25, column=0, columnspan=2, padx=32, pady=(24,12))
         submission_frame.grid(row=2, column=0)
 
         self.adjust_window_size()        
@@ -399,6 +403,9 @@ class TrackingUI:
 
     def data_selector(self):
         DataSelector(self.root, (float(self.conversion_factor_entry.get()), self.conversion_units_entry.get()))
+
+    def box_plotter(self):
+        Boxplotter(self.root, (float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), 
 
     def on_mousewheel(self, event):
         self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
@@ -1147,6 +1154,163 @@ class DataSelector:
                                                  filetypes=[("PNG files", "*.png"), ("PDF files", "*.pdf"), ("TIFF files", "*.tiff")])
         if file_path:
             self.figure.savefig(file_path)
+
+
+class Boxplotter:
+    def __init__(self, parent, user_units):
+        self.parent = parent
+        self.user_units = user_units
+        self.window = tk.Toplevel(self.parent)
+        self.window.title("Select a region of a plot")
+        self.window.iconphoto(False, tk.PhotoImage(file="ico/m3b_comp.png"))
+
+        self.label_to_dataset = {}
+        self.output_files = {
+            "Poisson's ratio (from csv)": 'output/poissons_ratio.csv',
+            'Marker velocity': 'output/Tracking_Output.csv',
+            'Marker RMS distance': 'output/Tracking_Output.csv',
+            'Surface area': 'output/Surface_Area_Output.csv'
+        }
+
+        warning_label = ttk.Label(self.window, text="Please ensure you have ran the preliminary analysis in the main UI before using this tool", font=('TkDefaultFont', 12, 'bold'))
+        warning_label.grid(row=0, column=0, padx=8, pady=(12,24))
+
+        # combo box to choose analysis/file type
+        selection_frame = tk.Frame(self.window)
+        analysis_selector_label = ttk.Label(selection_frame, text="Select analysis option")
+        analysis_selector_label.grid(row=0, column=0)
+        self.analysis_selector = ttk.Combobox(selection_frame, values=list(self.output_files.keys()))
+        self.analysis_selector.set('Select analysis option')  # Set default placeholder text
+        self.analysis_selector.grid(row=1, column=0, padx=8, pady=12)  # Pack the combobox into the window
+
+        # Create a listbox for data labels, initially empty
+        data_label_selector_label = ttk.Label(selection_frame, text="Select data label(s)")
+        data_label_selector_label.grid(row=0, column=1)
+        self.data_label_selector = tk.Listbox(selection_frame, selectmode='multiple', exportselection=0, height=5)
+        self.data_label_selector.grid(row=1, column=1, padx=8, pady=12)
+
+        selection_frame.grid(row=1, column=0)
+        self.analysis_selector.bind('<<ComboboxSelected>>', self.update_data_label_selector)
+
+        # Add Radio Buttons for Selection Method
+        self.grouping_var = tk.StringVar()
+        grouping_frame = tk.Frame(self.window)
+        grouping_label = ttk.Label(grouping_frame, text="Select grouping method:")
+        grouping_label.grid(row=0, column=0, padx=8, pady=8)
+
+        conditions_radio = ttk.Radiobutton(grouping_frame, text="By Conditions", variable=self.grouping_var, value="conditions")
+        conditions_radio.grid(row=1, column=0, padx=8)
+        time_radio = ttk.Radiobutton(grouping_frame, text="By Time Points", variable=self.grouping_var, value="time_points")
+        time_radio.grid(row=2, column=0, padx=8)
+
+        grouping_frame.grid(row=2, column=0, padx=8, pady=12)
+        self.grouping_var.trace_add("write", self.update_grouping_method_ui)
+
+        self.time_ranges = []
+        self.condition_to_label = {}
+
+        # Create the "Go" button to execute analysis
+        self.go_button = ttk.Button(self.window, text="Go", command=self.execute_analysis)
+        self.go_button.grid(row=4, column=0, padx=8, pady=20, sticky="ew")
+
+    def update_data_label_selector(self, event):
+        selected_analysis = self.analysis_selector.get()
+        csv_file_path = self.output_files.get(selected_analysis)
+        if csv_file_path:
+            self.df = pd.read_csv(csv_file_path)
+            label_columns = [col for col in self.df.columns if 'data_label' in col]
+            unique_values = set()
+            self.label_to_dataset = {}  # Reinitialize to avoid holding outdated entries
+            for col in label_columns:
+                dataset_num = int(col.split('-', 1)[0])  # Assuming the first character is the dataset number
+                values = self.df[col].dropna().unique()
+                for value in values:
+                    unique_values.add(value)
+                    self.label_to_dataset[value] = dataset_num  # Map each unique value to its dataset number
+            self.data_label_selector.delete(0, tk.END)  # Clear the current listbox entries
+            for value in sorted(unique_values):
+                self.data_label_selector.insert(tk.END, value)
+        else:
+            self.data_label_selector.delete(0, tk.END)  # Clear the listbox if no csv file is selected
+            self.data_label_selector.insert(tk.END, 'Choose from first selector')
+
+
+    def setup_conditions_ui(self):
+        self.condition_frame = tk.Frame(self.window)
+        condition_label = ttk.Label(self.condition_frame, text="Enter Condition Name:")
+        condition_label.grid(row=0, column=0, padx=8)
+        condition_name_entry = ttk.Entry(self.condition_frame)
+        condition_name_entry.grid(row=0, column=1, padx=8)
+
+        add_condition_button = ttk.Button(self.condition_frame, text="Add Condition",
+                                        command=lambda: self.add_condition(condition_name_entry.get(), self.data_label_selector.curselection()))
+        add_condition_button.grid(row=1, column=0, columnspan=2, pady=8)
+
+        self.condition_listbox = tk.Listbox(self.condition_frame, height=5)
+        self.condition_listbox.grid(row=2, column=0, columnspan=2, padx=8, pady=12)
+        self.condition_frame.grid(row=3, column=0)
+
+    def add_condition(self, condition_name, selected_indices):
+        selected_labels = [self.data_label_selector.get(i) for i in selected_indices]
+        self.condition_to_label[condition_name] = selected_labels
+        self.condition_listbox.insert(tk.END, f"{condition_name}: {', '.join(selected_labels)}")
+
+    def setup_time_ranges_ui(self):
+        self.time_frame = tk.Frame(self.window)
+        _, _, self.time_units = analysis.get_time_labels(self.df)
+        entry_instr_label = ttk.Label(self.time_frame, text=f"Indicate time range of each box\nCurrent units specified in main UI: ({self.time_units})")
+        entry_instr_label.grid(row=0, column=0, columnspan=2)
+        t0_label = ttk.Label(self.time_frame, text="Start Time (t0):")
+        t0_label.grid(row=2, column=0, padx=8)
+        t0_entry = ttk.Entry(self.time_frame)
+        t0_entry.grid(row=2, column=1, padx=8)
+
+        tf_label = ttk.Label(self.time_frame, text="End Time (tf):")
+        tf_label.grid(row=3, column=0, padx=8)
+        tf_entry = ttk.Entry(self.time_frame)
+        tf_entry.grid(row=3, column=1, padx=8)
+
+        add_time_button = ttk.Button(self.time_frame, text="Add Time Range",
+                                    command=lambda: self.add_time_range(t0_entry.get(), tf_entry.get()))
+        add_time_button.grid(row=4, column=0, columnspan=2, pady=8)
+
+        self.time_listbox = tk.Listbox(self.time_frame, height=5)
+        self.time_listbox.grid(row=5, column=0, columnspan=2, padx=8, pady=12)
+        self.time_frame.grid(row=5, column=0)
+
+    def add_time_range(self, t0, tf):
+        self.time_ranges.append((t0, tf))
+        self.time_listbox.insert(tk.END, f"({t0}, {tf})")
+
+    def update_grouping_method_ui(self, *args):
+        # check if dataframe specified first
+        if not hasattr(self, 'df'):
+            msg = "Error: please specify analysis option first"
+            error_popup(msg)
+            return 
+        
+        # Forget any existing frames first to avoid overlap
+        if hasattr(self, 'condition_frame'):
+            self.condition_frame.grid_forget()
+        if hasattr(self, 'time_frame'):
+            self.time_frame.grid_forget()
+
+        # Check the value of grouping_var and update the UI accordingly
+        if self.grouping_var.get() == "conditions":
+            self.setup_conditions_ui()
+        elif self.grouping_var.get() == "time_points":
+            self.setup_time_ranges_ui()
+
+    def execute_analysis(self):
+        # Check which grouping method is selected and call the corresponding function
+        if self.grouping_var.get() == "conditions":
+            analysis.boxplot_conditions(self.df, self.condition_to_label)
+        elif self.grouping_var.get() == "time_points":
+            selected_labels = [self.data_label_selector.get(i) for i in self.data_label_selector.curselection()]
+            analysis.boxplot_time_ranges(self.df, self.time_ranges, selected_labels)
+        else:
+            print("No valid analysis type selected")
+
 
 if __name__ == '__main__':
     root = tk.Tk()

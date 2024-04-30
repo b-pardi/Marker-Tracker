@@ -45,6 +45,17 @@ Cell Mechanics
         - updates trackers and finds midpoint between marker centers
         - records same data as neckingpoint v1, only difference is necking distance is now the distance at the midpoint between the markers, instead of the min distance within range of considered horizontal values
 - if data label entry empty, set default value to data{n_prev_tracked_entries}
+- built Boxplotter UI subwindow for specifying boxplot information
+    - prompt for analysis option and datalabels
+    - prompt for grouping boxes by conditions or by time ranges
+    - by conditions,
+        - prompt for user to enter a condition name, then select all labels that belong in that condition
+        - button to add the label/condition combo to a list displayed in the ui, condition dict where key is condition and value is list of applicable data labels
+    - by time points, 
+        - prompt user to select all data labels they want analyzed
+        - two labelled entries for a t0 and tf of time range, with a button to pop up a new pair of labelled entries for user to keep iteratively entering time ranges they want analyzed
+- go button to call boxplot function for either time ranges or conditions depending on which radio button selected
+    - actual plotting functions not yet implemented
 
 4/25
 - added poissons ratio to outliar removal tool

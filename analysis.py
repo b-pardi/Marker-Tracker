@@ -798,6 +798,13 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chose
     print("Done")
     return times, tracker_velocities, plot_args, n_plots
 
+def boxplot_time_ranges(df, times, labels):
+    print(df, times, labels)
+
+def boxplot_conditions(df, conditions_dict):
+    print(df, conditions_dict)
+
+
 def velocity_boxplot(conditions, user_unit_conversion):
     """
     Generates a boxplot of cell velocities for specified conditions. This function reads cell velocity data,
