@@ -21,6 +21,7 @@ class TrackingOperation(Enum):
     UNSELECTED = auto()
     MARKERS = auto()
     NECKING = auto()
+    NECKING_MIDPT = auto()
     AREA = auto()
 
 class TrackerChoice(Enum):

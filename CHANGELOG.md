@@ -7,8 +7,6 @@ FIX
 Housekeeping
 
 Hydrogel
-- add poissons ratio plot to outlier removal
-- add poissons plot to DataSelector
 - necking point v2
     - track vertical height of midpoint between 2 selected markers
 
@@ -33,6 +31,20 @@ Cell Mechanics
 - see about surface tracking on the stained videos
 
 # Changelog
+
+4/29
+- refactored tracking loops to call record data function when saving dicts to csv
+    - changed column renaming for appending to prettier way that functionalizes better
+- implemented necking_point version 2 (midpoint method)
+    - this does not replace the old method, rather serves as an alternate option
+    - ui button for this method right next to original necking point button
+    - prompts the same binarization threshold entry as necking point v1, and the marker bbox entry akin to marker tracking
+    - function for tracking is amalgamation of marker tracking and necking point
+        - inits trackers, enters tracking loop
+        - processes frame and detects edges
+        - updates trackers and finds midpoint between marker centers
+        - records same data as neckingpoint v1, only difference is necking distance is now the distance at the midpoint between the markers, instead of the min distance within range of considered horizontal values
+- if data label entry empty, set default value to data{n_prev_tracked_entries}
 
 4/25
 - added poissons ratio to outliar removal tool

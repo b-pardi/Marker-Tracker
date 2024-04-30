@@ -116,6 +116,44 @@ def select_markers(cap, bbox_size, frame_start):
     
     return mouse_params['marker_positions'], first_frame
 
+def record_data(file_mode, data_dict, output_fp):
+    
+
+    if file_mode == FileMode.OVERWRITE:
+        # check data label and put default value if empty
+        if data_dict['1-data_label'] == '':
+            data_dict['1-data_label'] = 'data1'
+        dist_df = pd.DataFrame(data_dict)
+        dist_df.set_index('1-Frame', inplace=True)
+        dist_df.to_csv(output_fp)
+    elif file_mode == FileMode.APPEND:
+        dist_df = pd.read_csv(output_fp)
+        num_prev_trackers = int(dist_df.columns[-1][0])
+        print(f"Num previous tracked entities: {num_prev_trackers}")
+
+        if data_dict['1-data_label'] == '':
+            data_dict['1-data_label'] = f'data{num_prev_trackers+1}'
+
+        # create new df of current tracking data and merge into previous
+        cur_df = pd.DataFrame(data_dict)
+
+        # rename df to indicate which num tracker this is
+        '''cur_df.rename(columns={
+                '1-Frame': f'{num_prev_trackers+1}-Frame',
+                f'1-Time({time_units})': f'{num_prev_trackers+1}-Time({time_units})','1-x at necking point (px)': f'{num_prev_trackers+1}-x at necking point (px)',
+                '1-y necking distance (px)': f'{num_prev_trackers+1}-y necking distance (px)',
+                '1-video_file_name' : f'{num_prev_trackers+1}-video_file_name',
+                '1-data_label': f'{num_prev_trackers+1}-data_label'
+            }, inplace=True)'''
+        new_col_names = {}
+        for col in cur_df.columns:
+            if col.startswith('1-'):
+                new_col = col.replace('1-', f'{num_prev_trackers+1}-')
+                new_col_names[col] = new_col
+        cur_df.rename(columns=new_col_names, inplace=True)
+        
+        dist_df_merged = pd.concat([dist_df, cur_df], axis=1)
+        dist_df_merged.to_csv(output_fp, index=False)
 
 def track_markers(
         marker_positions,
@@ -221,30 +259,7 @@ def track_markers(
         if cv2.waitKey(1) == 27 or frame_num >= frame_end:  # cut tracking loop short if ESC hit
             break
     
-    if file_mode == FileMode.OVERWRITE:
-        tracker_df = pd.DataFrame(tracker_data)
-        tracker_df.set_index('1-Frame', inplace=True)
-        tracker_df.to_csv("output/Tracking_Output.csv")
-    elif file_mode == FileMode.APPEND:
-        tracker_df = pd.read_csv("output/Tracking_Output.csv")
-        num_prev_trackers = int(tracker_df.columns[-1][0])
-        print(f"Num previous tracked entities: {num_prev_trackers}")
-
-        # create new df of current tracking data and merge into previous
-        cur_df = pd.DataFrame(tracker_data)
-
-        # rename df to indicate which num tracker this is
-        cur_df.rename(columns={
-                '1-Frame': f'{num_prev_trackers+1}-Frame',
-                f'1-Time({time_units})': f'{num_prev_trackers+1}-Time({time_units})','1-Tracker': f'{num_prev_trackers+1}-Tracker',
-                '1-x (px)': f'{num_prev_trackers+1}-x (px)',
-                '1-y (px)': f'{num_prev_trackers+1}-y (px)',
-                '1-video_file_name' : f'{num_prev_trackers+1}-video_file_name',
-                '1-data_label': f'{num_prev_trackers+1}-data_label'
-            }, inplace=True)
-        
-        tracker_df_merged = pd.concat([tracker_df, cur_df], axis=1)
-        tracker_df_merged.to_csv("output/Tracking_Output.csv", index=False)
+    record_data(file_mode, tracker_data, "output/Tracking_Output.csv")
 
     cap.release()
     cv2.destroyAllWindows()
@@ -293,7 +308,7 @@ def necking_point(
     """    
     x_interval = 50 # interval for how many blue line visuals to display
     frame_num = frame_start
-    dist_data = {'1-Frame': [], f'1-Time({time_units})': [], '1-x at necking point (px)': [], '1-y necking distance (px)': [], '1-video_file_name': video_file_name, '1-data_label': data_label}
+    dist_data = {'1-Frame': [], f'1-Time({time_units})': [], '1-x at necking point (px)': [], '1-y necking distance (px)': [], '1-video_file_name': video_file_name, '1-detection_method': 'min_distance', '1-data_label': data_label}
     percent_crop_left *= 0.01
     percent_crop_right *= 0.01
 
@@ -371,33 +386,151 @@ def necking_point(
         if cv2.waitKey(1) == 27 or frame_end <= frame_num:
             break
 
-    if file_mode == FileMode.OVERWRITE:
-        dist_df = pd.DataFrame(dist_data)
-        dist_df.set_index('1-Frame', inplace=True)
-        dist_df.to_csv("output/Necking_Point_Output.csv")
-    elif file_mode == FileMode.APPEND:
-        dist_df = pd.read_csv("output/Necking_Point_Output.csv")
-        num_prev_trackers = int(dist_df.columns[-1][0])
-        print(f"Num previous tracked entities: {num_prev_trackers}")
-
-        # create new df of current tracking data and merge into previous
-        cur_df = pd.DataFrame(dist_data)
-
-        # rename df to indicate which num tracker this is
-        cur_df.rename(columns={
-                '1-Frame': f'{num_prev_trackers+1}-Frame',
-                f'1-Time({time_units})': f'{num_prev_trackers+1}-Time({time_units})','1-x at necking point (px)': f'{num_prev_trackers+1}-x at necking point (px)',
-                '1-y necking distance (px)': f'{num_prev_trackers+1}-y necking distance (px)',
-                '1-video_file_name' : f'{num_prev_trackers+1}-video_file_name',
-                '1-data_label': f'{num_prev_trackers+1}-data_label'
-            }, inplace=True)
-        
-        dist_df_merged = pd.concat([dist_df, cur_df], axis=1)
-        dist_df_merged.to_csv("output/Necking_Point_Output.csv", index=False)
+    record_data(file_mode, dist_data, time_units, "output/Necking_Point_Output.csv")
 
     cap.release()
     cv2.destroyAllWindows()
 
+def necking_point_midpoint(
+        cap,
+        marker_positions,
+        first_frame,
+        bbox_size,
+        frame_start,
+        frame_end,
+        binarize_intensity_thresh,
+        frame_record_interval,
+        frame_interval,
+        time_units,
+        file_mode,
+        video_file_name,
+        data_label
+    ):
+
+    """necking point detection loop - midpoint method
+    This function detects and records the midpoint between two tracked markers
+    across the frames of a video, defining this midpoint as the "necking point."
+    It processes each frame to apply grayscale conversion, binarization,
+    and edge detection. The function calculates the midpoint x-coordinate between
+    the markers and measures the vertical distance at this x-coordinate between
+    the top and bottom detected edges. The results are visually represented and
+    recorded for analysis.
+
+    Functionality:
+        1. Processes frames based on specified intervals, applying grayscale conversion,
+           binarization, and edge detection.
+        2. Tracks marker positions using predefined bounding boxes.
+        3. Calculates the x-coordinate of the midpoint between two markers.
+        4. Identifies vertical edges at this midpoint and calculates the vertical distance.
+        5. Highlights the necking point in the visual output.
+        6. Saves the recorded data to a CSV file, either overwriting or appending,
+           based on the specified file mode.
+
+    Args:
+        cap (cv2.VideoCapture): Video capture object loaded with the video.
+        marker_positions (list of tuples): Initial positions (x, y) of the markers.
+        first_frame (np.array): The first frame from the video used to initialize trackers.
+        bbox_size (int): Size of the bounding box for tracking in pixels.
+        frame_start (int): Frame number to start processing.
+        frame_end (int): Frame number to end processing.
+        binarize_intensity_thresh (int): Threshold for frame binarization to facilitate edge detection.
+        frame_record_interval (int): Interval at which frames are processed (e.g., every nth frame).
+        frame_interval (float): Real-world time interval between frames, used in time calculations.
+        time_units (str): Units of time (e.g., 'seconds', 'minutes') for the output data.
+        file_mode (FileMode): Specifies whether to overwrite or append data in the output file.
+        video_file_name (str): Name of the video file being processed.
+        data_label (str): Unique identifier for the data session.
+
+    Notes:
+        - The function assumes two markers are being tracked. Error checking is done
+        in the TrackingUI class in main.py before function is called.
+        - Proper setting of the binarization threshold is crucial for accurate edge detection.
+          The function includes error checks and pop-ups to adjust this if needed.
+    """
+    # create trackers
+    trackers = []
+    for _ in range(len(marker_positions)):
+        trackers.append(cv2.TrackerKCF_create()) # for this application simpler KCF algorithm appropriate
+
+    scaled_first_frame, scale_factor = scale_frame(first_frame)
+    for i, mark_pos in enumerate(marker_positions):
+        bbox = (int((mark_pos[0][0] - bbox_size // 2) * scale_factor),
+                int((mark_pos[0][1] - bbox_size // 2) * scale_factor),
+                int(bbox_size * scale_factor),
+                int(bbox_size * scale_factor))
+        trackers[i].init(scaled_first_frame, bbox)
+
+    frame_num = frame_start
+    dist_data = {'1-Frame': [], f'1-Time({time_units})': [], '1-x at necking point (px)': [], '1-y necking distance (px)': [], '1-video_file_name': video_file_name, '1-detection_method': 'midpt', '1-data_label': data_label}
+
+    while True:  # read frame by frame until the end of the video
+        ret, frame = cap.read()
+        frame_num += frame_record_interval
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
+
+        if not ret:
+            break
+
+        scaled_frame, scale_factor = scale_frame(frame)  # scale the frame
+        gray_frame = cv2.cvtColor(scaled_frame, cv2.COLOR_BGR2GRAY)  # convert frame to gray
+        _, binary_frame = cv2.threshold(gray_frame, binarize_intensity_thresh, 255, cv2.THRESH_BINARY)  # threshold to binarize image
+
+        # error checking for appropriate binarization threshold
+        if np.all(binary_frame == 255):
+            msg = "Binarization threshold too low,\nfound no pixels below the threshold.\n\nPlease adjust the threshold (default is 120)"
+            error_popup(msg)
+        if np.all(binary_frame == 0):
+            msg = "Binarization threshold too high,\nfound no pixels above the threshold.\n\nPlease adjust the threshold (default is 120)"
+            error_popup(msg)
+
+        edges = cv2.Canny(binary_frame, 0, 2)  # edge detection, nums are gradient thresholds
+
+        frame_draw = scaled_frame.copy()
+        frame_draw[edges > 0] = [0, 255, 0]  # draw edges
+        
+        # update trackers and find their current center location
+        marker_centers = []
+        for i, tracker in enumerate(trackers):
+            success, bbox = tracker.update(scaled_frame)
+
+            if success:
+                x_bbox, y_bbox, w_bbox, h_bbox = [int(coord) for coord in bbox]  # get coords of bbox in the scaled frame
+                marker_center = (x_bbox + w_bbox // 2, y_bbox + h_bbox // 2)  # get center of bbox
+                marker_centers.append(marker_center)
+
+        # find x midpoint between markers
+        x_coords = [coord[0] for coord in marker_centers]
+        left_marker_x = np.min(x_coords)
+        right_marker_x = np.max(x_coords)
+        mid_x = (right_marker_x + left_marker_x) // 2
+
+
+        edge_pixels = np.nonzero(edges[:, mid_x])[0]  # find y coord of edge pixels in cur column
+
+        if edge_pixels.size > 0:  # if edge pixels in cur column,
+            midpt_dist = np.abs(edge_pixels[0] - edge_pixels[-1])  # find distance of top and bottom edges
+
+            # draw vertical line connecting edges at midpt for visualization
+            cv2.line(frame_draw, (mid_x, edge_pixels[0]), (mid_x, edge_pixels[-1]), (200, 0, 0), 1)
+
+        # record and save data using original resolution
+        if frame_interval == 0:
+            dist_data[f'1-Time({time_units})'].append(np.float16((frame_num - frame_start) / cap.get(5)))
+        else:
+            dist_data[f'1-Time({time_units})'].append(np.float16((frame_num - frame_start) * frame_interval))
+        dist_data['1-Frame'].append(frame_num - frame_start)
+        dist_data['1-x at necking point (px)'].append(int(mid_x / scale_factor))
+        dist_data['1-y necking distance (px)'].append(int(midpt_dist / scale_factor))
+
+        cv2.imshow('Necking Point (midpoint method) Visualization', frame_draw)
+        
+        if cv2.waitKey(1) == 27 or frame_end <= frame_num:
+            break
+
+    record_data(file_mode, dist_data, "output/Necking_Point_Output.csv")
+
+    cap.release()
+    cv2.destroyAllWindows()
 
 def noise_reduction(frame):
     # Apply Median Filtering
@@ -620,31 +753,7 @@ def track_area(
 
         frame_num += 1
 
-    if file_mode == FileMode.OVERWRITE:
-        area_df = pd.DataFrame(area_data)
-        area_df.set_index('1-Frame', inplace=True)
-        area_df.to_csv("output/Surface_Area_Output.csv")
-    elif file_mode == FileMode.APPEND:
-        area_df = pd.read_csv("output/Surface_Area_Output.csv")
-        num_prev_trackers = int(area_df.columns[-1][0])
-        print(f"Num previous tracked entities: {num_prev_trackers}")
-
-        # create new df of current tracking data and merge into previous
-        cur_df = pd.DataFrame(area_data)
-
-        # rename df to indicate which num tracker this is
-        cur_df.rename(columns={
-                '1-Frame': f'{num_prev_trackers+1}-Frame',
-                f'1-Time({time_units})': f'{num_prev_trackers+1}-Time({time_units})',
-                '1-x cell location': f'{num_prev_trackers+1}-x cell location',
-                '1-y cell location': f'{num_prev_trackers+1}-y cell location',
-                '1-cell surface area (px^2)': f'{num_prev_trackers+1}-cell surface area (px^2)',
-                '1-video_file_name' : f'{num_prev_trackers+1}-video_file_name',
-                '1-data_label': f'{num_prev_trackers+1}-data_label'
-            }, inplace=True)
-        
-        area_df_merged = pd.concat([area_df, cur_df], axis=1)
-        area_df_merged.to_csv("output/Surface_Area_Output.csv", index=False)
+    record_data(file_mode, area_data, "output/Surface_Area_Output.csv")
 
     cap.release()
     cv2.destroyAllWindows()

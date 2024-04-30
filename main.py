@@ -150,12 +150,19 @@ class TrackingUI:
         self.operation_intvar = tk.IntVar()
         self.operation_intvar.set(TrackingOperation.UNSELECTED.value)
         operation_frame = tk.Frame(self.section1)
-        operation_tracking_radio = ttk.Radiobutton(operation_frame, text="Marker tracking", variable=self.operation_intvar, value=TrackingOperation.MARKERS.value, command=self.handle_radios, width=25, style='Outline.TButton')
+        
+        operation_tracking_radio = ttk.Radiobutton(operation_frame, text="Marker tracking", variable=self.operation_intvar, value=TrackingOperation.MARKERS.value, command=self.handle_radios, width=20, style='Outline.TButton')
         operation_tracking_radio.grid(row=0, column=0, padx=4, pady=(16, 4))
-        operation_necking_radio = ttk.Radiobutton(operation_frame, text="Necking point detection", variable=self.operation_intvar, value=TrackingOperation.NECKING.value, command=self.handle_radios, width=25, style='Outline.TButton')
-        operation_necking_radio.grid(row=0, column=1, padx=4, pady=(16, 4))
-        operation_area_radio = ttk.Radiobutton(operation_frame, text="Surface area tracking", variable=self.operation_intvar, value=TrackingOperation.AREA.value, command=self.handle_radios, width=25, style='Outline.TButton')
-        operation_area_radio.grid(row=0, column=2, padx=4, pady=(16,4))
+        
+        operation_necking_radio = ttk.Radiobutton(operation_frame, text="Necking pt detection", variable=self.operation_intvar, value=TrackingOperation.NECKING.value, command=self.handle_radios, width=20, style='Outline.TButton')
+        operation_necking_radio.grid(row=0, column=1, padx=(4,1), pady=(16, 4))
+       
+        operation_necking_midpt_radio = ttk.Radiobutton(operation_frame, text="Necking pt (midpt)", variable=self.operation_intvar, value=TrackingOperation.NECKING_MIDPT.value, command=self.handle_radios, width=20, style='Outline.TButton')
+        operation_necking_midpt_radio.grid(row=0, column=2, padx=(1,4), pady=(16, 4))
+        
+        operation_area_radio = ttk.Radiobutton(operation_frame, text="Surface area tracking", variable=self.operation_intvar, value=TrackingOperation.AREA.value, command=self.handle_radios, width=20, style='Outline.TButton')
+        operation_area_radio.grid(row=0, column=3, padx=4, pady=(16,4))
+        
         operation_frame.grid(row=11, column=0)
         self.select_msg = ttk.Label(self.section1, text="Select from above for more customizable parameters")
         self.select_msg.grid(row=12, column=0)
@@ -198,6 +205,20 @@ class TrackingUI:
         self.binarize_intensity_thresh_entry = ttk.Entry(self.necking_frame, width=10)
         self.binarize_intensity_thresh_entry.insert(0, "120")
         self.binarize_intensity_thresh_entry.grid(row=2, column=1, columnspan=2, padx=4, pady=8)
+
+        # some opts for necking point also relevant for necking midpoint
+        self.necking_midpt_frame = tk.Frame(self.section1)
+        bbox_tracking_size_label = ttk.Label(self.necking_midpt_frame, text="Tracker bounding box size (px)")
+        bbox_tracking_size_label.grid(row=0, column=0, padx=4, pady=8)
+        self.bbox_size_necking_midpt_entry = ttk.Entry(self.necking_midpt_frame, width=10)
+        self.bbox_size_necking_midpt_entry.insert(0, "100")
+        self.bbox_size_necking_midpt_entry.grid(row=0, column=1, padx=4, pady=8)
+
+        binarize_intensity_thresh_label_midpt = ttk.Label(self.necking_midpt_frame, text="pixel intensity value\nfor frame binarization\n(0-255)")
+        binarize_intensity_thresh_label_midpt.grid(row=2, column=0, padx=4, pady=8)
+        self.binarize_intensity_thresh_midpt_entry = ttk.Entry(self.necking_midpt_frame, width=10)
+        self.binarize_intensity_thresh_midpt_entry.insert(0, "120")
+        self.binarize_intensity_thresh_midpt_entry.grid(row=2, column=1, columnspan=2, padx=4, pady=8)
 
         # options for surface area tracking
         self.area_frame = tk.Frame(self.section1)
@@ -396,16 +417,25 @@ class TrackingUI:
                 self.select_msg.grid_forget()
                 self.necking_frame.grid_forget()
                 self.area_frame.grid_forget()
+                self.necking_midpt_frame.grid_forget()
                 self.tracking_frame.grid(row=15, column=0)
             case TrackingOperation.NECKING:
                 self.select_msg.grid_forget()
                 self.tracking_frame.grid_forget()
                 self.area_frame.grid_forget()
+                self.necking_midpt_frame.grid_forget()
                 self.necking_frame.grid(row=15, column=0)
+            case TrackingOperation.NECKING_MIDPT:
+                self.select_msg.grid_forget()
+                self.necking_frame.grid_forget()
+                self.tracking_frame.grid_forget()
+                self.area_frame.grid_forget()
+                self.necking_midpt_frame.grid(row=15, column=0)
             case TrackingOperation.AREA:
                 self.select_msg.grid_forget()
                 self.necking_frame.grid_forget()
                 self.tracking_frame.grid_forget()
+                self.necking_midpt_frame.grid_forget()
                 self.area_frame.grid(row=15, column=0)
 
     def undo_last_tracking_append(self, fp):
@@ -568,6 +598,40 @@ class TrackingUI:
                         video_name,
                         range_id
                     )
+
+            case TrackingOperation.NECKING_MIDPT:
+                binarize_intensity_thresh = int(self.binarize_intensity_thresh_entry.get())
+                bbox_size = int(self.bbox_size_necking_midpt_entry.get())
+
+                # check if range_id already used
+                if file_mode == FileMode.APPEND: # only need to check prev ids if appending
+                    data_label_err_flag = self.check_data_label('output/Necking_Point_Output.csv', range_id)
+
+                if not data_label_err_flag:
+                    selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start) # prompt to select markers
+                    if selected_markers.__contains__((-1,-1)): # select_markers returns list of -1 if selections cancelled
+                        msg = "Error: Found no markers selected"
+                        error_popup(msg)
+                    elif len(selected_markers) != 2: 
+                        msg = "Error: please ensure exactly 2 markers selected for necking point"
+                        error_popup(msg)
+                    else:
+                        print("Beginning Necking Point (midpoint method)")
+                        tracking.necking_point_midpoint(
+                            cap,
+                            selected_markers,
+                            first_frame,
+                            bbox_size,
+                            self.frame_start,
+                            self.frame_end,
+                            binarize_intensity_thresh,
+                            frame_record_interval,
+                            self.frame_interval,
+                            self.time_units,
+                            file_mode,
+                            video_name,
+                            range_id
+                        )
 
             case TrackingOperation.AREA:
                 # check if range_id already used
