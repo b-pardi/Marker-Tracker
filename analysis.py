@@ -10,6 +10,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import json
 import re
+from collections import defaultdict
 
 from exceptions import error_popup, warning_popup
 from enums import *
@@ -101,6 +102,91 @@ def check_num_trackers_with_num_datasets(n_trackers, num_tracker_datasets):
 
     return data_multiplicity_type
 
+def find_interest_column_and_type(df):
+    interest_cols = [
+        'v', # poissons ratio df
+        'magnitude_velocity_tracker', # marker velocity df
+        'rms_displacement_tracker', # rms displacement df
+        'cell surface area (px^2)' # surface spread
+    ]
+
+    analysis_types = [
+        AnalysisType.POISSONS_RATIO,
+        AnalysisType.MARKER_VELOCITY,
+        AnalysisType.MARKER_RMS_DISTANCE,
+        AnalysisType.SURFACE_AREA
+    ]
+
+    # get column names of df, excluding the dataset index
+    df_cols = [col.split('-', 1)[1] for col in df.columns]
+    df_unique_cols = set(df_cols)
+    y_col, analysis_type = None, None
+    for df_col in df_unique_cols:
+        for i, interest_col in enumerate(interest_cols):
+            if df_col == interest_col:
+                print("found ", interest_col)
+                y_col = interest_col
+                analysis_type = analysis_types[i]
+                break
+
+    if not y_col:
+        raise ValueError("No column in any output df's matched expected boxplot y columns")
+
+    return y_col, analysis_type
+
+def get_plot_args(analysis_type, time_label='', data_labels=[], conversion_units='', time_unit=''):
+    plot_args = {}
+
+    if analysis_type == AnalysisType.MARKER_DELTAS:
+        plot_args = {
+            'title': r'Longitudinal Strain of Hydrogel',
+            'x_label': time_label,
+            'y_label': r'Longitudinal Strain, ${\epsilon}_{l}$',
+            'data_label': data_labels,
+            'has_legend': True
+        }
+    if analysis_type == AnalysisType.NECKING_POINT:
+        plot_args = {
+            'title': 'Radial Strain of Hydrogel',
+            'x_label': time_label,
+            'y_label': r'Radial strain, ${\epsilon}_{r}$',
+            'data_label': data_labels,
+            'has_legend': True
+        }
+    if analysis_type == AnalysisType.POISSONS_RATIO:
+        plot_args = {
+            'title': r"Poisson's Ratio - $\mathit{\nu(t)}$",
+            'x_label': time_label,
+            'y_label': r"Poisson's ratio, $\mathit{\nu}$",
+            'data_label': data_labels,
+            'has_legend': True
+        }
+    if analysis_type == AnalysisType.MARKER_VELOCITY:
+        plot_args = {
+            'title': r'Cell Velocity',
+            'x_label': time_label,
+            'y_label': rf'Magnitude of instantaneous cell velocity, $|\mathit{{v}}|$ $(\frac{{{conversion_units}}}{{{time_unit}}})$',
+            'data_label': data_labels,
+            'has_legend': True,
+        }
+    if analysis_type == AnalysisType.MARKER_RMS_DISTANCE:
+        plot_args = {
+            'title': 'Root mean square Displacement',
+            'x_label': time_label,
+            'y_label': r'Root mean square Displacement, $\mathit{D_{rms}}$' + rf' ({conversion_units})    ',
+            'data_label': data_labels,
+            'has_legend': True
+        }
+    if analysis_type == AnalysisType.SURFACE_AREA:
+        plot_args = {
+            'title': r'Cell Surface Area Spread',
+            'x_label': time_label,
+            'y_label': rf'Projected cell area, $\mathit{{A}}$ ' + rf'({conversion_units})$^{{2}}$',
+            'data_label': data_labels,
+            'has_legend': True
+        }
+
+    return plot_args
 
 def plot_scatter_data(x, y, plot_args, n_datasets, fig=None, ax=None, output_fig_name=None):
     """
@@ -383,13 +469,8 @@ def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True,
         longitudinal_strains.append(longitudinal_strain)
         elongation_differences.append(np.abs(marker_dist - np.abs(m2_x-m1_x)))
 
-    plot_args = {
-        'title': r'Longitudinal Strain of Hydrogel',
-        'x_label': time_label,
-        'y_label': r'Longitudinal Strain, ${\epsilon}_{l}$',
-        'data_label': data_labels,
-        'has_legend': True
-    }
+    plot_args = get_plot_args(AnalysisType.MARKER_DELTAS, time_label, data_labels)
+
 
     if will_save_figures:
         # plot longitudinal strain
@@ -476,13 +557,7 @@ def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True,
         necking_pt_x_locs.append(necking_pt_x)
         necking_pt_lens.append(necking_pt_len)
 
-    plot_args = {
-        'title': 'Radial Strain of Hydrogel',
-        'x_label': time_label,
-        'y_label': r'Radial strain, ${\epsilon}_{r}$',
-        'data_label': data_labels,
-        'has_legend': True
-    }
+    plot_args = get_plot_args(AnalysisType.NECKING_POINT, time_label, data_labels)
 
     if will_save_figures:
         # plot radial strain
@@ -638,18 +713,12 @@ def poissons_ratio_csv(user_unit_conversion, df=None, will_save_figures=True, ch
         poissons_ratios.append(ratios)
         print(len(time), time, '\n', len(ratios), ratios)
 
-    plot_args = {
-        'title': r"Poisson's Ratio - $\mathit{\nu(t)}$",
-        'x_label': time_label,
-        'y_label': r"Poisson's ratio, $\mathit{\nu}$",
-        'data_label': data_labels,
-        'has_legend': True
-    }
+    plot_args = get_plot_args(AnalysisType.POISSONS_RATIO, time_label, data_labels)
 
     if will_save_figures:
         poisson_fig, poisson_ax = plot_scatter_data(times, poissons_ratios, plot_args, n_datasets, output_fig_name='poissons_ratio_csv')
 
-
+    print("Done")
     return times, poissons_ratios, plot_args, n_datasets
 
 
@@ -716,7 +785,7 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chose
         num_sets = num_tracker_datasets
 
     # grab relevant values from df
-    vel_df = pd.DataFrame({time_col: df[time_col].unique()[:-1]})
+    vel_df = pd.DataFrame()
     for n in range(num_sets):
         print("TIMECOL", time_col)
         if data_multiplicity_type == DataMultiplicity.SINGLE:
@@ -725,20 +794,23 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chose
             cur_df = df[df[f'{chosen_video_data}-Tracker'] == n+1]
             x = cur_df[f'{chosen_video_data}-x (px)'].values * conversion_factor
             y = cur_df[f'{chosen_video_data}-y (px)'].values * conversion_factor
-            data_labels.append(cur_df[f'{chosen_video_data}-data_label'].unique()[0])
+            data_label = df[f'{n+1}-data_label'].dropna().unique()[0]
+            data_labels.append(data_label)
             time = cur_df[time_col].values
         elif data_multiplicity_type == DataMultiplicity.TRACKERS:
             cur_df = df[df['1-Tracker'] == n+1]
             x = cur_df['1-x (px)'].values * conversion_factor
             y = cur_df['1-y (px)'].values * conversion_factor
             time = cur_df[time_col].values
-            data_labels.append(cur_df['1-data_label'].unique()[0])
+            data_label = df[f'{n+1}-data_label'].dropna().unique()[0]
+            data_labels.append(data_label)
         elif data_multiplicity_type == DataMultiplicity.VIDEOS:
             time_col, _, _ = get_time_labels(df, n+1)
             x = df[f'{n+1}-x (px)'].values * conversion_factor
             y = df[f'{n+1}-y (px)'].values * conversion_factor
             time = df[time_col].values
-            data_labels.append(df[f'{n+1}-data_label'].dropna().unique()[0])
+            data_label = df[f'{n+1}-data_label'].dropna().unique()[0]
+            data_labels.append(data_label)
 
         x = x[~np.isnan(x)]
         y = y[~np.isnan(y)]
@@ -758,11 +830,13 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chose
         times.append(time[:-1])
         tracker_velocities.append(vel_mag)
         print(vel_x.shape)
-        #vel_df.dropna(inplace=True)
+
         cur_vel_df = pd.DataFrame({
+            time_col: time[:-1],
             f'{n+1}-x_velocity_tracker': vel_x,
             f'{n+1}-y_velocity_tracker': vel_y,
-            f'{n+1}-magnitude_velocity_tracker': vel_mag
+            f'{n+1}-magnitude_velocity_tracker': vel_mag,
+            f'{n+1}-data_label': data_label
         })
         vel_df = pd.concat([vel_df, cur_vel_df], axis=1)
 
@@ -777,14 +851,8 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chose
     vel_df.to_csv("output/marker_velocity.csv", index=False)
 
     # plot
-    plot_args = {
-        'title': r'Cell Velocity',
-        'x_label': time_label,
-        'y_label': rf'Magnitude of instantaneous cell velocity, $|\mathit{{v}}|$ $(\frac{{{conversion_units}}}{{{time_unit}}})$',
-        'data_label': data_labels,
-        'has_legend': True,
-
-    }
+    plot_args = get_plot_args(AnalysisType.MARKER_VELOCITY, time_label, data_labels, conversion_units, time_unit)
+    
     if will_save_figures:
         # plot marker velocity
         vel_fig, vel_ax = plot_scatter_data(times, tracker_velocities, plot_args, n_plots, output_fig_name='marker_velocity')
@@ -798,15 +866,69 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chose
     print("Done")
     return times, tracker_velocities, plot_args, n_plots
 
-def boxplot_time_ranges(df, times, labels):
+def boxplot_time_ranges(df, times, labels, conversion_units):
     print(df, times, labels)
 
-def boxplot_conditions(df, conditions_dict):
+
+    print("Done")
+
+
+def boxplot_conditions(df, conditions_dict, conversion_units):
     print(df, conditions_dict)
+
+    # find column of interest
+    # this is the y value column name that will be averaged and plotted
+    interest_column, analysis_type = find_interest_column_and_type(df)
+    df_label_columns = [col for col in df.columns if 'data_label' in col]
+    condition_averages = defaultdict(list)
+    conditions = list(conditions_dict.keys())
+    _, time_label, time_unit = get_time_labels(df)
+
+    for condition, label_list in conditions_dict.items(): # iterate through each condition
+        print(condition, label_list)
+        for label in label_list: # iterate through the labels associated with that condition
+            print(label)
+            for col in df_label_columns: # iterate through data label cols to find dataset index
+                if df[col].str.contains(label).any(): # when we find the datalabel column for the cur label
+                    dataset_num = int(col.split('-', 1)[0])
+                    avg = np.mean(df[f'{dataset_num}-{interest_column}'])
+                    condition_averages[condition].append(avg)
+                    break
+
+    print(condition_averages)
+
+    data_lists = [condition_averages[condition] for condition in list(conditions_dict.keys())] # boxplot takes in a list of lists, each inner list is a list of points for the box
+    fig, ax = plt.subplots()
+    boxplot = ax.boxplot(data_lists, patch_artist=True)
+
+    for i, condition in enumerate(conditions, start=1):  # count from 1 to match boxplot positions
+        means = condition_averages[condition] # grab avg velocity previously calculated
+        x_jitter = np.random.normal(i, 0.025, size=len(means)) # some x jitter so points don't overlap
+        ax.scatter(x_jitter, means, color='darkblue', zorder=3, marker='D', s=20, alpha=0.8) # plot mean value in the correct box with some x jitter
+
+    plot_args = get_plot_args(analysis_type, time_label=time_label, conversion_units=conversion_units, time_unit=time_unit)
+
+    with open("plot_opts/plot_customizations.json", 'r') as plot_customs_file:
+        plot_customs = json.load(plot_customs_file)
+    font = plot_customs['font']
+
+    tick_pos = list(range(1, len(condition_averages) + 1))
+    plt.xticks(tick_pos, list(condition_averages.keys()), fontsize=plot_customs['value_text_size'], fontfamily=font)
+    plt.yticks(fontsize=plot_customs['value_text_size'], fontfamily=font) 
+    plt.title(plot_args['title'], fontsize=plot_customs['title_text_size'], fontfamily=font)
+    plt.xlabel(plot_args['x_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
+    plt.ylabel(plot_args['y_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
+    plt.tick_params(axis='both', direction=plot_customs['tick_dir'])
+    plt.tight_layout()
+    
+    plt.savefig(f"figures/{interest_column}_conditions_boxplot.{plot_customs['fig_format']}", dpi=plot_customs['fig_dpi'])
+
+    print("Done")
+
 
 
 def velocity_boxplot(conditions, user_unit_conversion):
-    """
+    """ DEPRECATED OPTING FOR BOXPLOTTER CLASS
     Generates a boxplot of cell velocities for specified conditions. This function reads cell velocity data,
     computes averages, and displays a boxplot to compare velocities across different experimental conditions.
 
@@ -933,12 +1055,12 @@ def marker_distance(user_unit_conversion, df=None, will_save_figures=True, chose
     time_col, time_label, time_unit = get_time_labels(df)
     _, _, num_tracker_datasets = get_num_datasets(df) # get num datasets
     n_trackers = df['1-Tracker'].dropna().unique().shape[0] # get number of trackers
-    print("STASUDFJOSGHBRT", n_trackers)
     data_labels = []
     rms_disps = []
     times = []
     print(n_trackers, num_tracker_datasets)
     n_plots = 0
+    rms_df = pd.DataFrame()
 
     n_datasets = int(df.columns[-1].split('-', 1)[0])
     # determine if there are multiple trackers and 1 video, or multiple videos and 1 tracker
@@ -961,12 +1083,18 @@ def marker_distance(user_unit_conversion, df=None, will_save_figures=True, chose
             time = time[~np.isnan(time)]
             x = cur_df[f'{chosen_video_data}-x (px)'].values * conversion_factor
             y = cur_df[f'{chosen_video_data}-y (px)'].values * conversion_factor
-            data_labels.append(cur_df[f'{chosen_video_data}-data_label'].unique()[0])
+            data_label = cur_df[f'{chosen_video_data+1}-data_label'].dropna().unique()[0]
+            data_labels.append(data_label)
             rms = rms_displacement(np.diff(x[~np.isnan(x)]), np.diff(y[~np.isnan(y)]))
             rms_disps.append(rms)
             times.append(time[:-1])
             print(len(time[:-1]),time[:-1], '\n', len(rms),rms)
-
+            cur_rms_df = pd.DataFrame({
+                time_col: time[:-1],
+                f'{dataset+1}-rms_displacement': rms,
+                f'{dataset+1}-data_label': data_label
+            })
+            rms_df = pd.concat([rms_df, cur_rms_df], axis=1)
 
     elif data_multiplicity_type == DataMultiplicity.VIDEOS:
         n_plots = num_tracker_datasets
@@ -977,25 +1105,30 @@ def marker_distance(user_unit_conversion, df=None, will_save_figures=True, chose
             time_col, _, _ = get_time_labels(df, dataset+1)
             time = cur_df[time_col].values
             time = time[~np.isnan(time)]
-
-            data_labels.append(cur_df[f'{dataset+1}-data_label'].dropna().unique()[0])
+            data_label = cur_df[f'{dataset+1}-data_label'].dropna().unique()[0]
+            data_labels.append(data_label)
             rms = rms_displacement(np.diff(x[~np.isnan(x)]), np.diff(y[~np.isnan(y)]))
             rms_disps.append(rms)
             times.append(time[:-1])
             print(len(time[:-1]),time[:-1], '\n', len(rms),rms)
+            cur_rms_df = pd.DataFrame({
+                time_col: time[:-1],
+                f'{dataset+1}-rms_displacement': rms,
+                f'{dataset+1}-data_label': data_label
+            })
+            rms_df = pd.concat([rms_df, cur_rms_df], axis=1)
 
+    rms_df.to_csv("output/rms_displacement.csv", index=False)
 
-    plot_args = {
-        'title': 'Root mean square Displacement',
-        'x_label': time_label,
-        'y_label': r'Root mean square Displacement, $\mathit{D_{rms}}$' + rf' ({conversion_units})    ',
-        'data_label': data_labels,
-        'has_legend': True
-    }
+    
     # plot marker velocity
+    plot_args = get_plot_args(AnalysisType.MARKER_RMS_DISTANCE, time_label, data_labels, conversion_units, time_unit)
+
+
     if will_save_figures:
         disp_fig, disp_ax = plot_scatter_data(times, rms_disps, plot_args, n_plots, output_fig_name='marker_RMS_displacement')
 
+    print("Done")
     return times, rms_disps, plot_args, n_plots
 
 def single_marker_spread(user_unit_conversion, df=None, will_save_figures=True, chosen_video_data=None):
@@ -1053,18 +1186,13 @@ def single_marker_spread(user_unit_conversion, df=None, will_save_figures=True, 
         surface_areas.append(surface_area)
 
     # plot
-    plot_args = {
-        'title': r'Cell Surface Area Spread',
-        'x_label': time_label,
-        'y_label': rf'Projected cell area, $\mathit{{A}}$ ' + rf'({conversion_units})$^{{2}}$',
-        'data_label': data_labels,
-        'has_legend': True
-    }
+    plot_args = get_plot_args(AnalysisType.SURFACE_AREA, time_label, data_labels, conversion_units)
 
     if will_save_figures:
         # plot marker velocity
         area_fig, area_ax = plot_scatter_data(times, surface_areas, plot_args, num_tracker_datasets, output_fig_name='marker_surface_area')
 
+    print("Done")
     return times, surface_areas, plot_args, num_tracker_datasets
 
 if __name__=='__main__':

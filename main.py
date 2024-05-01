@@ -1167,8 +1167,8 @@ class Boxplotter:
         self.label_to_dataset = {}
         self.output_files = {
             "Poisson's ratio (from csv)": 'output/poissons_ratio.csv',
-            'Marker velocity': 'output/Tracking_Output.csv',
-            'Marker RMS distance': 'output/Tracking_Output.csv',
+            'Marker velocity': 'output/marker_velocity.csv',
+            'Marker RMS displacement': 'output/rms_displacement.csv',
             'Surface area': 'output/Surface_Area_Output.csv'
         }
 
@@ -1211,7 +1211,7 @@ class Boxplotter:
 
         # Create the "Go" button to execute analysis
         self.go_button = ttk.Button(self.window, text="Go", command=self.execute_analysis)
-        self.go_button.grid(row=4, column=0, padx=8, pady=20, sticky="ew")
+        self.go_button.grid(row=20, column=0, padx=8, pady=20, sticky="ew")
 
     def update_data_label_selector(self, event):
         selected_analysis = self.analysis_selector.get()
@@ -1241,14 +1241,19 @@ class Boxplotter:
         condition_label.grid(row=0, column=0, padx=8)
         condition_name_entry = ttk.Entry(self.condition_frame)
         condition_name_entry.grid(row=0, column=1, padx=8)
+        condition_instr_label = ttk.Label(self.condition_frame, text="Select from data labels above that are associated with this condition\nThese labels will be analyzed and grouped into a box in the boxplot")
+        condition_instr_label.grid(row=1, column=0, columnspan=2)
 
         add_condition_button = ttk.Button(self.condition_frame, text="Add Condition",
                                         command=lambda: self.add_condition(condition_name_entry.get(), self.data_label_selector.curselection()))
-        add_condition_button.grid(row=1, column=0, columnspan=2, pady=8)
+        add_condition_button.grid(row=2, column=0, columnspan=2, pady=8)
+
+        label_instr = ttk.Label(self.condition_frame, text="Each condition will be its own box in the plot, and each label will become a point in that box\nIf you want to group by data time ranges, use 'By Time Points'")
+        label_instr.grid(row=5, column=0, columnspan=2)
 
         self.condition_listbox = tk.Listbox(self.condition_frame, height=5)
-        self.condition_listbox.grid(row=2, column=0, columnspan=2, padx=8, pady=12)
-        self.condition_frame.grid(row=3, column=0)
+        self.condition_listbox.grid(row=4, column=0, columnspan=2, padx=8, pady=12)
+        self.condition_frame.grid(row=4, column=0)
 
     def add_condition(self, condition_name, selected_indices):
         selected_labels = [self.data_label_selector.get(i) for i in selected_indices]
@@ -1274,8 +1279,11 @@ class Boxplotter:
                                     command=lambda: self.add_time_range(t0_entry.get(), tf_entry.get()))
         add_time_button.grid(row=4, column=0, columnspan=2, pady=8)
 
+        time_range_label_instr = ttk.Label(self.time_frame, text="All labels selected will be analyzed and averaged for each time range\nIf you want to group by data labels, use 'By Conditions'")
+        time_range_label_instr.grid(row=5, column=0, columnspan=2)
+
         self.time_listbox = tk.Listbox(self.time_frame, height=5)
-        self.time_listbox.grid(row=5, column=0, columnspan=2, padx=8, pady=12)
+        self.time_listbox.grid(row=6, column=0, columnspan=2, padx=8, pady=12)
         self.time_frame.grid(row=5, column=0)
 
     def add_time_range(self, t0, tf):
@@ -1304,10 +1312,10 @@ class Boxplotter:
     def execute_analysis(self):
         # Check which grouping method is selected and call the corresponding function
         if self.grouping_var.get() == "conditions":
-            analysis.boxplot_conditions(self.df, self.condition_to_label)
+            analysis.boxplot_conditions(self.df, self.condition_to_label, self.user_units[1])
         elif self.grouping_var.get() == "time_points":
             selected_labels = [self.data_label_selector.get(i) for i in self.data_label_selector.curselection()]
-            analysis.boxplot_time_ranges(self.df, self.time_ranges, selected_labels)
+            analysis.boxplot_time_ranges(self.df, self.time_ranges, selected_labels, self.user_units[1])
         else:
             print("No valid analysis type selected")
 

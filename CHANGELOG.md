@@ -7,11 +7,12 @@ FIX
 Housekeeping
 
 Hydrogel
-- necking point v2
-    - track vertical height of midpoint between 2 selected markers
+
 
 Multi purpose
-
+- data selector save average and std dev of selections on click
+- ensure box plotter used analysis options have their main analysis options output to a csv to not have to rerun the initial analysis everytime
+- box plotter button to delete selected range
 
 Cell Mechanics  
 - box plot for first and last 5 hours of
@@ -31,6 +32,18 @@ Cell Mechanics
 - see about surface tracking on the stained videos
 
 # Changelog
+
+4/30
+- fixed small box plotter bug so go button is always at bottom
+- added a bit further instruction to labels in box plotter ui
+- adjusted df output of marker velocity to include a time col for each dataset
+- marker displacement now has output of data analyzed
+- function to find the appropriate y column for boxplots given df passed in
+    - so one function can handle condition boxplots for each analysis type
+- adjusted how each analysis function gets plot args
+    - function to hold the various plot args definitions
+    - enum for analysis type to determine which one
+- boxplotter kinda working, will fix next day and describe more
 
 4/29
 - refactored tracking loops to call record data function when saving dicts to csv

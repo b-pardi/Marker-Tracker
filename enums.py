@@ -28,3 +28,11 @@ class TrackerChoice(Enum):
     UNSELECTED = auto()
     KCF = auto()
     CSRT = auto()
+
+class AnalysisType(Enum):
+    MARKER_DELTAS = auto()
+    NECKING_POINT = auto()
+    POISSONS_RATIO = auto()
+    MARKER_VELOCITY = auto()
+    MARKER_RMS_DISTANCE = auto()
+    SURFACE_AREA = auto()

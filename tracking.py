@@ -117,8 +117,6 @@ def select_markers(cap, bbox_size, frame_start):
     return mouse_params['marker_positions'], first_frame
 
 def record_data(file_mode, data_dict, output_fp):
-    
-
     if file_mode == FileMode.OVERWRITE:
         # check data label and put default value if empty
         if data_dict['1-data_label'] == '':
@@ -386,7 +384,7 @@ def necking_point(
         if cv2.waitKey(1) == 27 or frame_end <= frame_num:
             break
 
-    record_data(file_mode, dist_data, time_units, "output/Necking_Point_Output.csv")
+    record_data(file_mode, dist_data, "output/Necking_Point_Output.csv")
 
     cap.release()
     cv2.destroyAllWindows()
