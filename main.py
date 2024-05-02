@@ -16,7 +16,8 @@ import matplotlib
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import json
-
+import cProfile
+import pstats
 import os
 import sys
 
@@ -549,6 +550,8 @@ class TrackingUI:
                 msg = "ERROR: Please select a radio button for a tracking operation."
                 error_popup(msg)
             case TrackingOperation.MARKERS:
+                profiler = cProfile.Profile()
+                profiler.enable()
                 print("Beginning Marker Tracking Process...")
                 bbox_size = int(self.bbox_size_tracking_entry.get())
                 tracker_choice = TrackerChoice(self.tracker_choice_intvar.get())
@@ -580,7 +583,12 @@ class TrackingUI:
                             video_name,
                             range_id
                         )
+                        profiler.disable()
+                        stats = pstats.Stats(profiler)
+                        stats.sort_stats('cumulative').print_stats(10)
             case TrackingOperation.NECKING:
+                profiler = cProfile.Profile()
+                profiler.enable()
                 percent_crop_right = float(self.percent_crop_right_entry.get())
                 percent_crop_left = float(self.percent_crop_left_entry.get())
                 binarize_intensity_thresh = int(self.binarize_intensity_thresh_entry.get())
@@ -605,7 +613,9 @@ class TrackingUI:
                         video_name,
                         range_id
                     )
-
+                    profiler.disable()
+                    stats = pstats.Stats(profiler)
+                    stats.sort_stats('cumulative').print_stats(10)
             case TrackingOperation.NECKING_MIDPT:
                 binarize_intensity_thresh = int(self.binarize_intensity_thresh_entry.get())
                 bbox_size = int(self.bbox_size_necking_midpt_entry.get())
@@ -641,6 +651,8 @@ class TrackingUI:
                         )
 
             case TrackingOperation.AREA:
+                profiler = cProfile.Profile()
+                profiler.enable()
                 # check if range_id already used
                 if file_mode == FileMode.APPEND: # only need to check prev ids if appending
                     data_label_err_flag = self.check_data_label('output/Tracking_Output.csv', range_id)
@@ -665,7 +677,9 @@ class TrackingUI:
                             video_name,
                             range_id
                         )
-
+                        profiler.disable()
+                        stats = pstats.Stats(profiler)
+                        stats.sort_stats('cumulative').print_stats(10)
     def get_file(self):
         """util function to prompt a file browser to select the video file that will be tracked
 
