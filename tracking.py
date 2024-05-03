@@ -158,33 +158,37 @@ def record_data(file_mode, data_dict, output_fp):
 def frame_capture_thread(cap, frame_queue, stop_event, frame_end, frame_start, frame_record_interval):
     frame_num = frame_start
     while frame_num <= frame_end and not stop_event.is_set():
+        print(f"cur frame num in capture thread: {frame_num}")
         if stop_event.is_set():
             break
         ret, frame = cap.read()
         if not ret:
             stop_event.set()
             break
-        frame_queue.put((frame_num, frame))
+        try:
+            frame_queue.put((frame_num, frame), block=True, timeout=1)
+        except queue.Full:
+            print("QUEUE FULL FRAME DROPPED")
         frame_num += frame_record_interval
         if cv2.waitKey(1) == 27: 
             stop_event.set()
             break
+    frame_queue.put(None) # sentinel value
 
 def frame_processing_thread(frame_queue, stop_event, trackers, scale_frame, tracker_data, frame_end, frame_interval, time_units):
-    while not stop_event.is_set():
+    while True:
         try:
             frame_num, frame = frame_queue.get(timeout=1)  # Get frames from the queue
+            print(f"cur frame num in processing thread: {frame_num}")
         except queue.Empty:
-            continue
-        if frame_num >= frame_end or stop_event.is_set():
+            print("PANIC")
+        #if frame_num >= frame_end or stop_event.is_set():
+        if frame_num >= frame_end:
             break
 
         scaled_frame, scale_factor = scale_frame(frame)
 
         for i, tracker in enumerate(trackers):
-            if stop_event.is_set():
-                break
-
             success, bbox = tracker.update(scaled_frame)
             if success:
                 x_bbox, y_bbox, w_bbox, h_bbox = [int(coord) for coord in bbox]
@@ -197,6 +201,7 @@ def frame_processing_thread(frame_queue, stop_event, trackers, scale_frame, trac
                 tracker_data['1-y (px)'].append(int(marker_center[1] / scale_factor))
 
         cv2.imshow("Tracking", scaled_frame)
+        frame_queue.task_done()
         if cv2.waitKey(1) == 27:  # Check for ESC key
             stop_event.set()
 
@@ -259,7 +264,7 @@ def track_markers(
             frame_end,
             frame_start,
             frame_record_interval
-        )
+        ), daemon=True
     )
     processing_thread = threading.Thread(
         target=frame_processing_thread,
@@ -272,7 +277,7 @@ def track_markers(
             frame_end,
             frame_interval,
             time_units
-        )
+        ), daemon=True
     )
 
     capture_thread.start()
@@ -280,7 +285,11 @@ def track_markers(
 
     # Wait for threads to finish
     capture_thread.join()
+    print("capture_thread done")
+
     processing_thread.join()
+    print("processing_thread done")
+
 
     # Clean up
     cap.release()

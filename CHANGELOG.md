@@ -3,6 +3,8 @@
 ## TODO
 
 FIX
+- frame processing not drawing bounding boxes
+- frame record interval in multithread?
 
 Housekeeping
 
@@ -32,6 +34,16 @@ Cell Mechanics
 - see about surface tracking on the stained videos
 
 # Changelog
+
+5/1-5/2
+- marker tracking multithreading
+    - track markers function still initializes trackers, but splits frame fetching and frame processing into 2 separate functions that then become threads
+    - capture thread takes relevant frame information as well as initialized frame queue object
+        - frame queue has max size of 10 to prevent memory leaks
+    - processing thread reads frame queue, updates trackers, and records data
+    - both frames check for ESC key to set the stop event, but only frame capture thread stops when stop event triggered
+        - if frame processing also stopped with frames still in queue (if frame capture grabs frames faster than frame process can handle) then threads cannot rejoin
+        - so when stop event happens, frames stop being grabbed, but queue will still be emptied by frame processing before termination
 
 4/30
 - fixed small box plotter bug so go button is always at bottom
