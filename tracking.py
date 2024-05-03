@@ -155,34 +155,147 @@ def record_data(file_mode, data_dict, output_fp):
         dist_df_merged = pd.concat([dist_df, cur_df], axis=1)
         dist_df_merged.to_csv(output_fp, index=False)
 
-def frame_capture_thread(cap, frame_queue, stop_event, frame_end, frame_start, frame_record_interval):
+def track_markers(
+        marker_positions,
+        first_frame,
+        frame_start,
+        frame_end,
+        cap,
+        bbox_size,
+        tracker_choice,
+        frame_record_interval,
+        frame_interval,
+        time_units,
+        file_mode,
+        video_file_name,
+        data_label):
+    """Implements the main tracking loop for markers on a video.
+    It tracks markers from a user-defined start to end frame and records the data.
+
+    Functionality:
+        1. Initializes trackers based on user-selected markers and tracking algorithm.
+        2. Scales the first frame and initializes bounding boxes for trackers.
+        3. Enters a loop to track markers across specified frames, scaling each frame as processed.
+        4. Records tracking data for each frame where markers are successfully tracked.
+        5. Saves or appends the tracking data to a CSV file depending on the file mode.
+        6. Handles errors by displaying warning messages and terminating tracking if necessary.
+
+    Args:
+        marker_positions (list of tuples): Initial positions of markers selected by the user.
+        first_frame (np.array): Image of the first frame of the video where markers were selected.
+        frame_start (int): The frame number to start tracking.
+        frame_end (int): The frame number to end tracking.
+        cap (cv2.VideoCapture): Video capture object loaded with the video file.
+        bbox_size (int): Size of the bounding box for each tracker.
+        tracker_choice (TrackerChoice): Enum specifying the tracking algorithm to use (KCF or CSRT).
+        frame_record_interval (int): Interval at which frames are processed and data is recorded.
+        frame_interval (float): Real-world time interval between frames, used in time calculations for data recording.
+        time_units (str): Units for time (e.g., 'seconds', 'minutes') used in the output data.
+        file_mode (FileMode): Specifies whether to overwrite or append data in the output file.
+        video_file_name (str): Name of the video file being processed.
+        data_label (str): Unique identifier for the tracking session, used in data labeling.
+    """    
+    # create trackers
+    trackers = []
+    if tracker_choice == TrackerChoice.KCF:
+        for _ in range(len(marker_positions)):
+            trackers.append(cv2.TrackerKCF_create())
+    elif tracker_choice == TrackerChoice.CSRT:
+        for _ in range(len(marker_positions)):
+            trackers.append(cv2.TrackerCSRT_create())
+
+    # init trackers
+    scaled_first_frame, scale_factor = scale_frame(first_frame)
+    for i, mark_pos in enumerate(marker_positions):
+        bbox = (int((mark_pos[0][0] - bbox_size // 2) * scale_factor),
+                int((mark_pos[0][1] - bbox_size // 2) * scale_factor),
+                int(bbox_size * scale_factor),
+                int(bbox_size * scale_factor))
+        trackers[i].init(scaled_first_frame, bbox)
+
+    # init tracking data dict
+    tracker_data = {'1-Frame': [], f'1-Time({time_units})': [], '1-Tracker': [], '1-x (px)': [], '1-y (px)': [], '1-video_file_name': video_file_name, '1-data_label': data_label}
+    frame_num = frame_start
+
+    # tracking loop
+    while True:
+        ret, frame = cap.read()
+        frame_num += frame_record_interval
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
+
+        if not ret:
+            break  # break when frame read unsuccessful (end of video or error)
+
+        scaled_frame, scale_factor = scale_frame(frame)  # Use the scale_factor obtained from the current frame scaling
+
+        # updating trackers and saving location
+        for i, tracker in enumerate(trackers):
+            success, bbox = tracker.update(scaled_frame)              
+
+            if success:  # get coords of marker on successful frame update
+                x_bbox, y_bbox, w_bbox, h_bbox = [int(coord) for coord in bbox]  # get coords of bbox in the scaled frame
+                marker_center = (x_bbox + w_bbox // 2, y_bbox + h_bbox // 2)  # get center of bbox
+
+                # record tracker locations using original resolution
+                if frame_interval == 0:
+                    tracker_data[f'1-Time({time_units})'].append(np.float16((frame_num - frame_start) / cap.get(5)))
+                else:
+                    tracker_data[f'1-Time({time_units})'].append(np.float16((frame_num - frame_start) * frame_interval))
+                tracker_data['1-Frame'].append(frame_num - frame_start)
+                tracker_data['1-Tracker'].append(i + 1)
+                tracker_data['1-x (px)'].append(int((marker_center[0] / scale_factor)))  # scale back to the original frame resolution
+                tracker_data['1-y (px)'].append(int((marker_center[1] / scale_factor)))
+                cv2.rectangle(scaled_frame, (x_bbox, y_bbox), (x_bbox + w_bbox, y_bbox + h_bbox), (0, 255, 0), 2)  # update tracker rectangle
+
+            else:
+                msg = "WARNING: Lost tracking marker\n\nPlease retry after adjusting any of the following:\n\n-Parameters\n-Initial tracker placement\n-Frame selection"
+                warning_popup(msg)
+                cap.release()
+                cv2.destroyAllWindows()
+                return
+
+        cv2.imshow("Tracking...", scaled_frame)  # show updated frame tracking
+
+        if cv2.waitKey(1) == 27 or frame_num >= frame_end:  # cut tracking loop short if ESC hit
+            break
+    
+    record_data(file_mode, tracker_data, "output/Tracking_Output.csv")
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+def frame_capture_thread(cap, frame_queue, message_queue, stop_event, frame_end, frame_start, frame_record_interval):
     frame_num = frame_start
     while frame_num <= frame_end and not stop_event.is_set():
-        print(f"cur frame num in capture thread: {frame_num}")
+        #print(f"cur frame num in capture thread: {frame_num}")
         if stop_event.is_set():
             break
         ret, frame = cap.read()
+
         if not ret:
+            message_queue.put("Error: Frame failed to read")
             stop_event.set()
             break
+
         try:
             frame_queue.put((frame_num, frame), block=True, timeout=1)
         except queue.Full:
             print("QUEUE FULL FRAME DROPPED")
         frame_num += frame_record_interval
+
         if cv2.waitKey(1) == 27: 
             stop_event.set()
             break
     frame_queue.put(None) # sentinel value
 
-def frame_processing_thread(frame_queue, stop_event, trackers, scale_frame, tracker_data, frame_end, frame_interval, time_units):
+def frame_processing_thread(frame_queue, message_queue, stop_event, trackers, scale_frame, tracker_data, frame_start, frame_end, frame_interval, time_units, fps):
     while True:
         try:
             frame_num, frame = frame_queue.get(timeout=1)  # Get frames from the queue
-            print(f"cur frame num in processing thread: {frame_num}")
+            #print(f"cur frame num in processing thread: {frame_num}")
         except queue.Empty:
-            print("PANIC")
-        #if frame_num >= frame_end or stop_event.is_set():
+            continue
+            #print("PANIC")
         if frame_num >= frame_end:
             break
 
@@ -194,18 +307,30 @@ def frame_processing_thread(frame_queue, stop_event, trackers, scale_frame, trac
                 x_bbox, y_bbox, w_bbox, h_bbox = [int(coord) for coord in bbox]
                 marker_center = (x_bbox + w_bbox // 2, y_bbox + h_bbox // 2)
 
-                tracker_data['1-Frame'].append(frame_num)
-                tracker_data[f'1-Time({time_units})'].append(np.float16(frame_num * frame_interval))
+                # record tracker locations using original resolution
+                if frame_interval == 0:
+                    tracker_data[f'1-Time({time_units})'].append(np.float16((frame_num - frame_start) / fps))
+                else:
+                    tracker_data[f'1-Time({time_units})'].append(np.float16((frame_num - frame_start) * frame_interval))
+                tracker_data['1-Frame'].append(frame_num - frame_start)
                 tracker_data['1-Tracker'].append(i + 1)
-                tracker_data['1-x (px)'].append(int(marker_center[0] / scale_factor))
-                tracker_data['1-y (px)'].append(int(marker_center[1] / scale_factor))
+                tracker_data['1-x (px)'].append(int((marker_center[0] / scale_factor)))  # scale back to the original frame resolution
+                tracker_data['1-y (px)'].append(int((marker_center[1] / scale_factor)))
+                
+                cv2.rectangle(scaled_frame, (x_bbox, y_bbox), (x_bbox + w_bbox, y_bbox + h_bbox), (0, 255, 0), 2)  # update tracker rectangle
+
+            else:
+                msg = f"WARNING: Lost tracking marker at {bbox}\n\nPlease retry after adjusting any of the following:\n\n-Parameters\n-Initial tracker placement\n-Frame selection"
+                message_queue.put(msg)
+                stop_event.set()
+                break
 
         cv2.imshow("Tracking", scaled_frame)
         frame_queue.task_done()
         if cv2.waitKey(1) == 27:  # Check for ESC key
             stop_event.set()
 
-def track_markers(
+def track_markers_threaded(
         marker_positions,
         first_frame,
         frame_start,
@@ -220,6 +345,8 @@ def track_markers(
         video_file_name,
         data_label
     ):
+
+    fps = cap.get(5)
 
     # create trackers
     trackers = []
@@ -252,6 +379,7 @@ def track_markers(
 
     # Create a thread-safe queue and an event to signal thread termination
     frame_queue = queue.Queue(maxsize=10)
+    message_queue = queue.Queue(maxsize=5)
     stop_event = threading.Event()
 
     # Start the capture and processing threads
@@ -260,6 +388,7 @@ def track_markers(
         args=(
             cap,
             frame_queue,
+            message_queue,
             stop_event,
             frame_end,
             frame_start,
@@ -270,13 +399,16 @@ def track_markers(
         target=frame_processing_thread,
         args=(
             frame_queue,
+            message_queue,
             stop_event,
             trackers,
             scale_frame,
             tracker_data,
+            frame_start,
             frame_end,
             frame_interval,
-            time_units
+            time_units,
+            fps
         ), daemon=True
     )
 
@@ -290,6 +422,9 @@ def track_markers(
     processing_thread.join()
     print("processing_thread done")
 
+    # check if either thread failed
+    while not message_queue.empty():
+        warning_popup(message_queue.get())
 
     # Clean up
     cap.release()

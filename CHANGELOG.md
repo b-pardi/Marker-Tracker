@@ -35,7 +35,13 @@ Cell Mechanics
 
 # Changelog
 
+5/3
+- fixed bug when trackers fail to update software crashes due to integration of multithreading and tkinter pop up messages
+    - made a queue for messages that is then read after threads are exited and rejoined
+    - queue displayed after
+
 5/1-5/2
+- added cProfile tools to print runtime info to terminal
 - marker tracking multithreading
     - track markers function still initializes trackers, but splits frame fetching and frame processing into 2 separate functions that then become threads
     - capture thread takes relevant frame information as well as initialized frame queue object

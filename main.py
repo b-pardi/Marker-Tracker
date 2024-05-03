@@ -236,10 +236,13 @@ class TrackingUI:
 
         # tracking operation buttons
         track_record_frame = tk.Frame(self.section1)
+        self.multithread_intvar = tk.IntVar()
+        multithread_check = ttk.Checkbutton(track_record_frame, text="Use multi-threading? (unstable but faaast)", variable=self.multithread_intvar, offvalue=0, onvalue=1)
+        multithread_check.grid(row=0, column=0, columnspan=2, pady=(24,0))
         track_btn = ttk.Button(track_record_frame, text="Begin tracking", command=self.on_submit_tracking, style='Regular.TButton')
-        track_btn.grid(row=0, column=0, columnspan=2, padx=32, pady=(24,4))
+        track_btn.grid(row=2, column=0, columnspan=2, padx=32, pady=(24,4))
         remove_outliers_button = ttk.Button(track_record_frame, text="Remove outliers", command=self.remove_outliers, style='Regular.TButton')
-        remove_outliers_button.grid(row=1, column=0, columnspan=2, padx=32, pady=(4,24))
+        remove_outliers_button.grid(row=3, column=0, columnspan=2, padx=32, pady=(4,24))
         
         undo_buttons_frame = tk.Frame(track_record_frame)
         undo_label = ttk.Label(undo_buttons_frame, text="Undo previous appended tracking data recording.")
@@ -250,7 +253,7 @@ class TrackingUI:
         undo_necking_point_append_btn.grid(row=1, column=1)    
         undo_surface_tracking_append_btn = ttk.Button(undo_buttons_frame, text="Surface area", command=lambda: self.undo_last_tracking_append("output/Surface_Area_Output.csv"), style='Regular.TButton')
         undo_surface_tracking_append_btn.grid(row=1, column=2)
-        undo_buttons_frame.grid(row=2, column=0, columnspan=2, pady=(8,20))
+        undo_buttons_frame.grid(row=4, column=0, columnspan=2, pady=(8,20))
         track_record_frame.grid(row=18, column=0, pady=(8,20))
         self.section1.grid(row=0, column=0)
 
@@ -545,6 +548,9 @@ class TrackingUI:
             data_label_err_flag = True
             error_popup(msg)
 
+        # user indication of desire to use multithreaded version of tracking functions
+        use_multithread = self.multithread_intvar.get()
+
         match option:
             case TrackingOperation.UNSELECTED:
                 msg = "ERROR: Please select a radio button for a tracking operation."
@@ -568,21 +574,38 @@ class TrackingUI:
                     selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start) # prompt to select markers
                     print(f"marker locs: {selected_markers}")
                     if not selected_markers.__contains__((-1,-1)): # select_markers returns list of -1 if selections cancelled
-                        tracking.track_markers(
-                            selected_markers,
-                            first_frame,
-                            self.frame_start,
-                            self.frame_end,
-                            cap,
-                            bbox_size,
-                            tracker_choice,
-                            frame_record_interval,
-                            self.frame_interval,
-                            self.time_units,
-                            file_mode,
-                            video_name,
-                            range_id
-                        )
+                        if use_multithread:
+                            tracking.track_markers_threaded(
+                                selected_markers,
+                                first_frame,
+                                self.frame_start,
+                                self.frame_end,
+                                cap,
+                                bbox_size,
+                                tracker_choice,
+                                frame_record_interval,
+                                self.frame_interval,
+                                self.time_units,
+                                file_mode,
+                                video_name,
+                                range_id
+                            )
+                        else:
+                            tracking.track_markers(
+                                selected_markers,
+                                first_frame,
+                                self.frame_start,
+                                self.frame_end,
+                                cap,
+                                bbox_size,
+                                tracker_choice,
+                                frame_record_interval,
+                                self.frame_interval,
+                                self.time_units,
+                                file_mode,
+                                video_name,
+                                range_id
+                            )
                         profiler.disable()
                         stats = pstats.Stats(profiler)
                         stats.sort_stats('cumulative').print_stats(10)
