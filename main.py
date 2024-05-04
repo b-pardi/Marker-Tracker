@@ -622,24 +622,42 @@ class TrackingUI:
 
                 if not data_label_err_flag:
                     print("Beginning Necking Point")
-                    tracking.necking_point(
-                        cap,
-                        self.frame_start,
-                        self.frame_end,
-                        percent_crop_left,
-                        percent_crop_right,
-                        binarize_intensity_thresh,
-                        frame_record_interval,
-                        self.frame_interval,
-                        self.time_units,
-                        file_mode,
-                        video_name,
-                        range_id
-                    )
+                    if use_multithread:
+                        tracking.necking_point_threaded(
+                            cap,
+                            self.frame_start,
+                            self.frame_end,
+                            percent_crop_left,
+                            percent_crop_right,
+                            binarize_intensity_thresh,
+                            frame_record_interval,
+                            self.frame_interval,
+                            self.time_units,
+                            file_mode,
+                            video_name,
+                            range_id
+                        )
+                    else:
+                        tracking.necking_point(
+                            cap,
+                            self.frame_start,
+                            self.frame_end,
+                            percent_crop_left,
+                            percent_crop_right,
+                            binarize_intensity_thresh,
+                            frame_record_interval,
+                            self.frame_interval,
+                            self.time_units,
+                            file_mode,
+                            video_name,
+                            range_id
+                        )
                     profiler.disable()
                     stats = pstats.Stats(profiler)
                     stats.sort_stats('cumulative').print_stats(10)
             case TrackingOperation.NECKING_MIDPT:
+                profiler = cProfile.Profile()
+                profiler.enable()
                 binarize_intensity_thresh = int(self.binarize_intensity_thresh_entry.get())
                 bbox_size = int(self.bbox_size_necking_midpt_entry.get())
 
@@ -657,7 +675,8 @@ class TrackingUI:
                         error_popup(msg)
                     else:
                         print("Beginning Necking Point (midpoint method)")
-                        tracking.necking_point_midpoint(
+                        if use_multithread:
+                            tracking.necking_point_midpoint_threaded(
                             cap,
                             selected_markers,
                             first_frame,
@@ -672,7 +691,25 @@ class TrackingUI:
                             video_name,
                             range_id
                         )
-
+                        else:
+                            tracking.necking_point_midpoint(
+                                cap,
+                                selected_markers,
+                                first_frame,
+                                bbox_size,
+                                self.frame_start,
+                                self.frame_end,
+                                binarize_intensity_thresh,
+                                frame_record_interval,
+                                self.frame_interval,
+                                self.time_units,
+                                file_mode,
+                                video_name,
+                                range_id
+                            )
+                        profiler.disable()
+                        stats = pstats.Stats(profiler)
+                        stats.sort_stats('cumulative').print_stats(10)
             case TrackingOperation.AREA:
                 profiler = cProfile.Profile()
                 profiler.enable()
@@ -686,20 +723,38 @@ class TrackingUI:
                     selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start) # prompt to select markers
                     print(f"marker locs: {selected_markers}")
                     if not selected_markers.__contains__((-1,-1)): # select_markers returns list of -1 if selections cancelled
-                        tracking.track_area(cap,
-                            selected_markers,
-                            first_frame,
-                            bbox_size,
-                            self.frame_start,
-                            self.frame_end,
-                            frame_record_interval,
-                            self.frame_interval,
-                            self.time_units,
-                            distance_from_marker_thresh,
-                            file_mode,
-                            video_name,
-                            range_id
-                        )
+                        if use_multithread:    
+                            tracking.track_area_threaded(
+                                cap,
+                                selected_markers,
+                                first_frame,
+                                bbox_size,
+                                self.frame_start,
+                                self.frame_end,
+                                frame_record_interval,
+                                self.frame_interval,
+                                self.time_units,
+                                distance_from_marker_thresh,
+                                file_mode,
+                                video_name,
+                                range_id
+                            )
+                        else:
+                            tracking.track_area(
+                                cap,
+                                selected_markers,
+                                first_frame,
+                                bbox_size,
+                                self.frame_start,
+                                self.frame_end,
+                                frame_record_interval,
+                                self.frame_interval,
+                                self.time_units,
+                                distance_from_marker_thresh,
+                                file_mode,
+                                video_name,
+                                range_id
+                            )
                         profiler.disable()
                         stats = pstats.Stats(profiler)
                         stats.sort_stats('cumulative').print_stats(10)

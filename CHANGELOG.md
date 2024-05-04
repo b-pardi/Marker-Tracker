@@ -39,6 +39,26 @@ Cell Mechanics
 - fixed bug when trackers fail to update software crashes due to integration of multithreading and tkinter pop up messages
     - made a queue for messages that is then read after threads are exited and rejoined
     - queue displayed after
+- added option to do multithreading in ui
+    - this means if multithread breaks for whatever reason single thread option still available
+- necking point multithread option available
+    - added thread for edge detection and saving necking point data
+- necking point midpt version multithread option available
+    - THREE THREADS HELL YEA
+    - initial frame grabbing thread
+    - marker update thread modified version of marker tracker thread specifically for finding midpoint and feeding another queue for third thread
+        - feeds the next queue with a tuple with frame num, scaled frame, scale factor, and the located midpoint between the 2 markers
+    - frame midpt edge detection thread grabs from above queue and performs rest of necking midpoint's functionality
+        - detects edges and finds length of edge at midpoint and records data to dictionary
+- added cProfile stats to all tracking functions
+- surface area tracking multithread support
+    - HUH 4 THREADS NOW???
+    - same frame grabbing thread as others
+    - reused necking_midpt finder tracker updater threader
+        - modified to return whole bbox along with the midpt
+        - made midpt a useless return arg ( _ ) in this context, and made the bbox return useless in the necking midpt thread
+    - frame_preprocessing thread does all the median blurring, and improved binarization methods, adding to the next queue the same things it pulled from the queue from necking_midpt tracker thread but giving it processed frame instead of original scaled frame
+    - contours thread finds the contours and chooses the appropriate (nearest) one, then saves the data and does all the screen display things
 
 5/1-5/2
 - added cProfile tools to print runtime info to terminal

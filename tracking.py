@@ -12,6 +12,7 @@ import time
 import screeninfo
 import threading
 import queue
+from collections import defaultdict
 
 from exceptions import error_popup, warning_popup
 from enums import *
@@ -155,6 +156,27 @@ def record_data(file_mode, data_dict, output_fp):
         dist_df_merged = pd.concat([dist_df, cur_df], axis=1)
         dist_df_merged.to_csv(output_fp, index=False)
 
+def init_trackers(marker_positions, bbox_size, first_frame, tracker_choice=TrackerChoice.KCF):
+    # create trackers
+    trackers = []
+    if tracker_choice == TrackerChoice.KCF:
+        for _ in range(len(marker_positions)):
+            trackers.append(cv2.TrackerKCF_create())
+    elif tracker_choice == TrackerChoice.CSRT:
+        for _ in range(len(marker_positions)):
+            trackers.append(cv2.TrackerCSRT_create())
+
+    # init trackers
+    scaled_first_frame, scale_factor = scale_frame(first_frame)
+    for i, mark_pos in enumerate(marker_positions):
+        bbox = (int((mark_pos[0][0] - bbox_size // 2) * scale_factor),
+                int((mark_pos[0][1] - bbox_size // 2) * scale_factor),
+                int(bbox_size * scale_factor),
+                int(bbox_size * scale_factor))
+        trackers[i].init(scaled_first_frame, bbox)
+
+    return trackers
+
 def track_markers(
         marker_positions,
         first_frame,
@@ -195,23 +217,8 @@ def track_markers(
         video_file_name (str): Name of the video file being processed.
         data_label (str): Unique identifier for the tracking session, used in data labeling.
     """    
-    # create trackers
-    trackers = []
-    if tracker_choice == TrackerChoice.KCF:
-        for _ in range(len(marker_positions)):
-            trackers.append(cv2.TrackerKCF_create())
-    elif tracker_choice == TrackerChoice.CSRT:
-        for _ in range(len(marker_positions)):
-            trackers.append(cv2.TrackerCSRT_create())
 
-    # init trackers
-    scaled_first_frame, scale_factor = scale_frame(first_frame)
-    for i, mark_pos in enumerate(marker_positions):
-        bbox = (int((mark_pos[0][0] - bbox_size // 2) * scale_factor),
-                int((mark_pos[0][1] - bbox_size // 2) * scale_factor),
-                int(bbox_size * scale_factor),
-                int(bbox_size * scale_factor))
-        trackers[i].init(scaled_first_frame, bbox)
+    trackers = init_trackers(marker_positions, bbox_size, first_frame, tracker_choice)
 
     # init tracking data dict
     tracker_data = {'1-Frame': [], f'1-Time({time_units})': [], '1-Tracker': [], '1-x (px)': [], '1-y (px)': [], '1-video_file_name': video_file_name, '1-data_label': data_label}
@@ -273,7 +280,7 @@ def frame_capture_thread(cap, frame_queue, message_queue, stop_event, frame_end,
         ret, frame = cap.read()
 
         if not ret:
-            message_queue.put("Error: Frame failed to read")
+            #message_queue.put("Error: Frame failed to read")
             stop_event.set()
             break
 
@@ -288,7 +295,7 @@ def frame_capture_thread(cap, frame_queue, message_queue, stop_event, frame_end,
             break
     frame_queue.put(None) # sentinel value
 
-def frame_processing_thread(frame_queue, message_queue, stop_event, trackers, scale_frame, tracker_data, frame_start, frame_end, frame_interval, time_units, fps):
+def frame_tracker_processing_thread(frame_queue, message_queue, stop_event, trackers, scale_frame, tracker_data, frame_start, frame_end, frame_interval, time_units, fps):
     while True:
         try:
             frame_num, frame = frame_queue.get(timeout=1)  # Get frames from the queue
@@ -308,15 +315,16 @@ def frame_processing_thread(frame_queue, message_queue, stop_event, trackers, sc
                 marker_center = (x_bbox + w_bbox // 2, y_bbox + h_bbox // 2)
 
                 # record tracker locations using original resolution
-                if frame_interval == 0:
-                    tracker_data[f'1-Time({time_units})'].append(np.float16((frame_num - frame_start) / fps))
-                else:
-                    tracker_data[f'1-Time({time_units})'].append(np.float16((frame_num - frame_start) * frame_interval))
-                tracker_data['1-Frame'].append(frame_num - frame_start)
-                tracker_data['1-Tracker'].append(i + 1)
-                tracker_data['1-x (px)'].append(int((marker_center[0] / scale_factor)))  # scale back to the original frame resolution
-                tracker_data['1-y (px)'].append(int((marker_center[1] / scale_factor)))
-                
+                if tracker_data:
+                    if frame_interval == 0:
+                        tracker_data[f'1-Time({time_units})'].append(np.float16((frame_num - frame_start) / fps))
+                    else:
+                        tracker_data[f'1-Time({time_units})'].append(np.float16((frame_num - frame_start) * frame_interval))
+                    tracker_data['1-Frame'].append(frame_num - frame_start)
+                    tracker_data['1-Tracker'].append(i + 1)
+                    tracker_data['1-x (px)'].append(int((marker_center[0] / scale_factor)))  # scale back to the original frame resolution
+                    tracker_data['1-y (px)'].append(int((marker_center[1] / scale_factor)))
+                    
                 cv2.rectangle(scaled_frame, (x_bbox, y_bbox), (x_bbox + w_bbox, y_bbox + h_bbox), (0, 255, 0), 2)  # update tracker rectangle
 
             else:
@@ -348,23 +356,7 @@ def track_markers_threaded(
 
     fps = cap.get(5)
 
-    # create trackers
-    trackers = []
-    if tracker_choice == TrackerChoice.KCF:
-        for _ in range(len(marker_positions)):
-            trackers.append(cv2.TrackerKCF_create())
-    elif tracker_choice == TrackerChoice.CSRT:
-        for _ in range(len(marker_positions)):
-            trackers.append(cv2.TrackerCSRT_create())
-
-    # init trackers
-    scaled_first_frame, scale_factor = scale_frame(first_frame)
-    for i, mark_pos in enumerate(marker_positions):
-        bbox = (int((mark_pos[0][0] - bbox_size // 2) * scale_factor),
-                int((mark_pos[0][1] - bbox_size // 2) * scale_factor),
-                int(bbox_size * scale_factor),
-                int(bbox_size * scale_factor))
-        trackers[i].init(scaled_first_frame, bbox)
+    trackers = init_trackers(marker_positions, bbox_size, first_frame, tracker_choice)
 
     # Initialize tracking data storage
     tracker_data = {
@@ -396,7 +388,7 @@ def track_markers_threaded(
         ), daemon=True
     )
     processing_thread = threading.Thread(
-        target=frame_processing_thread,
+        target=frame_tracker_processing_thread,
         args=(
             frame_queue,
             message_queue,
@@ -426,13 +418,12 @@ def track_markers_threaded(
     while not message_queue.empty():
         warning_popup(message_queue.get())
 
-    # Clean up
-    cap.release()
-    cv2.destroyAllWindows()
-
     # Data output handling
     record_data(file_mode, tracker_data, "output/Tracking_Output.csv")
 
+    # Clean up
+    cap.release()
+    cv2.destroyAllWindows()
 
 def necking_point(
         cap,
@@ -560,6 +551,183 @@ def necking_point(
     cap.release()
     cv2.destroyAllWindows()
 
+def frame_edge_processing(
+        frame_queue,
+        message_queue,
+        dist_data,
+        stop_event,
+        scale_frame,
+        frame_start,
+        frame_end,
+        frame_interval,
+        time_units,
+        fps,
+        binarize_intensity_thresh,
+        percent_crop_left=0.,
+        percent_crop_right=0.,
+        x_interval=0
+    ):
+
+    while True:
+        try:
+            frame_num, frame = frame_queue.get(timeout=1)
+        except queue.Empty:
+            print("QUEUE EMPTY")
+            continue
+        if frame_num >= frame_end:
+            break
+
+        scaled_frame, scale_factor = scale_frame(frame)
+
+        gray_frame = cv2.cvtColor(scaled_frame, cv2.COLOR_BGR2GRAY)  # convert frame to gray
+        _, binary_frame = cv2.threshold(gray_frame, binarize_intensity_thresh, 255, cv2.THRESH_BINARY)  # threshold to binarize image
+
+        # error checking for appropriate binarization threshold
+        if np.all(binary_frame == 255):
+            msg = "Binarization threshold too low,\nfound no pixels below the threshold.\n\nPlease adjust the threshold (default is 120)"
+            message_queue.put(msg)
+            stop_event.set()
+        if np.all(binary_frame == 0):
+            msg = "Binarization threshold too high,\nfound no pixels above the threshold.\n\nPlease adjust the threshold (default is 120)"
+            message_queue.put(msg)
+            stop_event.set()
+
+        edges = cv2.Canny(binary_frame, 0, 2)  # edge detection, nums are gradient thresholds
+        x_samples = []
+        y_distances = []
+        y_line_values = []
+
+        frame_draw = scaled_frame.copy()
+        frame_draw[edges > 0] = [0, 255, 0]  # draw edges
+
+        # remove x% of edges from consideration of detection
+        horizontal_pixels_left = 0
+        horizontal_pixels_right = scaled_frame.shape[1]
+        if percent_crop_left != 0.:
+            left_pixels_removed = int(percent_crop_left * scaled_frame.shape[1])
+            horizontal_pixels_left = max(0, left_pixels_removed)
+        if percent_crop_right != 0.:
+            right_pixels_removed = int(percent_crop_right * scaled_frame.shape[1])
+            horizontal_pixels_right = min(scaled_frame.shape[1], scaled_frame.shape[1] - right_pixels_removed)
+
+        for x in range(horizontal_pixels_left, horizontal_pixels_right):
+            edge_pixels = np.nonzero(edges[:, x])[0]  # find y coord of edge pixels in cur column
+
+            if edge_pixels.size > 0:  # if edge pixels in cur column,
+                dist = np.abs(edge_pixels[0] - edge_pixels[-1])  # find distance of top and bottom edges
+                x_samples.append(x)
+                y_line_values.append((edge_pixels[0], edge_pixels[-1]))
+                y_distances.append(dist)
+
+                if x % x_interval == 0 and x != 0:  # draw visualization lines at every x_interval pixels
+                    # draw vertical lines connecting edges for visualization
+                    cv2.line(frame_draw, (x, edge_pixels[0]), (x, edge_pixels[-1]), (200, 0, 0), 1)  
+
+        # find index of smallest distance
+        # multiple mins occur in typically close together, for now just pick middle of min occurrences
+        necking_distance = np.min(y_distances)
+        necking_pt_indices = np.where(y_distances == necking_distance)[0]
+        necking_pt_ind = int(np.median(necking_pt_indices))
+
+        # record and save data using original resolution
+        if frame_interval == 0:
+            dist_data[f'1-Time({time_units})'].append(np.float16((frame_num - frame_start) / fps))
+        else:
+            dist_data[f'1-Time({time_units})'].append(np.float16((frame_num - frame_start) * frame_interval))
+        dist_data['1-Frame'].append(frame_num - frame_start)
+        dist_data['1-x at necking point (px)'].append(int(x_samples[necking_pt_ind] / scale_factor))
+        dist_data['1-y necking distance (px)'].append(int(necking_distance / scale_factor))
+
+        cv2.line(frame_draw, (x_samples[necking_pt_ind], y_line_values[necking_pt_ind][0]), (x_samples[necking_pt_ind], y_line_values[necking_pt_ind][1]), (0, 0, 255), 2)     
+
+        cv2.imshow('Necking Point Visualization', frame_draw)
+        frame_queue.task_done()
+        if cv2.waitKey(1) == 27 or frame_end <= frame_num:
+            stop_event.set()
+
+def necking_point_threaded(
+        cap,
+        frame_start,
+        frame_end,
+        percent_crop_left,
+        percent_crop_right,
+        binarize_intensity_thresh,
+        frame_record_interval,
+        frame_interval,
+        time_units,
+        file_mode,
+        video_file_name,
+        data_label
+    ):
+
+    fps = cap.get(5)
+    x_interval = 50 # interval for how many blue line visuals to display
+    frame_num = frame_start
+    dist_data = {
+        '1-Frame': [],
+        f'1-Time({time_units})': [],
+        '1-x at necking point (px)': [],
+        '1-y necking distance (px)': [],
+        '1-video_file_name': video_file_name,
+        '1-detection_method': 'min_distance',
+        '1-data_label': data_label
+    }
+
+    percent_crop_left *= 0.01
+    percent_crop_right *= 0.01
+
+    # Create a thread-safe queue and an event to signal thread termination
+    frame_queue = queue.Queue(maxsize=10)
+    message_queue = queue.Queue(maxsize=5)
+    stop_event = threading.Event()
+
+    # Start the capture and processing threads
+    capture_thread = threading.Thread(
+        target=frame_capture_thread,
+        args=(
+            cap,
+            frame_queue,
+            message_queue,
+            stop_event,
+            frame_end,
+            frame_start,
+            frame_record_interval,
+        ), daemon=True
+    )
+    processing_thread = threading.Thread(
+        target=frame_edge_processing,
+        args=(
+            frame_queue,
+            message_queue,
+            dist_data,
+            stop_event,
+            scale_frame,
+            frame_start,
+            frame_end,
+            frame_interval,
+            time_units,
+            fps,
+            binarize_intensity_thresh,
+            percent_crop_left,
+            percent_crop_right,
+            x_interval
+        ), daemon=True
+    )
+
+    capture_thread.start()
+    processing_thread.start()
+
+    capture_thread.join()
+    processing_thread.join()
+
+    while not message_queue.empty():
+        warning_popup(message_queue.get())
+
+    record_data(file_mode, dist_data, "output/Necking_Point_Output.csv")
+
+    cap.release()
+    cv2.destroyAllWindows()
+
 def necking_point_midpoint(
         cap,
         marker_positions,
@@ -616,18 +784,7 @@ def necking_point_midpoint(
         - Proper setting of the binarization threshold is crucial for accurate edge detection.
           The function includes error checks and pop-ups to adjust this if needed.
     """
-    # create trackers
-    trackers = []
-    for _ in range(len(marker_positions)):
-        trackers.append(cv2.TrackerKCF_create()) # for this application simpler KCF algorithm appropriate
-
-    scaled_first_frame, scale_factor = scale_frame(first_frame)
-    for i, mark_pos in enumerate(marker_positions):
-        bbox = (int((mark_pos[0][0] - bbox_size // 2) * scale_factor),
-                int((mark_pos[0][1] - bbox_size // 2) * scale_factor),
-                int(bbox_size * scale_factor),
-                int(bbox_size * scale_factor))
-        trackers[i].init(scaled_first_frame, bbox)
+    trackers = init_trackers(marker_positions, bbox_size, first_frame)
 
     frame_num = frame_start
     dist_data = {'1-Frame': [], f'1-Time({time_units})': [], '1-x at necking point (px)': [], '1-y necking distance (px)': [], '1-video_file_name': video_file_name, '1-detection_method': 'midpt', '1-data_label': data_label}
@@ -695,6 +852,225 @@ def necking_point_midpoint(
         
         if cv2.waitKey(1) == 27 or frame_end <= frame_num:
             break
+
+    record_data(file_mode, dist_data, "output/Necking_Point_Output.csv")
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+def frame_tracker_midpt_finder_thread(frame_queue, tracker_midpt_queue, message_queue, stop_event, trackers, scale_frame, frame_start, frame_end):
+    while True:
+        try:
+            queue_item = frame_queue.get(timeout=1)  # Get frames from the queue
+        except queue.Empty:
+            continue
+            #print("PANIC")
+        if queue_item:
+            frame_num, frame = queue_item
+        else:
+            tracker_midpt_queue.put(None)
+            break
+        if frame_num >= frame_end:
+            tracker_midpt_queue.put(None)
+            break
+
+        print(f"cur frame num in frame_tracker_midpt_finder_thread: {frame_num}")
+
+        scaled_frame, scale_factor = scale_frame(frame)
+        
+        marker_centers = []
+        for i, tracker in enumerate(trackers):
+            success, bbox = tracker.update(scaled_frame)
+            if success:
+                x_bbox, y_bbox, w_bbox, h_bbox = [int(coord) for coord in bbox]
+                marker_center = (x_bbox + w_bbox // 2, y_bbox + h_bbox // 2)
+                marker_centers.append(marker_center)
+
+                # find x midpoint between markers
+                x_coords = [coord[0] for coord in marker_centers]
+                left_marker_x = np.min(x_coords)
+                right_marker_x = np.max(x_coords)
+                mid_x = (right_marker_x + left_marker_x) // 2
+                
+                #cv2.rectangle(scaled_frame, (x_bbox, y_bbox), (x_bbox + w_bbox, y_bbox + h_bbox), (0, 255, 0), 2)  # update tracker rectangle
+
+            else:
+                msg = f"WARNING: Lost tracking marker at {bbox}\n\nPlease retry after adjusting any of the following:\n\n-Parameters\n-Initial tracker placement\n-Frame selection"
+                message_queue.put(msg)
+                stop_event.set()
+                break
+
+        tracker_midpt_queue.put((frame_num, scaled_frame, scale_factor, (x_bbox, y_bbox, w_bbox, h_bbox), mid_x))
+
+        #cv2.imshow("Tracking", scaled_frame)
+        frame_queue.task_done()
+        if cv2.waitKey(1) == 27:  # Check for ESC key
+            stop_event.set()
+
+def frame_midpt_edge_detection(
+        frame_queue,
+        tracker_midpt_queue,
+        message_queue,
+        dist_data,
+        stop_event,
+        frame_start,
+        frame_end,
+        frame_interval,
+        time_units,
+        fps,
+        binarize_intensity_thresh
+    ):
+
+    while True:
+        try:
+            tracker_item = tracker_midpt_queue.get(timeout=1)
+        except queue.Empty:
+            print("QUEUE EMPTY")
+            continue
+
+        if tracker_item is None:
+            break
+
+        frame_num, scaled_frame, scale_factor, _, mid_x = tracker_item
+        if frame_num >= frame_end:
+            break
+
+        gray_frame = cv2.cvtColor(scaled_frame, cv2.COLOR_BGR2GRAY)  # convert frame to gray
+        _, binary_frame = cv2.threshold(gray_frame, binarize_intensity_thresh, 255, cv2.THRESH_BINARY)  # threshold to binarize image
+
+        # error checking for appropriate binarization threshold
+        if np.all(binary_frame == 255):
+            msg = "Binarization threshold too low,\nfound no pixels below the threshold.\n\nPlease adjust the threshold (default is 120)"
+            message_queue.put(msg)
+            stop_event.set()
+        if np.all(binary_frame == 0):
+            msg = "Binarization threshold too high,\nfound no pixels above the threshold.\n\nPlease adjust the threshold (default is 120)"
+            message_queue.put(msg)
+            stop_event.set()
+
+        edges = cv2.Canny(binary_frame, 0, 2)  # edge detection, nums are gradient thresholds
+
+        frame_draw = scaled_frame.copy()
+        frame_draw[edges > 0] = [0, 255, 0]  # draw edges
+
+        edge_pixels = np.nonzero(edges[:, mid_x])[0]  # find y coord of edge pixels in cur column
+
+        if edge_pixels.size > 0:  # if edge pixels in cur column,
+            midpt_dist = np.abs(edge_pixels[0] - edge_pixels[-1])  # find distance of top and bottom edges
+
+            # draw vertical line connecting edges at midpt for visualization
+            cv2.line(frame_draw, (mid_x, edge_pixels[0]), (mid_x, edge_pixels[-1]), (200, 0, 0), 1)
+
+        # record and save data using original resolution
+        if frame_interval == 0:
+            dist_data[f'1-Time({time_units})'].append(np.float16((frame_num - frame_start) / fps))
+        else:
+            dist_data[f'1-Time({time_units})'].append(np.float16((frame_num - frame_start) * frame_interval))
+        dist_data['1-Frame'].append(frame_num - frame_start)
+        dist_data['1-x at necking point (px)'].append(int(mid_x / scale_factor))
+        dist_data['1-y necking distance (px)'].append(int(midpt_dist / scale_factor))
+
+        cv2.imshow('Necking Point (midpoint method) Visualization', frame_draw)
+
+        tracker_midpt_queue.task_done()
+        if cv2.waitKey(1) == 27 or frame_end <= frame_num:
+            stop_event.set()
+
+
+def necking_point_midpoint_threaded(
+        cap,
+        marker_positions,
+        first_frame,
+        bbox_size,
+        frame_start,
+        frame_end,
+        binarize_intensity_thresh,
+        frame_record_interval,
+        frame_interval,
+        time_units,
+        file_mode,
+        video_file_name,
+        data_label
+    ):
+
+    trackers = init_trackers(marker_positions, bbox_size, first_frame)
+
+    frame_num = frame_start
+    dist_data = {
+        '1-Frame': [],
+        f'1-Time({time_units})': [],
+        '1-x at necking point (px)': [],
+        '1-y necking distance (px)': [],
+        '1-video_file_name': video_file_name,
+        '1-detection_method': 'midpt',
+        '1-data_label': data_label
+    }
+
+    fps = cap.get(5)
+    frame_queue = queue.Queue(maxsize=10)
+    tracker_midpt_queue = queue.Queue(maxsize=10)
+    message_queue = queue.Queue(maxsize=5)
+    stop_event = threading.Event()
+
+    capture_thread = threading.Thread(
+        target=frame_capture_thread,
+        args=(
+            cap,
+            frame_queue,
+            message_queue,
+            stop_event,
+            frame_end,
+            frame_start,
+            frame_record_interval
+        ), daemon=True
+    )
+
+    marker_update_thread = threading.Thread(
+        target=frame_tracker_midpt_finder_thread, 
+        args=(
+            frame_queue,
+            tracker_midpt_queue,
+            message_queue,
+            stop_event,
+            trackers,
+            scale_frame,
+            frame_start,
+            frame_end
+        ), daemon=True
+    )
+
+    edge_detection_thread = threading.Thread(
+        target=frame_midpt_edge_detection,
+        args=(
+            frame_queue,
+            tracker_midpt_queue,
+            message_queue,
+            dist_data,
+            stop_event,
+            frame_start,
+            frame_end,
+            frame_interval,
+            time_units,
+            fps,
+            binarize_intensity_thresh
+        ), daemon=True
+    )
+
+    # Start threads
+    capture_thread.start()
+    marker_update_thread.start()
+    edge_detection_thread.start()
+
+    # Wait for threads to finish
+    capture_thread.join()
+    print("capture done")
+    marker_update_thread.join()
+    print("marker done")
+    edge_detection_thread.join()
+    print("edge_detection_thread done")
+
+    while not message_queue.empty():
+        error_popup(message_queue.get())
 
     record_data(file_mode, dist_data, "output/Necking_Point_Output.csv")
 
@@ -823,19 +1199,7 @@ def track_area(
     frame_num = frame_start
     area_data = {'1-Frame': [], f'1-Time({time_units})': [], '1-x cell location': [], '1-y cell location': [], '1-cell surface area (px^2)': [], '1-video_file_name': video_file_name, '1-data_label': data_label}
     
-    # init trackers
-    trackers = []
-    for _ in range(len(marker_positions)):
-        trackers.append(cv2.TrackerCSRT_create())
-
-    # init trackers
-    scaled_first_frame, scale_factor = scale_frame(first_frame)
-    for i, mark_pos in enumerate(marker_positions):
-        bbox = (int((mark_pos[0][0] - bbox_size // 2) * scale_factor),
-                int((mark_pos[0][1] - bbox_size // 2) * scale_factor),
-                int(bbox_size * scale_factor),
-                int(bbox_size * scale_factor))
-        trackers[i].init(scaled_first_frame, bbox)
+    trackers = init_trackers(marker_positions, bbox_size, first_frame, TrackerChoice.CSRT)
 
     while frame_num < frame_end:
         ret, frame = cap.read()
@@ -927,6 +1291,243 @@ def track_area(
     cap.release()
     cv2.destroyAllWindows()
 
+def frame_preprocessing_thread(
+        tracker_frame_queue,
+        processed_tracker_frame_queue,
+        message_queue,
+        stop_event,
+        frame_start,
+        frame_end,
+        frame_interval
+    ):
+    while True:
+        try:
+            queue_item = tracker_frame_queue.get(timeout=1)
+        except queue.Empty:
+            print("tracker_frame_queue EMPTY")
+            continue
+
+        if queue_item is None:
+            processed_tracker_frame_queue.put(None)
+            break
+
+        if queue_item:
+            frame_num, scaled_frame, scale_factor, tracker_bbox, _ = queue_item
+
+        if frame_num >= frame_end:
+            processed_tracker_frame_queue.put(None)
+            break
+
+        print(f"cur frame num in frame_preprocessing_thread: {frame_num}")
+
+        gray_frame = cv2.cvtColor(scaled_frame, cv2.COLOR_BGR2GRAY)
+        
+        #_, binary_frame = cv2.threshold(blur_frame, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        binary_frame = improve_binarization(gray_frame)
+
+        # threshold frame again with localized kernel, adds a bit of noise but strengthens contours (idk why this helps but it does)
+        adaptive_thresh = cv2.adaptiveThreshold(binary_frame, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
+        
+        processed_frame = adaptive_thresh
+
+        processed_tracker_frame_queue.put((frame_num, processed_frame, scale_factor, tracker_bbox))
+        tracker_frame_queue.task_done()
+
+        if cv2.waitKey(1) == 27:
+            stop_event.set()
+
+def find_contours_near_trackers_thread(
+        processed_tracker_frame_queue,
+        message_queue,
+        stop_event,
+        frame_start,
+        frame_end,
+        frame_interval,
+        time_units,
+        fps,
+        distance_from_marker_thresh,
+        area_data
+    ):
+
+    while True:
+        try:
+            queue_item = processed_tracker_frame_queue.get(timeout=1)
+            print(queue_item)
+        except queue.Empty:
+            print("processed_tracker_frame_queue EMPTY")
+            continue
+
+        if queue_item is None:
+            break
+
+        if queue_item:
+            frame_num, processed_frame, scale_factor, tracker_bbox = queue_item
+            x_bbox, y_bbox, w_bbox, h_bbox = tracker_bbox
+
+        if frame_num >= frame_end:
+            break
+
+        print(f"cur frame num in find_contours_near_trackers_thread: {frame_num}")
+
+        # Segment frame
+        contours, _ = cv2.findContours(processed_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        marker_center = (x_bbox + w_bbox // 2, y_bbox + h_bbox // 2)  # get center of bbox
+        # choose optimal contour (largest and near marker)
+        max_area, max_area_idx = 0, 0
+        for i, contour in enumerate(contours):
+            area = cv2.contourArea(contour)
+            M = cv2.moments(contour)
+            if M["m00"] != 0:
+                cx = int(M["m10"] / M["m00"])
+                cy = int(M["m01"] / M["m00"])
+                if np.abs(marker_center[0] - cx) < distance_from_marker_thresh and np.abs(marker_center[1] - cy) < distance_from_marker_thresh:
+                    if area > max_area:
+                        max_area = area
+                        max_area_idx = i
+
+        # draw the chosen contour
+        contour = contours[max_area_idx]
+        cv2.drawContours(processed_frame, [contour], -1, (255, 0, 0), 2)
+        cv2.putText(processed_frame, str(i+1), (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+
+        # draw bbox of tracker
+        cv2.rectangle(processed_frame, (x_bbox, y_bbox), (x_bbox + w_bbox, y_bbox + h_bbox), (0, 255, 0), 2)  # update tracker rectangle
+
+        #cv2.imshow('Surface Area Tracking', noise_reduced_frame)
+        cv2.imshow('Surface Area Tracking', processed_frame)
+
+        # record data
+        area_data['1-Frame'].append(frame_num)
+        if frame_interval == 0:
+            area_data[f'1-Time({time_units})'].append(np.float32(frame_num / fps))
+        else:
+            area_data[f'1-Time({time_units})'].append(np.float16(frame_num * frame_interval))
+        area_data['1-x cell location'].append(int((marker_center[0] / scale_factor)))
+        area_data['1-y cell location'].append(int((marker_center[1] / scale_factor)))
+        area_data['1-cell surface area (px^2)'].append(max_area)
+
+        processed_tracker_frame_queue.task_done()
+
+        if cv2.waitKey(1) == 27:
+            stop_event.set()
+
+def track_area_threaded(
+        cap,
+        marker_positions,
+        first_frame,
+        bbox_size,
+        frame_start,
+        frame_end,
+        frame_record_interval,
+        frame_interval,
+        time_units,
+        distance_from_marker_thresh,
+        file_mode,
+        video_file_name,
+        data_label
+    ):
+
+    fps = cap.get(5)
+    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_start)
+    frame_num = frame_start
+    area_data = {
+        '1-Frame':[],
+        f'1-Time({time_units})': [],
+        '1-x cell location': [],
+        '1-y cell location': [],
+        '1-cell surface area (px^2)': [],
+        '1-video_file_name': video_file_name,
+        '1-data_label': data_label
+    }
+    
+    trackers = init_trackers(marker_positions, bbox_size, first_frame, TrackerChoice.CSRT)
+
+    frame_queue = queue.Queue(maxsize=10)
+    tracker_frame_queue = queue.Queue(maxsize=10)
+    processed_tracker_frame_queue = queue.Queue(maxsize=10)
+    message_queue = queue.Queue(maxsize=5)
+    stop_event = threading.Event()
+
+    capture_thread = threading.Thread(
+        target=frame_capture_thread,
+        args=(
+            cap,
+            frame_queue,
+            message_queue,
+            stop_event,
+            frame_end,
+            frame_start,
+            frame_record_interval
+        ), daemon=True
+    )
+
+    marker_update_thread = threading.Thread(
+        target=frame_tracker_midpt_finder_thread, 
+        args=(
+            frame_queue,
+            tracker_frame_queue,
+            message_queue,
+            stop_event,
+            trackers,
+            scale_frame,
+            frame_start,
+            frame_end
+        ), daemon=True
+    )
+
+    frame_preprocess_thread = threading.Thread(
+        target=frame_preprocessing_thread,
+        args=(
+            tracker_frame_queue,
+            processed_tracker_frame_queue,
+            message_queue,
+            stop_event,
+            frame_start,
+            frame_end,
+            frame_interval
+        )
+    )
+
+    contours_thread = threading.Thread(
+        target=find_contours_near_trackers_thread,
+        args=(
+            processed_tracker_frame_queue,
+            message_queue,
+            stop_event,
+            frame_start,
+            frame_end,
+            frame_interval,
+            time_units,
+            fps,
+            distance_from_marker_thresh,
+            area_data
+        )
+    )
+
+    # Start threads
+    capture_thread.start()
+    marker_update_thread.start()
+    frame_preprocess_thread.start()
+    contours_thread.start()
+
+    # Wait for threads to finish
+    capture_thread.join()
+    print("capture done")
+    marker_update_thread.join()
+    print("marker done")
+    frame_preprocess_thread.join()
+    print("frame binarization done")
+    contours_thread.join()
+    print("contour detection done")
+
+    while not message_queue.empty():
+        error_popup(message_queue.get())
+
+    record_data(file_mode, area_data, "output/Surface_Area_Output.csv")
+
+    cap.release()
+    cv2.destroyAllWindows()
 
 def track_area_og(cap, frame_start, frame_end, frame_interval, time_units):
     frame_num = frame_start
