@@ -1313,7 +1313,6 @@ class Boxplotter:
             self.data_label_selector.delete(0, tk.END)  # Clear the listbox if no csv file is selected
             self.data_label_selector.insert(tk.END, 'Choose from first selector')
 
-
     def setup_conditions_ui(self):
         self.condition_frame = tk.Frame(self.window)
         condition_label = ttk.Label(self.condition_frame, text="Enter Condition Name:")
@@ -1327,6 +1326,10 @@ class Boxplotter:
                                         command=lambda: self.add_condition(condition_name_entry.get(), self.data_label_selector.curselection()))
         add_condition_button.grid(row=2, column=0, columnspan=2, pady=8)
 
+        remove_condition_button = ttk.Button(self.condition_frame, text="Remove Selected",
+                                        command=self.remove_selected_condition)
+        remove_condition_button.grid(row=3, column=0, columnspan=2, pady=8)
+
         label_instr = ttk.Label(self.condition_frame, text="Each condition will be its own box in the plot, and each label will become a point in that box\nIf you want to group by data time ranges, use 'By Time Points'")
         label_instr.grid(row=5, column=0, columnspan=2)
 
@@ -1338,6 +1341,18 @@ class Boxplotter:
         selected_labels = [self.data_label_selector.get(i) for i in selected_indices]
         self.condition_to_label[condition_name] = selected_labels
         self.condition_listbox.insert(tk.END, f"{condition_name}: {', '.join(selected_labels)}")
+
+    def remove_selected_condition(self):
+        selected_index = self.condition_listbox.curselection()
+        if selected_index:
+            # Remove the selected condition from the listbox
+            condition_name = self.condition_listbox.get(selected_index)
+            self.condition_listbox.delete(selected_index)
+            
+            # Remove the corresponding condition from the dictionary
+            for condition, labels in list(self.condition_to_label.items()):
+                if f"{condition}: {', '.join(labels)}" == condition_name:
+                    del self.condition_to_label[condition]
 
     def setup_time_ranges_ui(self):
         self.time_frame = tk.Frame(self.window)
@@ -1358,16 +1373,26 @@ class Boxplotter:
                                     command=lambda: self.add_time_range(t0_entry.get(), tf_entry.get()))
         add_time_button.grid(row=4, column=0, columnspan=2, pady=8)
 
+        remove_time_button = ttk.Button(self.time_frame, text="Remove Selected", command=self.remove_selected_time_range)
+        remove_time_button.grid(row=5, column=0, columnspan=2, pady=8)
+
         time_range_label_instr = ttk.Label(self.time_frame, text="All labels selected will be analyzed and averaged for each time range\nIf you want to group by data labels, use 'By Conditions'")
-        time_range_label_instr.grid(row=5, column=0, columnspan=2)
+        time_range_label_instr.grid(row=6, column=0, columnspan=2)
 
         self.time_listbox = tk.Listbox(self.time_frame, height=5)
-        self.time_listbox.grid(row=6, column=0, columnspan=2, padx=8, pady=12)
+        self.time_listbox.grid(row=7, column=0, columnspan=2, padx=8, pady=12)
         self.time_frame.grid(row=5, column=0)
 
     def add_time_range(self, t0, tf):
         self.time_ranges.append((t0, tf))
         self.time_listbox.insert(tk.END, f"({t0}, {tf})")
+
+    def remove_selected_time_range(self):
+        selected_index = self.time_listbox.curselection()
+        if selected_index:
+            self.time_listbox.delete(selected_index)
+            selected_time_range = self.time_ranges[selected_index[0]]
+            self.time_ranges.remove(selected_time_range)
 
     def update_grouping_method_ui(self, *args):
         # check if dataframe specified first

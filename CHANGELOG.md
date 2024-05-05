@@ -41,6 +41,7 @@ Cell Mechanics
 - data selector now finds average and std dev range selections
     - saves output to 'output/data_selector/'
     - records avg and stddev of each label as well as the global avg and std dev (across all labels)
+- added buttons to boxplotter tool to remove an entered condition or time range
 
 5/3
 - fixed bug when trackers fail to update software crashes due to integration of multithreading and tkinter pop up messages

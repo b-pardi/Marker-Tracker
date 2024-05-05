@@ -165,7 +165,33 @@ surface area (4 threads):
 - Key difference is that this plot has a span selector to zoom in and essentially crop irrelevant data
 - Click reset zoom to reset the x bounds back to their original
 - Once desired zoom is attained, click save plot to save the plot with the zoom you have currently applied
+- Data selector will also save that mean and standard deviation of points within selected range
+    - Saves those stats of each label as well as those stats across all labels in time range
+    - Saves to 'output/data_selector/data_selector_stats_{analysis type selected}.csv'
 
+### Box Plotter Tool
+- Box plotter allows for grouping of data to generate box plots
+- **Note** for whichever analysis option you would like to box plot (i.e. marker velocity) make sure you have already clicked that analysis button in the main ui to run the computation first and generate the standard scatter plots
+    - boxplot uses output csv's from the analysis functions
+- Groupings of data for boxes are either by condition or time ranges
+    - By conditions:
+        - First enter the name of the condition. This condition name can be whatever you like, it will become the axis label for the box you are about to select data labels for in the plot
+        - Then select data labels you would like to be averaged under this condition
+            - Average of the y values of the selected analysis option will become points in the box plot, and the condition they are grouped under will be the box
+        - Click add condition to add this grouping of labels, it will be added to the initially empty box below, and you can select and remove a condition if needed
+        - Repeat this process for all desired condition/label groupings
+        - Click 'Go' and a box plot will be generated
+    - By time ranges:
+        - First select all the data labels you would like to consider for analysis
+            - Contrary to 'By conditions', this method will average y values in the selected time ranges across data from ALL selected labels, so the labels you choose here should remain consistent across all time range entries
+            - Each time range entered will become the label used for that box in the plot
+        - Then enter a start and end time pair, ensuring units you enter them in are the same that you chose when recording data (default seconds)
+            - For your convenience, there is a label above the entry boxes that tells you what time unit you selected previously
+        - Click add time range, this will put the pair t0 and tf into the initially empty box below
+            - A remove selected entry button is available if needed
+        - Repeat for all desired time ranges
+        - Click 'Go' and a box plot will be generated
+    
 ## Currently 7 analysis buttons are available for tracking visualizations
 
 ### Marker deltas:
