@@ -3,8 +3,6 @@
 ## TODO
 
 FIX
-- box plotter set currently for velocity? need to generalize
-- remove velocity boxplot check and frames from main ui
 - if tracker gets lost, still records data in multithreaded version (it shouldn't)
 
 Housekeeping
@@ -13,12 +11,10 @@ Hydrogel
 
 
 Multi purpose
-- data selector save average and std dev of selections on click
 - video crop and compression features for efficiency
 - box plotter button to delete selected range
 
 Cell Mechanics  
-
 - see about surface tracking on the stained videos
 
 # Changelog
@@ -42,6 +38,9 @@ Cell Mechanics
             - each time range becomes a box, the average value of the maker thing in that time range becomes a point
                 - each cell will have n_ranges points in the whole graph, one average value in each box
     - in short, tool lets you box plot where boxes/group/averages can be determined by a condition where user groups data labels together, or time ranges where user specifies all labels to consider for a given time range
+- data selector now finds average and std dev range selections
+    - saves output to 'output/data_selector/'
+    - records avg and stddev of each label as well as the global avg and std dev (across all labels)
 
 5/3
 - fixed bug when trackers fail to update software crashes due to integration of multithreading and tkinter pop up messages

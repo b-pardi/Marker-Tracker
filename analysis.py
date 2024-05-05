@@ -1129,7 +1129,7 @@ def marker_distance(user_unit_conversion, df=None, will_save_figures=True, chose
             time = time[~np.isnan(time)]
             x = cur_df[f'{chosen_video_data}-x (px)'].values * conversion_factor
             y = cur_df[f'{chosen_video_data}-y (px)'].values * conversion_factor
-            data_label = cur_df[f'{chosen_video_data+1}-data_label'].dropna().unique()[0]
+            data_label = cur_df[f'{chosen_video_data}-data_label'].dropna().unique()[0]
             data_labels.append(data_label)
             rms = rms_displacement(np.diff(x[~np.isnan(x)]), np.diff(y[~np.isnan(y)]))
             rms_disps.append(rms)
@@ -1137,8 +1137,8 @@ def marker_distance(user_unit_conversion, df=None, will_save_figures=True, chose
             print(len(time[:-1]),time[:-1], '\n', len(rms),rms)
             cur_rms_df = pd.DataFrame({
                 time_col: time[:-1],
-                f'{dataset+1}-rms_displacement': rms,
-                f'{dataset+1}-data_label': data_label
+                f'{chosen_video_data}-rms_displacement': rms,
+                f'{chosen_video_data}-data_label': data_label
             })
             rms_df = pd.concat([rms_df, cur_rms_df], axis=1)
 

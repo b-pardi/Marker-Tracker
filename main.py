@@ -1148,32 +1148,33 @@ class DataSelector:
             self.data_label_selector.insert(tk.END, 'Choose from first selector')
 
     def execute_analysis(self):
-        selected_indices = self.data_label_selector.curselection()
-        selected_labels = [self.data_label_selector.get(i) for i in selected_indices]
-        selected_analysis = self.analysis_selector.get()
-        analysis_func = self.function_map.get(selected_analysis)
-        if not selected_indices:
+        self.selected_indices = self.data_label_selector.curselection()
+        self.selected_labels = [self.data_label_selector.get(i) for i in self.selected_indices]
+        self.selected_analysis = self.analysis_selector.get()
+        self.analysis_func = self.function_map.get(self.selected_analysis)
+        if not self.selected_indices:
             error_popup("No data labels selected.")
             return
         # Handle multiple results
-        num_datasets = len(selected_labels)
-        print(selected_labels)
+        num_datasets = len(self.selected_labels)
+        print(self.selected_labels)
         self.ax.clear()
-        for selected_label in selected_labels:
+        for selected_label in self.selected_labels:
             which_dataset = self.label_to_dataset.get(selected_label, 0)  # Retrieve dataset number from label
-            if analysis_func and which_dataset:
-                result = analysis_func(self.user_units, self.df, False, which_dataset)
+            if self.analysis_func and which_dataset:
+                result = self.analysis_func(self.user_units, self.df, False, which_dataset)
                 if result:
                     x, y, plot_args, _ = result
-                    print(x, y, plot_args, num_datasets)
-                    self.plot_data(x[0], y[0], plot_args, num_datasets)
+                    self.x, self.y = x[0], y[0]
+                    print(self.x, self.y, plot_args, num_datasets)
+                    self.plot_data(plot_args, num_datasets)
 
-    def plot_data(self, x, y, plot_args, num_datasets=1):
+    def plot_data(self, plot_args, num_datasets=1):
         with open("plot_opts/plot_customizations.json", 'r') as plot_customs_file:
             plot_customs = json.load(plot_customs_file)
         font = plot_customs['font']
 
-        self.ax.plot(x, y, 'o', markersize=1, label=plot_args['data_label'][0])
+        self.ax.plot(self.x, self.y, 'o', markersize=1, label=plot_args['data_label'][0])
 
         # adding legend depending on plot args
         if plot_args['has_legend']:
@@ -1200,22 +1201,25 @@ class DataSelector:
         self.span = matplotlib.widgets.SpanSelector(self.ax, self.onselect, 'horizontal', useblit=True,
                                         props=dict(alpha=0.25, facecolor='blue'))
         
-    def plot_poissons_from_csv(self, user_units, df, will_save_plot, which_dataset):
-        pass
-        '''plot_args = {
-            'title': r"Poisson's Ratio - $\mathit{\nu(t)}$",
-            'x_label': time_label,
-            'y_label': r"Poisson's ratio, $\mathit{\nu}$",
-            'data_label': data_labels,
-            'has_legend': True
-        }
-        
-        
-        return times, radial_strains, plot_args, n_datasets
 
-        '''
     def onselect(self, xmin, xmax):
         self.ax.set_xlim(xmin, xmax)
+        
+        averages = []
+        stddevs = []
+        for label in self.selected_labels:
+            print(self.x, '\n*****', xmin, xmax)
+            idxs_in_range = (self.x >= xmin) & (self.x <= xmax)    
+            y_in_range = self.y[idxs_in_range]
+            averages.append(np.mean(y_in_range))
+            stddevs.append(np.std(y_in_range))
+
+        df = pd.DataFrame({'Averages': averages, 'StdDev': stddevs}, index=self.selected_labels)
+        global_series = pd.Series({'Averages': np.mean(averages), 'StdDev': np.mean(stddevs)}, name='Global')
+        df = pd.concat([df, global_series], axis=1)
+
+        df.to_csv(f"output/data_selector/data_selector_stats_{self.selected_analysis}.csv")
+
         self.canvas.draw_idle()
 
     def reset_zoom(self):
