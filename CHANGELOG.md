@@ -3,8 +3,8 @@
 ## TODO
 
 FIX
-- frame processing not drawing bounding boxes
-- frame record interval in multithread?
+- box plotter set currently for velocity? need to generalize
+- remove velocity boxplot check and frames from main ui
 
 Housekeeping
 
@@ -13,7 +13,7 @@ Hydrogel
 
 Multi purpose
 - data selector save average and std dev of selections on click
-- ensure box plotter used analysis options have their main analysis options output to a csv to not have to rerun the initial analysis everytime
+- video crop and compression features for efficiency
 - box plotter button to delete selected range
 
 Cell Mechanics  

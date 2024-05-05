@@ -113,6 +113,22 @@
 - The green box will follow the cell and the blue lines indicate the contours of the cell, recording the surface area within the blue boundaries
 - Outputs are saved to 'output/Surface_Area_Output.csv'
 
+## Multithreading Capabilities
+- Every tracking function includes a single threaded and multi threaded version
+- Clicking the check box to use multi threading will activate the multithreading version
+- This version is less stable but has been shown to more than triple the speed that these algorithms run in most cases
+- Here is a summary of the run time performance of each tracking method. The numbers represent cumulative run time of the indicated tracking algorithm, on the left is single thread and on the right is multithread. Each measure was taken from the same video and the same section of the video. All units are in seconds
+marker tracker (2 threads) (cells)
+10.94 -> 2.87
+marker tracker (2 threads) (hydrogels)
+34.58 -> 9.65
+necking point (2 threads):
+46.89 -> 12.96
+necking midpt method (3 threads):
+56.62 -> 19.78
+surface area (4 threads):
+9.96 -> 6.85
+
 ## After Tracking Videos, Further Analysis
 ### Outlier Removal
 - Sometimes necking point or less commonly marker tracker jump around certain points and can skew data

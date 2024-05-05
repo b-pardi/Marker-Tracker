@@ -1352,7 +1352,7 @@ def find_contours_near_trackers_thread(
     while True:
         try:
             queue_item = processed_tracker_frame_queue.get(timeout=1)
-            print(queue_item)
+            #print(queue_item)
         except queue.Empty:
             print("processed_tracker_frame_queue EMPTY")
             continue
@@ -1367,7 +1367,7 @@ def find_contours_near_trackers_thread(
         if frame_num >= frame_end:
             break
 
-        print(f"cur frame num in find_contours_near_trackers_thread: {frame_num}")
+        #print(f"cur frame num in find_contours_near_trackers_thread: {frame_num}")
 
         # Segment frame
         contours, _ = cv2.findContours(processed_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
