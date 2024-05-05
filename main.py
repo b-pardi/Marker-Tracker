@@ -308,17 +308,7 @@ class TrackingUI:
         cell_spread_btn.grid(row=7, column=1, padx=4, pady=4)
         cell_velocity_btn = ttk.Button(submission_frame, text="Marker velocity", command=lambda: analysis.marker_velocity((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
         cell_velocity_btn.grid(row=8, column=1, padx=4, pady=4)
-        
-        self.cell_velocity_boxplot_opts_var = tk.IntVar()
-        cell_velocity_boxplot_opts_check = ttk.Checkbutton(submission_frame, text="Velocity boxplot", variable=self.cell_velocity_boxplot_opts_var, onvalue=1, offvalue=0, command=self.handle_boxplot_opts_blit)
-        cell_velocity_boxplot_opts_check.grid(row=9, column=1)
-        self.cell_velocity_boxplot_opts_frame = tk.Frame(submission_frame)
-        self.boxplot_keywords_label = ttk.Label(self.cell_velocity_boxplot_opts_frame, text="Enter list of conditions used in data labels\nfor boxplot categories separated by commas")
-        self.boxplot_keywords_label.grid(row=0, column=0, pady=(16,4))
-        self.boxplot_keywords_entry = ttk.Entry(self.cell_velocity_boxplot_opts_frame, width=40)
-        self.boxplot_keywords_entry.grid(row=1, column=0)
-        self.boxplot_button = ttk.Button(self.cell_velocity_boxplot_opts_frame, text="Cell velocities boxplot", command=self.call_boxplot, style='Regular.TButton')
-        self.boxplot_button.grid(row=2, column=0, pady=(8, 20))
+    
 
         data_selector_button = ttk.Button(submission_frame, text="Data selector", command=self.data_selector, style='Regular.TButton')
         data_selector_button.grid(row=19, column=0, columnspan=2, pady=(24,0))
@@ -488,13 +478,6 @@ class TrackingUI:
             self.cell_velocity_boxplot_opts_frame.grid(row=10, column=0, columnspan=2)
         else:
             self.cell_velocity_boxplot_opts_frame.grid_forget()
-
-    def call_boxplot(self):
-        conditions = self.boxplot_keywords_entry.get()
-        conditions = conditions.split(',')
-        conditions_parsed = [c.strip() for c in conditions]
-
-        analysis.velocity_boxplot(conditions_parsed, (float(self.conversion_factor_entry.get()), self.conversion_units_entry.get()))
 
     def on_submit_tracking(self):
         """calls the appropriate functions with user spec'd args when tracking start button clicked"""        
