@@ -106,7 +106,7 @@ def find_interest_column_and_type(df):
     interest_cols = [
         'v', # poissons ratio df
         'magnitude_velocity_tracker', # marker velocity df
-        'rms_displacement_tracker', # rms displacement df
+        'rms_displacement', # rms displacement df
         'cell surface area (px^2)' # surface spread
     ]
 
@@ -869,6 +869,52 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chose
 def boxplot_time_ranges(df, times, labels, conversion_units):
     print(df, times, labels)
 
+    # find column of interest (the y column that will be averaged across time ranges)
+    interest_column, analysis_type = find_interest_column_and_type(df)
+    df_label_columns = [col for col in df.columns if 'data_label' in col]
+    time_col, time_label, time_unit = get_time_labels(df)
+    time_ranges_averages = defaultdict(list)
+    time_range_labels = [f"{t0}-{tf}" for t0, tf in times] # turn list of tuples into list of strings for boxplot labels
+    data_lists = []
+
+    for t0,tf in times: # iterate through tuple time ranges
+        t0, tf = float(t0), float(tf)
+        cur_range_interest_values = [] # list of all measured values within cur_time range to be averaged for a box
+        for label in labels: # iterate through all labels selected for analysis
+            for col in df_label_columns: # find dataset corresponding to current label
+                if df[col].str.contains(label).any():
+                    dataset_num = int(col.split('-', 1)[0])
+                    time_col, _, _ = get_time_labels(df, dataset_num)
+                    cur_range_df = df[(df[time_col] >= t0) & (df[time_col] <= tf)]
+                    cur_data = cur_range_df[f'{dataset_num}-{interest_column}']
+                    cur_range_interest_values.append(cur_data)
+            avg = np.mean(cur_range_interest_values)
+            time_ranges_averages[f'{t0}-{tf}'].append(avg)
+        data_lists.append(time_ranges_averages[f'{t0}-{tf}'])
+    print(time_ranges_averages)
+
+    fig, ax = plt.subplots()
+    boxplot = ax.boxplot(data_lists, patch_artist=True)
+    for i, time_range in enumerate(time_range_labels, start=1):  # count from 1 to match boxplot positions
+        means = time_ranges_averages[time_range] # grab avg velocity previously calculated
+        x_jitter = np.random.normal(i, 0.025, size=len(means)) # some x jitter so points don't overlap
+        ax.scatter(x_jitter, means, color='darkblue', zorder=3, marker='D', s=20, alpha=0.8) # plot mean value in the correct box with some x jitter
+
+    plot_args = get_plot_args(analysis_type, time_label=time_label, conversion_units=conversion_units, time_unit=time_unit)
+
+    with open("plot_opts/plot_customizations.json", 'r') as plot_customs_file:
+        plot_customs = json.load(plot_customs_file)
+    font = plot_customs['font']
+
+    tick_pos = list(range(1, len(time_range_labels) + 1))
+    plt.xticks(tick_pos, time_range_labels, fontsize=plot_customs['value_text_size'], fontfamily=font)
+    plt.yticks(fontsize=plot_customs['value_text_size'], fontfamily=font) 
+    plt.title(plot_args['title'], fontsize=plot_customs['title_text_size'], fontfamily=font)
+    plt.xlabel(plot_args['x_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
+    plt.ylabel(plot_args['y_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
+    plt.tick_params(axis='both', direction=plot_customs['tick_dir'])
+    plt.tight_layout()
+    plt.savefig(f"figures/{interest_column}_time_ranges_boxplot.{plot_customs['fig_format']}", dpi=plot_customs['fig_dpi'])
 
     print("Done")
 
@@ -902,7 +948,7 @@ def boxplot_conditions(df, conditions_dict, conversion_units):
     boxplot = ax.boxplot(data_lists, patch_artist=True)
 
     for i, condition in enumerate(conditions, start=1):  # count from 1 to match boxplot positions
-        means = condition_averages[condition] # grab avg velocity previously calculated
+        means = condition_averages[condition] # grab avg previously calculated
         x_jitter = np.random.normal(i, 0.025, size=len(means)) # some x jitter so points don't overlap
         ax.scatter(x_jitter, means, color='darkblue', zorder=3, marker='D', s=20, alpha=0.8) # plot mean value in the correct box with some x jitter
 

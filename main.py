@@ -715,7 +715,7 @@ class TrackingUI:
                 profiler.enable()
                 # check if range_id already used
                 if file_mode == FileMode.APPEND: # only need to check prev ids if appending
-                    data_label_err_flag = self.check_data_label('output/Tracking_Output.csv', range_id)
+                    data_label_err_flag = self.check_data_label('output/Surface_Area_Output.csv', range_id)
 
                 if not data_label_err_flag:
                     bbox_size = int(self.bbox_size_area_entry.get())

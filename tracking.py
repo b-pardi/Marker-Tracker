@@ -874,7 +874,7 @@ def frame_tracker_midpt_finder_thread(frame_queue, tracker_midpt_queue, message_
             tracker_midpt_queue.put(None)
             break
 
-        print(f"cur frame num in frame_tracker_midpt_finder_thread: {frame_num}")
+        #print(f"cur frame num in frame_tracker_midpt_finder_thread: {frame_num}")
 
         scaled_frame, scale_factor = scale_frame(frame)
         
@@ -1318,7 +1318,7 @@ def frame_preprocessing_thread(
             processed_tracker_frame_queue.put(None)
             break
 
-        print(f"cur frame num in frame_preprocessing_thread: {frame_num}")
+        #print(f"cur frame num in frame_preprocessing_thread: {frame_num}")
 
         gray_frame = cv2.cvtColor(scaled_frame, cv2.COLOR_BGR2GRAY)
         

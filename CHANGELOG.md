@@ -5,6 +5,7 @@
 FIX
 - box plotter set currently for velocity? need to generalize
 - remove velocity boxplot check and frames from main ui
+- if tracker gets lost, still records data in multithreaded version (it shouldn't)
 
 Housekeeping
 
@@ -17,7 +18,16 @@ Multi purpose
 - box plotter button to delete selected range
 
 Cell Mechanics  
-- box plot for first and last 5 hours of
+
+- see about surface tracking on the stained videos
+
+# Changelog
+
+5/5
+- fixed bug where surface area wasn't checking for previously used data labels correctly
+- box plotter conditions ability now working
+- implemented box plotter time ranges
+- full explanation of box plotter:
     - new class/window for boxplot
     - akin to other tools, prompt for analysis (3 cell ones only) and datalabels
     - prompt for grouping boxes by conditions or by time ranges
@@ -31,9 +41,7 @@ Cell Mechanics
             - two labelled entries for a t0 and tf of time range, with a button to pop up a new pair of labelled entries for user to keep iteratively entering time ranges they want analyzed
             - each time range becomes a box, the average value of the maker thing in that time range becomes a point
                 - each cell will have n_ranges points in the whole graph, one average value in each box
-- see about surface tracking on the stained videos
-
-# Changelog
+    - in short, tool lets you box plot where boxes/group/averages can be determined by a condition where user groups data labels together, or time ranges where user specifies all labels to consider for a given time range
 
 5/3
 - fixed bug when trackers fail to update software crashes due to integration of multithreading and tkinter pop up messages
