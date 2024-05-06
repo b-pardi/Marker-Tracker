@@ -18,6 +18,21 @@
 - Run 'main.py' upon completion of above
 - Click button to select video file
 
+### Crop/Compression Tool
+- Once video selected, user may click on button to open this tool 
+    - In new window button to crop video appears
+        - Opens first frame of video and user can select a roi (region of interest)
+        - Clicking enter confirms this selection and ESC cancels
+        - Original and new dimensions displayed below button
+    - User may also click the checkbox to compress video
+        - If checked, user may adjust quality and scale factors for reducing video bitrate and resolution
+        - If a video is already compressed well it may increase size because why not
+    - Clicking save video will save a copy of the selected video with the selected cropping/compression
+        - Prepends 'CROP-COMP' to beginning of original video name and changes extension to mkv
+        - Saves in the same folder as the original video
+    - Progress bar will indicate progression of reduced video encoding/saving
+    - After saving, the new video file name and path will be updated in the main UI, so no need to select the new video, it is automatically selected
+
 ### Frame Selection Tool
 - If needed, select the frames of the video you want tracked by clicking the 'Select start/end frames' button
     - This will open a window to scroll through the video

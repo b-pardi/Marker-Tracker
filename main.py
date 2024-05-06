@@ -71,15 +71,22 @@ class TrackingUI:
         sect1_header.grid(row=0, column=0)
 
         # file browse button
+        file_selection_frame = tk.Frame(self.section1)
         self.video_path = ""
-        file_btn = ttk.Button(self.section1, text="Browse for video file", command=self.get_file, style='Regular.TButton')
+        file_btn = ttk.Button(file_selection_frame, text="Browse for video file", command=self.get_file, style='Regular.TButton')
         file_btn.grid(row=1, column=0, padx=32, pady=24)
 
         # file name label
         self.data_label_var = tk.StringVar()
         self.data_label_var.set("File not selected")
-        data_label = ttk.Label(self.section1, textvariable=self.data_label_var)
+        data_label = ttk.Label(file_selection_frame, textvariable=self.data_label_var)
         data_label.grid(row=2, column=0, pady=(0,8))
+
+        # video cropping and compression tools window
+        compression_window_btn = ttk.Button(file_selection_frame, text="Crop/Compress video", command=self.video_compression, style='Regular.TButton')
+        compression_window_btn.grid(row=3, column=0, pady=12)
+
+        file_selection_frame.grid(row=2, column=0)
 
         # frame selection button
         self.frame_start = -1
@@ -309,7 +316,6 @@ class TrackingUI:
         cell_velocity_btn = ttk.Button(submission_frame, text="Marker velocity", command=lambda: analysis.marker_velocity((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
         cell_velocity_btn.grid(row=8, column=1, padx=4, pady=4)
     
-
         data_selector_button = ttk.Button(submission_frame, text="Data selector", command=self.data_selector, style='Regular.TButton')
         data_selector_button.grid(row=19, column=0, columnspan=2, pady=(24,0))
         
@@ -401,6 +407,13 @@ class TrackingUI:
     def box_plotter(self):
         Boxplotter(self.root, (float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), 
 
+    def video_compression(self):
+        if self.video_path != "":
+            CropAndCompressVideo(self, self.data_label_var)
+        else:
+            msg = "Select a video before opening the video compression tool"
+            error_popup(msg)
+        
     def on_mousewheel(self, event):
         self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
 
@@ -473,15 +486,11 @@ class TrackingUI:
         
         return data_label_err_flag
 
-    def handle_boxplot_opts_blit(self):
-        if self.cell_velocity_boxplot_opts_var.get() == 1:
-            self.cell_velocity_boxplot_opts_frame.grid(row=10, column=0, columnspan=2)
-        else:
-            self.cell_velocity_boxplot_opts_frame.grid_forget()
 
     def on_submit_tracking(self):
         """calls the appropriate functions with user spec'd args when tracking start button clicked"""        
         cap = cv2.VideoCapture(self.video_path) # load video
+        print(cap, " \n opened from: ", self.video_path)
         if not cap.isOpened():
             msg = "Error: Couldn't open video file.\nPlease ensure one was selected, and it is not corrupted."
             error_popup(msg)
@@ -1423,6 +1432,221 @@ class Boxplotter:
         else:
             print("No valid analysis type selected")
 
+
+class CropAndCompressVideo:
+    def __init__(self, parent, file_label_var):
+        self.root = parent.root
+        self.parent = parent
+        self.file_label_var = file_label_var
+        self.video_path = self.parent.video_path
+        self.roi = None
+        self.new_video_path = None
+        self.roi = None
+        self.new_video_path = None
+        
+        # Create the main window
+        self.window = tk.Toplevel(self.root)
+        self.window.title("Compress Video")
+        self.window.iconphoto(False, tk.PhotoImage(file="ico/m3b_comp.png"))
+        
+        # Frame for crop button and labels
+        self.crop_frame = ttk.Frame(self.window)
+        self.crop_frame.grid(row=0, column=0, sticky="we", padx=10, pady=(10, 0))
+
+        # Crop labels
+        crop_label = ttk.Label(self.crop_frame, text="Opens first frame to select region of interest")
+        crop_label.grid(row=0, column=0, sticky="w")
+
+        crop_label_details = ttk.Label(self.crop_frame, text="Press enter to confirm crop dimensions or ESC to cancel")
+        crop_label_details.grid(row=1, column=0, sticky="w")
+
+        # Button to crop the video
+        self.crop_button = ttk.Button(self.crop_frame, text="Crop Video", command=self.crop_video)
+        self.crop_button.grid(row=2, column=0, pady=16)
+
+        # dimensions labels
+        self.original_label = ttk.Label(self.crop_frame, text="Original Dimensions: ")
+        self.original_label.grid(row=3, column=0, sticky="w")
+        self.new_label = ttk.Label(self.crop_frame, text="New Dimensions: ")
+        self.new_label.grid(row=4, column=0, sticky="w", pady=(0, 10))
+
+        # compression options
+        self.compression_frame = ttk.Frame(self.window)
+        self.compress_var = tk.BooleanVar(value=False)  # Default value is False
+        self.compress_checkbox = ttk.Checkbutton(self.window, text="Compress Video", variable=self.compress_var, command=self.toggle_compress_sliders)
+        self.compress_checkbox.grid(row=2, column=0, pady=(16,0))
+
+        # Quality slider
+        self.quality_label = ttk.Label(self.compression_frame, text="Quality:")
+        self.quality_label.grid(row=1, column=0, sticky="w")
+        self.quality_value_label = ttk.Label(self.compression_frame, text="1.0")
+        self.quality_scale = ttk.Scale(self.compression_frame, from_=0, to=1, orient="horizontal", command=self.update_quality_label)
+        self.quality_scale.set(1.0)  # Default value
+        self.quality_scale.grid(row=1, column=1, sticky="we", padx=(0, 10))
+        self.quality_value_label.grid(row=1, column=2, sticky="w")
+
+        # Resolution scale factor slider
+        self.resolution_label = ttk.Label(self.compression_frame, text="Resolution Scale Factor:")
+        self.resolution_label.grid(row=2, column=0, sticky="w", pady=(10, 0))
+        self.resolution_value_label = ttk.Label(self.compression_frame, text="1.0")
+        self.resolution_scale = ttk.Scale(self.compression_frame, from_=0, to=1, orient="horizontal", command=self.update_resolution_label)
+        self.resolution_scale.set(1.0)  # Default value
+        self.resolution_scale.grid(row=2, column=1, sticky="we", padx=(0, 10), pady=(10, 0))
+        self.resolution_value_label.grid(row=2, column=2, sticky="w", pady=(10, 0))
+
+        # Button to save cropped video
+        self.save_button = ttk.Button(self.window, text="Save Video", command=self.save_video)
+        self.save_button.grid(row=5, column=0, columnspan=2, pady=(20, 10))
+
+        # Progress bar
+        self.progress_bar = ttk.Progressbar(self.window, length=200, mode='determinate')
+        self.progress_bar.grid(row=6, column=0, columnspan=2, pady=10, padx=20)
+
+        # Label to indicate completion of saving process
+        self.complete_label = ttk.Label(self.window, text="Video Saved!")
+        self.complete_label.grid(row=7, column=0, columnspan=2, pady=(10, 20))
+
+    def toggle_compress_sliders(self):
+        if self.compress_var.get():
+            self.compression_frame.grid(row=3, column=0, columnspan=2, sticky="we", padx=10, pady=(10, 0))
+        else:
+            self.compression_frame.grid_forget()
+
+    def update_quality_label(self, value):
+        self.quality_value_label.config(text=f"{float(value):.2f}")
+        
+    def update_resolution_label(self, value):
+        self.resolution_value_label.config(text=f"{float(value):.2f}")
+
+    def crop_video(self):
+        # Open the video file
+        cap = cv2.VideoCapture(self.video_path)
+        
+        # Read the first frame
+        ret, frame = cap.read()
+        if not ret:
+            print("Error: Unable to read video")
+            return
+        
+        # Display the frame
+        cv2.imshow("Select Region", frame)
+        
+        # Select region using mouse click
+        self.roi = cv2.selectROI("Select Region", frame, fromCenter=False, showCrosshair=True)
+        
+        # Destroy OpenCV window and release video capture
+        cv2.destroyAllWindows()
+        cap.release()
+        
+        # Save the entire video with the cropped selection
+        original_dims, new_dims = self.get_cropped_dimensions()
+        
+        # Update labels with dimensions
+        self.original_label.config(text=f"Original Dimensions: {original_dims[0]}x{original_dims[1]}")
+        self.new_label.config(text=f"New Dimensions: {new_dims[0]}x{new_dims[1]}")
+    
+    def get_cropped_dimensions(self):
+        # Open the video file again
+        cap = cv2.VideoCapture(self.video_path)
+        
+        # Get video properties
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        
+        # New dimensions after cropping
+        if self.roi is None:
+            new_width, new_height = width, height
+        else:
+            new_width = int(self.roi[2]) if int(self.roi[2]) != 0 else width
+            new_height = int(self.roi[3]) if int(self.roi[3]) != 0 else height
+            
+        # Return original and new dimensions
+        return (width, height), (new_width, new_height)
+    
+    def save_video(self):
+        quality = float(self.quality_scale.get())
+        resolution_factor = float(self.resolution_scale.get())
+        
+        # Check if compression is enabled
+        compress_video = self.compress_var.get()
+        
+        # Save the entire video with the cropped selection
+        _, new_dims = self.get_cropped_dimensions()
+        
+        # Open the video file again
+        cap = cv2.VideoCapture(self.video_path)
+        
+        # Get the directory and filename of the original video
+        dir_name, file_name = os.path.split(self.video_path)
+        
+        # Create a new filename for the cropped video with "CROPPED_" prepended
+        cropped_file_name = f"CROP-COMP_{file_name}"
+        # Change file extension to .mkv
+        cropped_file_name = os.path.splitext(cropped_file_name)[0] + '.mkv'
+        self.new_video_path = os.path.join(dir_name, cropped_file_name)
+        
+        # Determine new resolution based on scale factor but maintaining original aspect ratio
+        w, h = new_dims
+        aspect_ratio = w / h
+
+        if aspect_ratio >= 1:  # Landscape orientation
+            new_width = int(w * resolution_factor)
+            new_height = int(new_width / aspect_ratio)
+        else:  # Portrait orientation
+            new_height = int(h * resolution_factor)
+            new_width = int(new_height * aspect_ratio)
+
+        # Initialize video writer
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        fourcc = cv2.VideoWriter_fourcc(*'H264')
+        out = cv2.VideoWriter(self.new_video_path, fourcc, fps, (new_width, new_height))
+        
+        # Read frames, crop, compress, and save
+        frame_count = 0
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            
+            # Crop frame
+            if self.roi:
+                x, y, w, h = self.roi
+                cropped_frame = frame[y:y+h, x:x+w]
+            else:
+                cropped_frame = frame
+            
+            if compress_video:
+                # Compress frame with quality parameter
+                encoded_frame = cv2.imencode('.jpg', cropped_frame, [int(cv2.IMWRITE_JPEG_QUALITY), int(quality * 100)])[1]
+                decoded_frame = cv2.imdecode(encoded_frame, cv2.IMREAD_COLOR)
+            else:
+                decoded_frame = cropped_frame
+
+            # Resize frame to new dimensions
+            resized_frame = cv2.resize(decoded_frame, (new_width, new_height))
+            
+            # Write frame
+            out.write(resized_frame)
+
+            # Update progress bar
+            frame_count += 1
+            progress = int(frame_count * 100 / cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            self.progress_bar["value"] = progress
+            self.progress_bar.update()
+            
+        # Release video capture and writer objects
+        cap.release()
+        out.release()
+        
+        print(f"Video saved: {self.new_video_path}")
+        
+        # Set the parent class's label variable with the file path of the new video
+        self.file_label_var.set(os.path.basename(self.new_video_path))
+        self.parent.video_path = self.new_video_path
+        print(self.parent.video_path, self.new_video_path)
+        
+        # Show completion message
+        self.complete_label.pack()
 
 if __name__ == '__main__':
     root = tk.Tk()

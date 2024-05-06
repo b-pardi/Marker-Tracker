@@ -11,8 +11,6 @@ Hydrogel
 
 
 Multi purpose
-- video crop and compression features for efficiency
-- box plotter button to delete selected range
 
 Cell Mechanics  
 - see about surface tracking on the stained videos
@@ -42,6 +40,20 @@ Cell Mechanics
     - saves output to 'output/data_selector/'
     - records avg and stddev of each label as well as the global avg and std dev (across all labels)
 - added buttons to boxplotter tool to remove an entered condition or time range
+- added crop/compression tool
+    - once video selected, user may click on button to open this tool 
+    - in new window button to crop video appears
+        - opens first frame of video and user can select a roi (region of interest)
+        - hitting enter confirms this selection and ESC cancels
+        - original and new dimensions displayed below button
+    - checkbox to compress video
+        - if checked user may adjust quality and scale factors for reducing video bitrate and resolution
+        - if a video is already compressed well it may increase size because why not
+        - added openh264 binaries to folder to use h264 compression as it is best available open source compression algo
+    - click save video will save a copy of the selected video with the selected cropping/compression
+        - prepends 'CROP-COMP' to beginning of original video name and changes extension to mkv
+    - when saved it'll update the main ui video path label to the new file and update TrackingUI.video_path to the new one as well
+    - progress bar for video saving also available
 
 5/3
 - fixed bug when trackers fail to update software crashes due to integration of multithreading and tkinter pop up messages
