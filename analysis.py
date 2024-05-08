@@ -30,19 +30,31 @@ def marker_euclidean_distance(p1x, p1y, p2x, p2y):
     """    
     return np.sqrt((p2x - p1x)**2 + (p2y - p1y)**2)
 
-def rms_displacement(dx, dy):
-    """calculate the root mean square distance of x, y points over time from displacements
+def rms_distance(x, y):
+    """calculate the root mean square distance of x, y points over time
     characterize the magnitude of fluctuations/movements of the marker
 
     Args:
-        x (_type_): _description_
-        y (_type_): _description_
+        dx (_type_): change in x positions
+        dy (_type_): change in y positions
     """    
-    dx_sq = dx**2
-    dy_sq = dy**2
+    dx_sq = (np.diff(x))**2
+    dy_sq = (np.diff(y))**2
 
-    rms_displacement = np.sqrt(np.cumsum(dx_sq + dy_sq) / (np.arange(len(dx))+1))
-    return rms_displacement
+    rms_dist = np.sqrt(np.cumsum(dx_sq + dy_sq) / (np.arange( len(dx_sq) ) + 1 ))
+    return rms_dist
+
+def rms_displacement(x, y):
+    """calculate the root mean square distance of x, y points over time
+    characterize the magnitude of fluctuations/movements of the marker
+
+    Args:
+        dx (_type_): change in x positions
+        dy (_type_): change in y positions
+    """  
+    r = np.sqrt(x**2 + y**2)
+    rms_disp = np.sqrt( np.mean( np.diff(r) ) )
+    return rms_disp
 
 def get_time_labels(df, col_num=1):
     ''' util function to return the appropriate strings for:
@@ -1131,7 +1143,7 @@ def marker_distance(user_unit_conversion, df=None, will_save_figures=True, chose
             y = cur_df[f'{chosen_video_data}-y (px)'].values * conversion_factor
             data_label = cur_df[f'{chosen_video_data}-data_label'].dropna().unique()[0]
             data_labels.append(data_label)
-            rms = rms_displacement(np.diff(x[~np.isnan(x)]), np.diff(y[~np.isnan(y)]))
+            rms = rms_displacement(x[~np.isnan(x)], y[~np.isnan(y)])
             rms_disps.append(rms)
             times.append(time[:-1])
             print(len(time[:-1]),time[:-1], '\n', len(rms),rms)
@@ -1153,7 +1165,7 @@ def marker_distance(user_unit_conversion, df=None, will_save_figures=True, chose
             time = time[~np.isnan(time)]
             data_label = cur_df[f'{dataset+1}-data_label'].dropna().unique()[0]
             data_labels.append(data_label)
-            rms = rms_displacement(np.diff(x[~np.isnan(x)]), np.diff(y[~np.isnan(y)]))
+            rms = rms_displacement(x[~np.isnan(x)], y[~np.isnan(y)])
             rms_disps.append(rms)
             times.append(time[:-1])
             print(len(time[:-1]),time[:-1], '\n', len(rms),rms)

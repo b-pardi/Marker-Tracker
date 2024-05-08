@@ -211,6 +211,8 @@ surface area (4 threads):
 
 ### Marker deltas:
 - 'marker_deltas' plots the distance that 2 tracked markers are moving away from eachother, showing the horizontal (x) distance, as well as the euclidean distance for comparison
+    - euclidean distance defined as: np.sqrt((p2x - p1x)**2 + (p2y - p1y)**2)
+    - p1 and p2 are 2 points that the distance between is being calculated
 - 'longitudinal_strain' plots the longitudinal strain ((L-L0) / L0) where L is the distance between the markers at time t and L0 is the initial distance between the markers
 - 'marker_euclidean_horizontal_differences' plots the discrepancies between euclidean and horizontal distances
 
@@ -233,18 +235,19 @@ surface area (4 threads):
 
 ### Marker velocity:
 - 'marker_velocity' plots the magnitude of the differences of x and y locations over time
-- 'average_marker_velocity' plots of bar graph of the average velocity of each marker within a user specified number of ranges
-- 'marker_velocity_FFT' plots the Fast Fourier Transform of the marker velocities (DEPRECATED)
-### Average marker velocity boxplot
-- To use the box plot, make sure every condition you want to have (each condition becomes a box in the plot) is put as a substring in the data label
-    - i.e. condition1-description, condition1-more description, condition2-another description, condition2-probably another description
-- After recording all the data you want in the box plot, click the boxplot checkbox right below the cell velocity button
-- Here you will be able to enter the conditions you put in your data labels,  separating them with a comma
-- With the example above, you would type "cond1, cond2"
-- Then just click the button to generate the plot
+    - we get this the following way:
+        - find dx, dy, dt (the differences between each x, y, and time value)
+        - get velocity of x and y separately: dx / dt and dy / dt
+        - magnitude of velocity: np.sqrt(vel_x**2 + vel_y**2) 
 
 ### Marker disance
-- 'marker_RMS_displacement' plots the root mean squared (RMS) displacement travelled by the marker over time
+- 'marker_RMS_distance' plots the root mean squared (RMS) distance travelled by the marker over time
+    - find dx and dy same as in marker velocity and then square them all
+    - function for rms distance given as: np.sqrt(np.cumsum(dx_sq + dy_sq) / (np.arange(len(dx))+1))
+    - or (sort of) in English: RMS_dist(i) = sqrt( sum[k=1:i]( dx_k^2 + dy_k^2 ) / i)
+- 'marker_RMS_displacement' plots RMS displacement travelled by marker over time
+    - 
+    - or (sort of) in English: RMS_disp is the sqrt of the mean of the squared magnitudes of the changes of x and y
 
 ### Marker spread
 - 'marker_surface_area' plots the surface area of the tracked contours over time

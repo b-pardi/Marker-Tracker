@@ -283,26 +283,42 @@ def frame_capture_thread(cap, frame_queue, message_queue, stop_event, frame_end,
             #message_queue.put("Error: Frame failed to read")
             stop_event.set()
             break
-
         try:
             frame_queue.put((frame_num, frame), block=True, timeout=1)
         except queue.Full:
             print("QUEUE FULL FRAME DROPPED")
         frame_num += frame_record_interval
-
+        
         if cv2.waitKey(1) == 27: 
             stop_event.set()
             break
     frame_queue.put(None) # sentinel value
 
-def frame_tracker_processing_thread(frame_queue, message_queue, stop_event, trackers, scale_frame, tracker_data, frame_start, frame_end, frame_interval, time_units, fps):
+def frame_tracker_processing_thread(
+        frame_queue,
+        message_queue,
+        stop_event,
+        trackers,
+        scale_frame,
+        tracker_data,
+        frame_start,
+        frame_end,
+        frame_interval,
+        time_units,
+        fps
+    ):
     while True:
         try:
-            frame_num, frame = frame_queue.get(timeout=1)  # Get frames from the queue
-            #print(f"cur frame num in processing thread: {frame_num}")
+            queue_item = frame_queue.get(timeout=1)  # Get frames from the queue
         except queue.Empty:
             continue
-            #print("PANIC")
+
+        if queue_item is None:
+            break
+        else:
+            frame_num, frame = queue_item
+            #print(f"cur frame num in processing thread: {frame_num}")
+
         if frame_num >= frame_end:
             break
 
@@ -570,10 +586,16 @@ def frame_edge_processing(
 
     while True:
         try:
-            frame_num, frame = frame_queue.get(timeout=1)
+            queue_item = frame_queue.get(timeout=1)
         except queue.Empty:
             print("QUEUE EMPTY")
             continue
+
+        if queue_item is None:
+            break
+        else:
+            frame_num, frame = queue_item
+
         if frame_num >= frame_end:
             break
 
@@ -864,9 +886,9 @@ def frame_tracker_midpt_finder_thread(frame_queue, tracker_midpt_queue, message_
             queue_item = frame_queue.get(timeout=1)  # Get frames from the queue
         except queue.Empty:
             continue
-            #print("PANIC")
         if queue_item:
             frame_num, frame = queue_item
+            #print(f"cur frame num in frame_tracker_midpt_finder thread: {frame_num}")
         else:
             tracker_midpt_queue.put(None)
             break
