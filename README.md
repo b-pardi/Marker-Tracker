@@ -241,13 +241,16 @@ surface area (4 threads):
         - magnitude of velocity: np.sqrt(vel_x**2 + vel_y**2) 
 
 ### Marker disance
+- RMS metrics are work in progress, for now we are just plotting the difference between points for distance, and the difference of points from there initial (displacement)
+    - magnitude of difference of 2D points
+
 - 'marker_RMS_distance' plots the root mean squared (RMS) distance travelled by the marker over time
     - find dx and dy same as in marker velocity and then square them all
     - function for rms distance given as: np.sqrt(np.cumsum(dx_sq + dy_sq) / (np.arange(len(dx))+1))
     - or (sort of) in English: RMS_dist(i) = sqrt( sum[k=1:i]( dx_k^2 + dy_k^2 ) / i)
 - 'marker_RMS_displacement' plots RMS displacement travelled by marker over time
     - 
-    - or (sort of) in English: RMS_disp is the sqrt of the mean of the squared magnitudes of the changes of x and y
+
 
 ### Marker spread
 - 'marker_surface_area' plots the surface area of the tracked contours over time

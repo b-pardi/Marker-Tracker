@@ -4,21 +4,24 @@
 
 FIX
 - if tracker gets lost, still records data in multithreaded version (it shouldn't)
-- rms displacement (formula roberto sent)
+- await details on retrying RMS
+    - rms displacement (formula roberto sent)
     - ensure what is currently being referred to as rms disp is changed to rms distance
-- just distance
 
 Housekeeping
 
 Hydrogel
 
 Multi purpose
-- box plot white facecolor, black mean line
 
 Cell Mechanics  
-- see about surface tracking on the stained videos
+- see about surface tracking on the stained videos (awaiting videos)
 
 # Changelog
+
+5/8
+- commented out rms displacement from marker distance awaiting meeting to decide future of rms functionality
+- replaced it for now with regular displacement and distance
 
 5/7
 - added formulas of how data is analyzed to readme

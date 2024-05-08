@@ -181,11 +181,19 @@ def get_plot_args(analysis_type, time_label='', data_labels=[], conversion_units
             'data_label': data_labels,
             'has_legend': True,
         }
-    if analysis_type == AnalysisType.MARKER_RMS_DISTANCE:
+    if analysis_type == AnalysisType.MARKER_DISPLACEMENT:
         plot_args = {
-            'title': 'Root mean square Displacement',
+            'title': 'Tracker Displacement',
             'x_label': time_label,
-            'y_label': r'Root mean square Displacement, $\mathit{D_{rms}}$' + rf' ({conversion_units})    ',
+            'y_label': r'Displacement, $\mathit{\Delta\vec{r}}$' + rf' ({conversion_units})    ',
+            'data_label': data_labels,
+            'has_legend': True
+        }
+    if analysis_type == AnalysisType.MARKER_DISTANCE:
+        plot_args = {
+            'title': 'Tracker Distance',
+            'x_label': time_label,
+            'y_label': r'Distance, $\mathit{D}$' + rf' ({conversion_units})    ',
             'data_label': data_labels,
             'has_legend': True
         }
@@ -1096,8 +1104,11 @@ def velocity_boxplot(conditions, user_unit_conversion):
     plt.savefig(f"figures/marker_velocity_boxplot.{plot_customs['fig_format']}", dpi=plot_customs['fig_dpi'])
 
 
-def marker_distance(user_unit_conversion, df=None, will_save_figures=True, chosen_video_data=None):
+def marker_distance(user_unit_conversion, df=None, will_save_figures=True, chosen_video_data=None, locator_type=LocatorType.BBOX):
     """
+    CURRENTLY AWAITING DETAILS ON REIMPLEMENTING RMS, so currently just plots regular distance and displacement
+    magnitude of difference of 2D points
+
     Calculates and plots the root mean square displacement of markers over time. This function reads tracking data,
     processes it to compute the RMS displacement for each tracker or dataset, and plots the results.
 
@@ -1118,18 +1129,29 @@ def marker_distance(user_unit_conversion, df=None, will_save_figures=True, chose
     Returns:
         None: The function directly outputs a plot but does not return any variables.
     """
+    # determine if we are finding just marker distance or centroid distance
+    if locator_type == LocatorType.BBOX:
+        df_path = "output/Tracking_Output.csv"
+        x_loc_column = "-x (px)"
+        y_loc_column = "-y (px)"
+    elif locator_type == LocatorType.CENTROID:
+        df_path = "output/Surface_Area_Output.csv"
+        x_loc_column = "-x centroid location"
+        y_loc_column = "-y centroid location"
 
-    print("Finding Marker RMS Distance...")
+    print("Finding Marker Displacement and Distance...")
     conversion_factor, conversion_units = user_unit_conversion
     if not isinstance(df, pd.DataFrame):
-        df = pd.read_csv("output/Tracking_Output.csv") # open csv created/modified from marker tracking process
+        df = pd.read_csv(df_path) # open csv created/modified from marker tracking process
     print(df.head())
     
     time_col, time_label, time_unit = get_time_labels(df)
     _, _, num_tracker_datasets = get_num_datasets(df) # get num datasets
     n_trackers = df['1-Tracker'].dropna().unique().shape[0] # get number of trackers
     data_labels = []
-    rms_disps = []
+    #rms_disps = []
+    displacements = []
+    distances = []
     times = []
     print(n_trackers, num_tracker_datasets)
     n_plots = 0
@@ -1154,17 +1176,25 @@ def marker_distance(user_unit_conversion, df=None, will_save_figures=True, chose
             cur_df = df[df[f'{chosen_video_data}-Tracker'] == tracker+1]
             time = cur_df[time_col].unique()
             time = time[~np.isnan(time)]
-            x = cur_df[f'{chosen_video_data}-x (px)'].values * conversion_factor
-            y = cur_df[f'{chosen_video_data}-y (px)'].values * conversion_factor
+            x = cur_df[f'{chosen_video_data}{x_loc_column}'].values * conversion_factor
+            y = cur_df[f'{chosen_video_data}{y_loc_column}'].values * conversion_factor
             data_label = cur_df[f'{chosen_video_data}-data_label'].dropna().unique()[0]
             data_labels.append(data_label)
-            rms = rms_displacement(x[~np.isnan(x)], y[~np.isnan(y)])
-            rms_disps.append(rms)
+            '''rms = rms_displacement(x[~np.isnan(x)], y[~np.isnan(y)])
+            rms_disps.append(rms)'''
+
+            disp = np.sqrt( (x - x[0])**2 + (y - y[0])**2 )[1:]
+            dist = np.sqrt( np.diff(x)**2 + np.diff(y)**2 ) # magnitude of x and y differences
             times.append(time[:-1])
-            print(len(time[:-1]),time[:-1], '\n', len(rms),rms)
+            displacements.append(disp)
+            distances.append(dist)
+
+            print(len( time[:-1]),len(disp),len(dist),len(data_label),)
             cur_rms_df = pd.DataFrame({
                 time_col: time[:-1],
-                f'{chosen_video_data}-rms_displacement': rms,
+                f'{chosen_video_data}-displacement': disp,
+                f'{chosen_video_data}-distance': dist,
+                f'{chosen_video_data}-rms_displacement': np.nan,
                 f'{chosen_video_data}-data_label': data_label
             })
             rms_df = pd.concat([rms_df, cur_rms_df], axis=1)
@@ -1173,20 +1203,26 @@ def marker_distance(user_unit_conversion, df=None, will_save_figures=True, chose
         n_plots = num_tracker_datasets
         for dataset in range(num_tracker_datasets):
             cur_df = get_relevant_columns(df, dataset+1)
-            x = cur_df[f'{dataset+1}-x (px)'].values * conversion_factor
-            y = cur_df[f'{dataset+1}-y (px)'].values * conversion_factor
+            x = cur_df[f'{dataset+1}{x_loc_column}'].values * conversion_factor
+            y = cur_df[f'{dataset+1}{y_loc_column}'].values * conversion_factor
             time_col, _, _ = get_time_labels(df, dataset+1)
             time = cur_df[time_col].values
             time = time[~np.isnan(time)]
             data_label = cur_df[f'{dataset+1}-data_label'].dropna().unique()[0]
             data_labels.append(data_label)
-            rms = rms_displacement(x[~np.isnan(x)], y[~np.isnan(y)])
-            rms_disps.append(rms)
+            '''rms = rms_displacement(x[~np.isnan(x)], y[~np.isnan(y)])
+            rms_disps.append(rms)'''
+            disp = np.sqrt( (x - x[0])**2 + (y - y[0])**2 )
+            dist = np.sqrt( np.diff(x)**2 + np.diff(y)**2 ) # magnitude of x and y differences
             times.append(time[:-1])
-            print(len(time[:-1]),time[:-1], '\n', len(rms),rms)
+            displacements.append(disp)
+            distances.append(dist)
+
             cur_rms_df = pd.DataFrame({
                 time_col: time[:-1],
-                f'{dataset+1}-rms_displacement': rms,
+                f'{dataset+1}-displacement': disp,
+                f'{dataset+1}-distance': dist,
+                f'{dataset+1}-rms_displacement': np.nan,
                 f'{dataset+1}-data_label': data_label
             })
             rms_df = pd.concat([rms_df, cur_rms_df], axis=1)
@@ -1195,14 +1231,15 @@ def marker_distance(user_unit_conversion, df=None, will_save_figures=True, chose
 
     
     # plot marker velocity
-    plot_args = get_plot_args(AnalysisType.MARKER_RMS_DISTANCE, time_label, data_labels, conversion_units, time_unit)
-
+    disp_plot_args = get_plot_args(AnalysisType.MARKER_DISPLACEMENT, time_label, data_labels, conversion_units, time_unit)
+    dist_plot_args = get_plot_args(AnalysisType.MARKER_DISTANCE, time_label, data_labels, conversion_units, time_unit)
 
     if will_save_figures:
-        disp_fig, disp_ax = plot_scatter_data(times, rms_disps, plot_args, n_plots, output_fig_name='marker_RMS_displacement')
+        disp_fig, disp_ax = plot_scatter_data(times, displacements, disp_plot_args, n_plots, output_fig_name='marker_displacement')
+        dist_fig, dist_ax = plot_scatter_data(times, distances, dist_plot_args, n_plots, output_fig_name='marker_distance')
 
     print("Done")
-    return times, rms_disps, plot_args, n_plots
+    return times, displacements, disp_plot_args, n_plots
 
 def single_marker_spread(user_unit_conversion, df=None, will_save_figures=True, chosen_video_data=None):
     """
@@ -1210,7 +1247,7 @@ def single_marker_spread(user_unit_conversion, df=None, will_save_figures=True, 
     area data to compute metrics such as area growth rate and plots these changes over time to facilitate analysis.
 
     Details:
-        - The function reads surface area tracking data from 'output/Tracking_Output.csv', which should contain surface area data
+        - The function reads surface area tracking data from 'output/Surface_Are_Output.csv', which should contain surface area data
           across multiple frames or conditions.
         - It calculates the percentage change in surface area relative to the initial area and other relevant metrics.
         - Results are visualized in a plot that displays changes in surface area over time, highlighting any significant growth or contraction.
