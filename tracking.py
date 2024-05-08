@@ -1426,7 +1426,7 @@ def find_contours_near_trackers_thread(
         contour = contours[max_area_idx]
         if centroid:
             cv2.circle(scaled_frame, centroid, 5, (0, 0, 255), -1)
-        cv2.drawContours(processed_frame, [contour], -1, (255, 0, 0), 2)
+        cv2.drawContours(scaled_frame, [contour], -1, (255, 0, 0), 2)
         cv2.putText(scaled_frame, str(i+1), (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
         # draw bbox of tracker

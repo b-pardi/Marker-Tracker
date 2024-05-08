@@ -22,6 +22,9 @@ Cell Mechanics
 5/8
 - commented out rms displacement from marker distance awaiting meeting to decide future of rms functionality
 - replaced it for now with regular displacement and distance
+- fixed bug where contours were not being drawn on frame in multithreaded version
+
+- beginning major refactor to put distance, displacement, velocity, and surface area into the same analysis function, and accounting for centroid vs marker locations
 
 5/7
 - added formulas of how data is analyzed to readme
