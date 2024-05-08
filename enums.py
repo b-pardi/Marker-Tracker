@@ -33,9 +33,10 @@ class AnalysisType(Enum):
     MARKER_DELTAS = auto()
     NECKING_POINT = auto()
     POISSONS_RATIO = auto()
-    MARKER_VELOCITY = auto()
-    MARKER_DISPLACEMENT = auto()
-    MARKER_DISTANCE = auto()
+    MOVEMENT = auto()
+    VELOCITY = auto()
+    DISPLACEMENT = auto()
+    DISTANCE = auto()
     SURFACE_AREA = auto()
 
 class LocatorType(Enum):

@@ -309,21 +309,23 @@ class TrackingUI:
         poissons_ratio_csv_btn = ttk.Button(submission_frame, text="Poisson's ratio\n(from csv)", command=lambda: analysis.poissons_ratio_csv((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='LessYPadding.TButton')
         poissons_ratio_csv_btn.grid(row=9, column=0, padx=4, pady=4)
 
-        '''locator_choice_label = ttk.Label(submission_frame, text="Marker or Centroid distance/displacement")
+        locator_choice_label = ttk.Label(submission_frame, text="Locator choice for:\ndiplacement, distance, and velocity")
         locator_choice_label.grid(row=4, column=1, padx=4, pady=(8,2))
         self.locator_choice_var = tk.StringVar()
         self.locator_choice_var.set(LocatorType.BBOX.value)
         locator_marker_choice_radio = ttk.Radiobutton(submission_frame, text='Marker (use marker tracker)', variable=self.locator_choice_var, value=LocatorType.BBOX.value)
         locator_marker_choice_radio.grid(row=5, column=1)
         locator_choice_centroid_radio = ttk.Radiobutton(submission_frame, text='Centroid (use surface area)', variable=self.locator_choice_var, value=LocatorType.CENTROID.value)
-        locator_choice_centroid_radio.grid(row=6, column=1)'''
+        locator_choice_centroid_radio.grid(row=6, column=1)
         
-        cell_distance_btn = ttk.Button(submission_frame, text="Marker distance", command=lambda: analysis.marker_distance((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
+        cell_distance_btn = ttk.Button(submission_frame, text="Marker distance", command=lambda: self.call_analysis(AnalysisType.DISTANCE), style='Regular.TButton')
         cell_distance_btn.grid(row=7, column=1, padx=4, pady=4)
-        cell_spread_btn = ttk.Button(submission_frame, text="Marker spread", command=lambda: analysis.single_marker_spread((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
-        cell_spread_btn.grid(row=9, column=1, padx=4, pady=4)
-        cell_velocity_btn = ttk.Button(submission_frame, text="Marker velocity", command=lambda: analysis.marker_velocity((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
-        cell_velocity_btn.grid(row=8, column=1, padx=4, pady=4)
+        cell_displacement_btn = ttk.Button(submission_frame, text="Marker displacement", command=lambda: self.call_analysis(AnalysisType.DISPLACEMENT), style='Regular.TButton')
+        cell_displacement_btn.grid(row=8, column=1, padx=4, pady=4)
+        cell_spread_btn = ttk.Button(submission_frame, text="Marker spread", command=lambda: self.call_analysis(AnalysisType.SURFACE_AREA), style='Regular.TButton')
+        cell_spread_btn.grid(row=10, column=1, padx=4, pady=4)
+        cell_velocity_btn = ttk.Button(submission_frame, text="Marker velocity", command=lambda: self.call_analysis(AnalysisType.VELOCTIY), style='Regular.TButton')
+        cell_velocity_btn.grid(row=11, column=1, padx=4, pady=4)
     
         data_selector_button = ttk.Button(submission_frame, text="Data selector", command=self.data_selector, style='Regular.TButton')
         data_selector_button.grid(row=19, column=0, columnspan=2, pady=(24,0))
@@ -494,6 +496,23 @@ class TrackingUI:
                 break
         
         return data_label_err_flag
+
+    def call_analysis(self, analysis_type):
+        conversion_factor = float(self.conversion_factor_entry.get())
+        conversion_units = self.conversion_units_entry.get()
+        locator_choice = self.locator_choice_var.get()
+
+        if analysis_type == AnalysisType.DISTANCE:
+            if locator_choice == LocatorType.BBOX:
+                pass
+            if locator_choice == LocatorType.CENTROID:
+                pass       
+
+        if analysis_type == AnalysisType.SURFACE_AREA:
+            pass
+
+        analysis.marker_movement_analysis(analysis_type, conversion_factor, conversion_units)
+
 
 
     def on_submit_tracking(self):
