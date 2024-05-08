@@ -1219,7 +1219,15 @@ def track_area(
 
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_start)
     frame_num = frame_start
-    area_data = {'1-Frame': [], f'1-Time({time_units})': [], '1-x cell location': [], '1-y cell location': [], '1-cell surface area (px^2)': [], '1-video_file_name': video_file_name, '1-data_label': data_label}
+    area_data = {
+        '1-Frame': [],
+        f'1-Time({time_units})': [],
+        '1-x centroid location': [],
+        '1-y centroid location': [],
+        '1-cell surface area (px^2)': [],
+        '1-video_file_name': video_file_name,
+        '1-data_label': data_label
+    }
     
     trackers = init_trackers(marker_positions, bbox_size, first_frame, TrackerChoice.CSRT)
 
@@ -1275,6 +1283,7 @@ def track_area(
 
         # choose optimal contour (largest and near marker)
         max_area, max_area_idx = 0, 0
+        centroid = None
         for i, contour in enumerate(contours):
             area = cv2.contourArea(contour)
             M = cv2.moments(contour)
@@ -1285,9 +1294,12 @@ def track_area(
                     if area > max_area:
                         max_area = area
                         max_area_idx = i
+                        centroid = (cx,cy)
 
         # draw the chosen contour
         contour = contours[max_area_idx]
+        if centroid:
+            cv2.circle(scaled_frame, centroid, 5, (0, 0, 255), -1)
         cv2.drawContours(scaled_frame, [contour], -1, (255, 0, 0), 2)
         cv2.putText(scaled_frame, str(i+1), (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
@@ -1297,8 +1309,8 @@ def track_area(
             area_data[f'1-Time({time_units})'].append(np.float32(frame_num / cap.get(5)))
         else:
             area_data[f'1-Time({time_units})'].append(np.float16(frame_num * frame_interval))
-        area_data['1-x cell location'].append(int((marker_center[0] / scale_factor)))
-        area_data['1-y cell location'].append(int((marker_center[1] / scale_factor)))
+        area_data['1-x centroid location'].append(int((centroid[0] / scale_factor)))
+        area_data['1-y centroid location'].append(int((centroid[1] / scale_factor)))
         area_data['1-cell surface area (px^2)'].append(max_area)
 
         #cv2.imshow('Surface Area Tracking', noise_reduced_frame)
@@ -1352,7 +1364,7 @@ def frame_preprocessing_thread(
         
         processed_frame = adaptive_thresh
 
-        processed_tracker_frame_queue.put((frame_num, processed_frame, scale_factor, tracker_bbox))
+        processed_tracker_frame_queue.put((frame_num, scaled_frame, processed_frame, scale_factor, tracker_bbox))
         tracker_frame_queue.task_done()
 
         if cv2.waitKey(1) == 27:
@@ -1383,7 +1395,7 @@ def find_contours_near_trackers_thread(
             break
 
         if queue_item:
-            frame_num, processed_frame, scale_factor, tracker_bbox = queue_item
+            frame_num, scaled_frame, processed_frame, scale_factor, tracker_bbox = queue_item
             x_bbox, y_bbox, w_bbox, h_bbox = tracker_bbox
 
         if frame_num >= frame_end:
@@ -1397,6 +1409,7 @@ def find_contours_near_trackers_thread(
         marker_center = (x_bbox + w_bbox // 2, y_bbox + h_bbox // 2)  # get center of bbox
         # choose optimal contour (largest and near marker)
         max_area, max_area_idx = 0, 0
+        centroid = None
         for i, contour in enumerate(contours):
             area = cv2.contourArea(contour)
             M = cv2.moments(contour)
@@ -1407,17 +1420,20 @@ def find_contours_near_trackers_thread(
                     if area > max_area:
                         max_area = area
                         max_area_idx = i
+                        centroid = (cx,cy)
 
         # draw the chosen contour
         contour = contours[max_area_idx]
+        if centroid:
+            cv2.circle(scaled_frame, centroid, 5, (0, 0, 255), -1)
         cv2.drawContours(processed_frame, [contour], -1, (255, 0, 0), 2)
-        cv2.putText(processed_frame, str(i+1), (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        cv2.putText(scaled_frame, str(i+1), (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
         # draw bbox of tracker
-        cv2.rectangle(processed_frame, (x_bbox, y_bbox), (x_bbox + w_bbox, y_bbox + h_bbox), (0, 255, 0), 2)  # update tracker rectangle
+        cv2.rectangle(scaled_frame, (x_bbox, y_bbox), (x_bbox + w_bbox, y_bbox + h_bbox), (0, 255, 0), 2)  # update tracker rectangle
 
         #cv2.imshow('Surface Area Tracking', noise_reduced_frame)
-        cv2.imshow('Surface Area Tracking', processed_frame)
+        cv2.imshow('Surface Area Tracking', scaled_frame)
 
         # record data
         area_data['1-Frame'].append(frame_num)
@@ -1425,8 +1441,8 @@ def find_contours_near_trackers_thread(
             area_data[f'1-Time({time_units})'].append(np.float32(frame_num / fps))
         else:
             area_data[f'1-Time({time_units})'].append(np.float16(frame_num * frame_interval))
-        area_data['1-x cell location'].append(int((marker_center[0] / scale_factor)))
-        area_data['1-y cell location'].append(int((marker_center[1] / scale_factor)))
+        area_data['1-x centroid location'].append(int((centroid[0] / scale_factor)))
+        area_data['1-y centroid location'].append(int((centroid[1] / scale_factor)))
         area_data['1-cell surface area (px^2)'].append(max_area)
 
         processed_tracker_frame_queue.task_done()
@@ -1456,8 +1472,8 @@ def track_area_threaded(
     area_data = {
         '1-Frame':[],
         f'1-Time({time_units})': [],
-        '1-x cell location': [],
-        '1-y cell location': [],
+        '1-x centroid location': [],
+        '1-y centroid location': [],
         '1-cell surface area (px^2)': [],
         '1-video_file_name': video_file_name,
         '1-data_label': data_label

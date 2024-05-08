@@ -3,11 +3,7 @@
 ## TODO
 
 FIX
-- frame trakcer processing thread cannot unpack non iterable (put into one variable since empty queue cannot be uinpacked)
-- test multithreading skipping x frames
-- surface area tracking show original frame not binarized
 - if tracker gets lost, still records data in multithreaded version (it shouldn't)
-- record centroid of surface areas
 - rms displacement (formula roberto sent)
     - ensure what is currently being referred to as rms disp is changed to rms distance
 - just distance
@@ -17,7 +13,6 @@ Housekeeping
 Hydrogel
 
 Multi purpose
-- define formulas being used in calculations in readme
 - box plot white facecolor, black mean line
 
 Cell Mechanics  
@@ -28,6 +23,12 @@ Cell Mechanics
 5/7
 - added formulas of how data is analyzed to readme
 - fixed multithread bug where if queue item is none it breaks in some threads because some threads tried to unpack iterable of queue item before checking if it's none
+- added centroid tracking ability to surface area tracker
+    - draws red dot on screen where centroid is determined to be
+    - made this modification to single and multithread versions
+    - output file mostly unchanged, just changed column titles for x and y cell locations to centroid locations instead
+- surface area multithread now shows the scaled original frames instead of processed ones
+    - slightly less efficient, but more important to be able to see tracked things being drawn
 
 5/5
 - fixed bug where surface area wasn't checking for previously used data labels correctly
