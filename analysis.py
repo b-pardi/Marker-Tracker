@@ -886,7 +886,7 @@ def boxplot_time_ranges(df, times, labels, conversion_units):
     df_label_columns = [col for col in df.columns if 'data_label' in col]
     time_col, time_label, time_unit = get_time_labels(df)
     time_ranges_averages = defaultdict(list)
-    time_range_labels = [f"{t0}-{tf}" for t0, tf in times] # turn list of tuples into list of strings for boxplot labels
+    time_range_labels = [f"{float(t0)}-{float(tf)}" for t0, tf in times] # turn list of tuples into list of strings for boxplot labels
     data_lists = []
 
     for t0,tf in times: # iterate through tuple time ranges
@@ -907,8 +907,16 @@ def boxplot_time_ranges(df, times, labels, conversion_units):
 
     fig, ax = plt.subplots()
     boxplot = ax.boxplot(data_lists, patch_artist=True)
+
+    for patch in boxplot['boxes']:
+        patch.set_facecolor('white')
+
+    for median in boxplot['medians']:
+        median.set_color('black') 
+
     for i, time_range in enumerate(time_range_labels, start=1):  # count from 1 to match boxplot positions
         means = time_ranges_averages[time_range] # grab avg velocity previously calculated
+        print( means, time_range_labels, time_ranges_averages)
         x_jitter = np.random.normal(i, 0.025, size=len(means)) # some x jitter so points don't overlap
         ax.scatter(x_jitter, means, color='darkblue', zorder=3, marker='D', s=20, alpha=0.8) # plot mean value in the correct box with some x jitter
 
@@ -959,8 +967,15 @@ def boxplot_conditions(df, conditions_dict, conversion_units):
     fig, ax = plt.subplots()
     boxplot = ax.boxplot(data_lists, patch_artist=True)
 
+    for patch in boxplot['boxes']:
+        patch.set_facecolor('white')
+
+    for median in boxplot['medians']:
+        median.set_color('black') 
+
     for i, condition in enumerate(conditions, start=1):  # count from 1 to match boxplot positions
         means = condition_averages[condition] # grab avg previously calculated
+        print(means, conditions, condition_averages)
         x_jitter = np.random.normal(i, 0.025, size=len(means)) # some x jitter so points don't overlap
         ax.scatter(x_jitter, means, color='darkblue', zorder=3, marker='D', s=20, alpha=0.8) # plot mean value in the correct box with some x jitter
 

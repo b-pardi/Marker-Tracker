@@ -29,6 +29,8 @@ Cell Mechanics
     - output file mostly unchanged, just changed column titles for x and y cell locations to centroid locations instead
 - surface area multithread now shows the scaled original frames instead of processed ones
     - slightly less efficient, but more important to be able to see tracked things being drawn
+- both box plot functions have changed formatting to a white face color and black median line
+- fixed bug in time ranges box plot where mean points were not showing
 
 5/5
 - fixed bug where surface area wasn't checking for previously used data labels correctly
