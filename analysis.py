@@ -1130,7 +1130,7 @@ def marker_movement_analysis(analysis_type, conversion_factor, conversion_units,
     print(df.head())
     
     time_col, time_label, time_unit = get_time_labels(df)
-    _, _, num_tracker_datasets = get_num_datasets(df) # get num datasets
+    _, _, num_datasets = get_num_datasets(df) # get num datasets
     n_trackers = df['1-Tracker'].dropna().unique().shape[0] # get number of trackers
     
     data_labels = []
@@ -1143,99 +1143,32 @@ def marker_movement_analysis(analysis_type, conversion_factor, conversion_units,
     for_range = [0,0]
 
     # determine if multiple videos, or multiple trackers, or single of both (outlier removal)
-    data_multiplicity_type = check_num_trackers_with_num_datasets(n_trackers, num_tracker_datasets)
+    data_multiplicity_type = check_num_trackers_with_num_datasets(n_trackers, num_datasets)
     if data_multiplicity_type == DataMultiplicity.VIDEOS:
-        for_range = [1, num_tracker_datasets+1] # output tracking csv's are 1 indexed
+        for_range = [1, num_datasets+1] # output tracking csv's are 1 indexed
     elif data_multiplicity_type == DataMultiplicity.TRACKERS:
-        for_range = [1, n_trackers+1] # output tracking csv's are 1 indexed
+        for_range = [1, n_trackers+1]
     elif data_multiplicity_type == DataMultiplicity.SINGLE:
         if chosen_video_data == None:
             chosen_video_data = 1
         for_range = [chosen_video_data, chosen_video_data+1]
 
+    for data_idx in range(for_range[0], for_range[1]):
+        try: # handle error that may occur of a column was removed manually by user
+            cur_df = get_relevant_columns(df, data_idx)
+        except:
+            print(f"Dataset index: {data_idx} not found, skipping...")
+            continue
 
-
-
-
-    n_datasets = int(df.columns[-1].split('-', 1)[0])
-    # determine if there are multiple trackers and 1 video, or multiple videos and 1 tracker
-    if chosen_video_data is None:
-        chosen_video_data = 1
-    else: # if called from data selector or outlier removal will do one dataset at a time
-        data_multiplicity_type = DataMultiplicity.SINGLE
-
-    if data_multiplicity_type == DataMultiplicity.TRACKERS or data_multiplicity_type == DataMultiplicity.SINGLE:
-        # account for mismatch lengths of tracker information (if 1 tracker fell off before the other)
-        #check_tracker_data_lengths(df, n_trackers)
-        n_plots = n_trackers
-
-    
-
-        for tracker in range(n_trackers):
-            print("CHOSEN ", chosen_video_data)
-            time_col, _, _ = get_time_labels(df, chosen_video_data)
-            cur_df = df[df[f'{chosen_video_data}-Tracker'] == tracker+1]
-            time = cur_df[time_col].unique()
-            time = time[~np.isnan(time)]
-            x = cur_df[f'{chosen_video_data}{x_loc_column}'].values * conversion_factor
-            y = cur_df[f'{chosen_video_data}{y_loc_column}'].values * conversion_factor
-            data_label = cur_df[f'{chosen_video_data}-data_label'].dropna().unique()[0]
-            data_labels.append(data_label)
-            '''rms = rms_displacement(x[~np.isnan(x)], y[~np.isnan(y)])
-            rms_disps.append(rms)'''
-
-            disp = np.sqrt( (x - x[0])**2 + (y - y[0])**2 )[1:]
-            dist = np.sqrt( np.diff(x)**2 + np.diff(y)**2 ) # magnitude of x and y differences
-            times.append(time[:-1])
-            displacements.append(disp)
-            distances.append(dist)
-
-            print(len( time[:-1]),len(disp),len(dist),len(data_label))
-            cur_rms_df = pd.DataFrame({
-                time_col: time[:-1],
-                f'{chosen_video_data}-displacement': disp,
-                f'{chosen_video_data}-distance': dist,
-                f'{chosen_video_data}-rms_displacement': np.nan,
-                f'{chosen_video_data}-data_label': data_label
-            })
-            rms_df = pd.concat([rms_df, cur_rms_df], axis=1)
-
-    elif data_multiplicity_type == DataMultiplicity.VIDEOS:
-        n_plots = num_tracker_datasets
-        for dataset in range(num_tracker_datasets):
-            cur_df = get_relevant_columns(df, dataset+1)
-            x = cur_df[f'{dataset+1}{x_loc_column}'].values * conversion_factor
-            y = cur_df[f'{dataset+1}{y_loc_column}'].values * conversion_factor
-            time_col, _, _ = get_time_labels(df, dataset+1)
-            time = cur_df[time_col].values
-            time = time[~np.isnan(time)]
-            data_label = cur_df[f'{dataset+1}-data_label'].dropna().unique()[0]
-            data_labels.append(data_label)
-            '''rms = rms_displacement(x[~np.isnan(x)], y[~np.isnan(y)])
-            rms_disps.append(rms)'''
-            disp = np.sqrt( (x - x[0])**2 + (y - y[0])**2 )
-            dist = np.sqrt( np.diff(x)**2 + np.diff(y)**2 ) # magnitude of x and y differences
-            times.append(time[:-1])
-            displacements.append(disp)
-            distances.append(dist)
-
-            cur_rms_df = pd.DataFrame({
-                time_col: time[:-1],
-                f'{dataset+1}-displacement': disp,
-                f'{dataset+1}-distance': dist,
-                f'{dataset+1}-rms_displacement': np.nan,
-                f'{dataset+1}-data_label': data_label
-            })
-            rms_df = pd.concat([rms_df, cur_rms_df], axis=1)
-
-    for data_dx in range(for_range[0], for_range[1]):
-        cur_df = get_relevant_columns(df, dataset+1)
-        x = cur_df[f'{dataset+1}{x_loc_column}'].values * conversion_factor
-        y = cur_df[f'{dataset+1}{y_loc_column}'].values * conversion_factor
-        time_col, _, _ = get_time_labels(df, dataset+1)
+        time_col, _, _ = get_time_labels(df, data_idx)
         time = cur_df[time_col].values
         time = time[~np.isnan(time)]
-        data_label = cur_df[f'{dataset+1}-data_label'].dropna().unique()[0]
+        x = cur_df[f'{data_idx}{x_loc_column}'].values * conversion_factor
+        x = x[~np.isnan(x)]
+        y = cur_df[f'{data_idx}{y_loc_column}'].values * conversion_factor
+        y = y[~np.isnan(y)]
+
+        data_label = cur_df[f'{data_idx}-data_label'].dropna().unique()[0]
         data_labels.append(data_label)
         '''rms = rms_displacement(x[~np.isnan(x)], y[~np.isnan(y)])
         rms_disps.append(rms)'''
@@ -1247,10 +1180,10 @@ def marker_movement_analysis(analysis_type, conversion_factor, conversion_units,
 
         cur_rms_df = pd.DataFrame({
             time_col: time[:-1],
-            f'{dataset+1}-displacement': disp,
-            f'{dataset+1}-distance': dist,
-            f'{dataset+1}-rms_displacement': np.nan,
-            f'{dataset+1}-data_label': data_label
+            f'{data_idx}-displacement': disp,
+            f'{data_idx}-distance': dist,
+            f'{data_idx}-rms_displacement': np.nan,
+            f'{data_idx}-data_label': data_label
         })
         rms_df = pd.concat([rms_df, cur_rms_df], axis=1)
 
