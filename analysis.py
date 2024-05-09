@@ -147,7 +147,13 @@ def find_interest_column_and_type(df):
 
     return y_col, analysis_type
 
-def get_plot_args(analysis_type, time_label='', data_labels=[], conversion_units='', time_unit=''):
+def get_plot_args(analysis_type, **kwargs):
+    time_label = kwargs.get('time_label', '')
+    data_labels = kwargs.get('data_labels', '')
+    conversion_units = kwargs.get('conversion_units', '')
+    time_unit = kwargs.get('time_unit', '')
+    locator_type = kwargs.get('locator_type', LocatorType.BBOX).value.capitalize()
+    
     plot_args = {}
 
     if analysis_type == AnalysisType.MARKER_DELTAS:
@@ -176,7 +182,7 @@ def get_plot_args(analysis_type, time_label='', data_labels=[], conversion_units
         }
     if analysis_type == AnalysisType.VELOCITY:
         plot_args = {
-            'title': r'Cell Velocity',
+            'title': f'{locator_type} Velocity',
             'x_label': time_label,
             'y_label': rf'Magnitude of instantaneous cell velocity, $|\mathit{{v}}|$ $(\frac{{{conversion_units}}}{{{time_unit}}})$',
             'data_label': data_labels,
@@ -184,7 +190,7 @@ def get_plot_args(analysis_type, time_label='', data_labels=[], conversion_units
         }
     if analysis_type == AnalysisType.DISPLACEMENT:
         plot_args = {
-            'title': 'Tracker Displacement',
+            'title': f'{locator_type} Displacement',
             'x_label': time_label,
             'y_label': r'Displacement, $\mathit{\Delta\vec{r}}$' + rf' ({conversion_units})    ',
             'data_label': data_labels,
@@ -192,7 +198,7 @@ def get_plot_args(analysis_type, time_label='', data_labels=[], conversion_units
         }
     if analysis_type == AnalysisType.DISTANCE:
         plot_args = {
-            'title': 'Tracker Distance',
+            'title': f'{locator_type} Distance',
             'x_label': time_label,
             'y_label': r'Distance, $\mathit{D}$' + rf' ({conversion_units})    ',
             'data_label': data_labels,
@@ -404,7 +410,7 @@ def get_marker_data(user_unit_conversion, df):
 
     return list(x_locations), list(y_locations)
 
-def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True, chosen_video_data=None):
+def analyze_marker_deltas(conversion_factor, conversion_units, df=None, will_save_figures=True, chosen_video_data=None):
     """
     Analyzes and plots the Euclidean distances between two tracked markers to evaluate marker deltas and 
     calculates longitudinal strain from these distances. Optionally saves the plots to a specified directory.
@@ -431,7 +437,6 @@ def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True,
         tuple: Returns a tuple containing time points, longitudinal strains, and plot arguments used for plotting.
     """
     print("Analyzing tracked marker distances...")
-    conversion_factor, conversion_units = user_unit_conversion
 
     if not isinstance(df, pd.DataFrame):
         df = pd.read_csv("output/Tracking_Output.csv") # open csv created/modified from marker tracking process
@@ -490,7 +495,7 @@ def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True,
         longitudinal_strains.append(longitudinal_strain)
         elongation_differences.append(np.abs(marker_dist - np.abs(m2_x-m1_x)))
 
-    plot_args = get_plot_args(AnalysisType.MARKER_DELTAS, time_label, data_labels)
+    plot_args = get_plot_args(AnalysisType.MARKER_DELTAS, time_label=time_label, data_labels=data_labels)
 
 
     if will_save_figures:
@@ -516,7 +521,7 @@ def analyze_marker_deltas(user_unit_conversion, df=None, will_save_figures=True,
     return times, longitudinal_strains, plot_args, n_datasets
 
 
-def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True, chosen_video_data=None):
+def analyze_necking_point(conversion_factor, conversion_units, df=None, will_save_figures=True, chosen_video_data=None):
     """
     Analyzes and plots data related to the necking point of materials, such as the horizontal location and diameter over time,
     as well as calculating radial strain. The function reads from a specified CSV file and optionally saves plots to a directory.
@@ -542,7 +547,6 @@ def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True,
     Returns:
         tuple: Returns a tuple containing time points, radial strains, and plot arguments used for plotting.
     """
-    conversion_factor, conversion_units = user_unit_conversion
 
     print("Analyzing necking point...")
     if not isinstance(df, pd.DataFrame):
@@ -578,7 +582,7 @@ def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True,
         necking_pt_x_locs.append(necking_pt_x)
         necking_pt_lens.append(necking_pt_len)
 
-    plot_args = get_plot_args(AnalysisType.NECKING_POINT, time_label, data_labels)
+    plot_args = get_plot_args(AnalysisType.NECKING_POINT, time_label=time_label, data_labels=data_labels)
 
     if will_save_figures:
         # plot radial strain
@@ -598,7 +602,7 @@ def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True,
 
     return times, radial_strains, plot_args, n_datasets
 
-def poissons_ratio(user_unit_conversion):
+def poissons_ratio(conversion_factor, conversion_units):
     """
     Calculates Poisson's ratio for a material by analyzing longitudinal and radial strains, and additionally computes
     the derivatives of these strains over time. The function integrates data from previous tracking and necking operations,
@@ -622,9 +626,8 @@ def poissons_ratio(user_unit_conversion):
     Returns:
         None: The function directly outputs CSV files and generates plots, but does not return any variables.
     """
-    conversion_factor, conversion_units = user_unit_conversion
-    marker_times, longitudinal_strains, plot_args, _ = analyze_marker_deltas(user_unit_conversion)
-    necking_times, radial_strains, _, _ = analyze_necking_point(user_unit_conversion)
+    marker_times, longitudinal_strains, plot_args, _ = analyze_marker_deltas(conversion_factor, conversion_units)
+    necking_times, radial_strains, _, _ = analyze_necking_point(conversion_factor, conversion_units)
     
     print("LABEL", plot_args['data_label'])
     print("Finding Poisson's ratio...")
@@ -712,7 +715,7 @@ def poissons_ratio(user_unit_conversion):
 
     print("Done")
 
-def poissons_ratio_csv(user_unit_conversion, df=None, will_save_figures=True, chosen_video_data=None):
+def poissons_ratio_csv(df=None, will_save_figures=True, chosen_video_data=None):
     if not isinstance(df, pd.DataFrame):
         df = pd.read_csv('output/poissons_ratio.csv')
         
@@ -734,7 +737,7 @@ def poissons_ratio_csv(user_unit_conversion, df=None, will_save_figures=True, ch
         poissons_ratios.append(ratios)
         print(len(time), time, '\n', len(ratios), ratios)
 
-    plot_args = get_plot_args(AnalysisType.POISSONS_RATIO, time_label, data_labels)
+    plot_args = get_plot_args(AnalysisType.POISSONS_RATIO, time_label=time_label, data_labels=data_labels)
 
     if will_save_figures:
         poisson_fig, poisson_ax = plot_scatter_data(times, poissons_ratios, plot_args, n_datasets, output_fig_name='poissons_ratio_csv')
@@ -980,7 +983,7 @@ def marker_movement_analysis(analysis_type, conversion_factor, conversion_units,
     analysis_df.to_csv(output_df_path, index=False)
 
     # plot
-    plot_args = get_plot_args(analysis_type, time_label, data_labels, conversion_units, time_unit)
+    plot_args = get_plot_args(analysis_type, time_label=time_label, data_labels=data_labels, conversion_units=conversion_units, time_unit=time_unit, locator_type=locator_type)
 
     if will_save_figures:
         fig_name = locator_type.value + ' ' + os.path.splitext(os.path.basename(output_df_path))[0]
@@ -988,7 +991,6 @@ def marker_movement_analysis(analysis_type, conversion_factor, conversion_units,
 
     print("Done")
     return times, analyzed_data, plot_args, n_plots
-
 
 
 ''' DEPRECATED FUNCTIONS '''

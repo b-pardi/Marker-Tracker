@@ -33,6 +33,7 @@ class AnalysisType(Enum):
     MARKER_DELTAS = auto()
     NECKING_POINT = auto()
     POISSONS_RATIO = auto()
+    POISSONS_RATIO_CSV = auto()
     MOVEMENT = auto()
     VELOCITY = auto()
     DISPLACEMENT = auto()

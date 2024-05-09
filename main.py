@@ -300,13 +300,13 @@ class TrackingUI:
 
         # submission fields/buttons
         submission_frame = tk.Frame(section2)
-        marker_deltas_btn = ttk.Button(submission_frame, text="Marker deltas analysis", command=lambda: analysis.analyze_marker_deltas((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
+        marker_deltas_btn = ttk.Button(submission_frame, text="Marker deltas analysis", command=lambda: self.call_analysis(AnalysisType.MARKER_DELTAS), style='Regular.TButton')
         marker_deltas_btn.grid(row=6, column=0, padx=4, pady=4)
-        necking_pt_btn = ttk.Button(submission_frame, text="Necking point analysis", command=lambda: analysis.analyze_necking_point((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
+        necking_pt_btn = ttk.Button(submission_frame, text="Necking point analysis", command=lambda: self.call_analysis(AnalysisType.NECKING_POINT), style='Regular.TButton')
         necking_pt_btn.grid(row=7, column=0, padx=4, pady=4)
-        poissons_ratio_calc_btn = ttk.Button(submission_frame, text="Poisson's ratio\n(calculate)", command=lambda: analysis.poissons_ratio((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='LessYPadding.TButton')
+        poissons_ratio_calc_btn = ttk.Button(submission_frame, text="Poisson's ratio\n(calculate)", command=lambda: self.call_analysis(AnalysisType.POISSONS_RATIO), style='LessYPadding.TButton')
         poissons_ratio_calc_btn.grid(row=8, column=0, padx=4, pady=4)
-        poissons_ratio_csv_btn = ttk.Button(submission_frame, text="Poisson's ratio\n(from csv)", command=lambda: analysis.poissons_ratio_csv((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='LessYPadding.TButton')
+        poissons_ratio_csv_btn = ttk.Button(submission_frame, text="Poisson's ratio\n(from csv)", command=lambda: self.call_analysis(AnalysisType.POISSONS_RATIO_CSV), style='LessYPadding.TButton')
         poissons_ratio_csv_btn.grid(row=9, column=0, padx=4, pady=4)
 
         locator_choice_label = ttk.Label(submission_frame, text="Locator choice for:\ndiplacement, distance, and velocity")
@@ -502,6 +502,15 @@ class TrackingUI:
         conversion_units = self.conversion_units_entry.get()
         locator_choice = LocatorType(self.locator_choice_var.get())
 
+        if analysis_type == AnalysisType.MARKER_DELTAS:
+            analysis.analyze_marker_deltas(conversion_factor, conversion_units)
+        if analysis_type == AnalysisType.NECKING_POINT:
+            analysis.analyze_necking_point(conversion_factor, conversion_units)
+        if analysis_type == AnalysisType.POISSONS_RATIO:
+            analysis.poissons_ratio(conversion_factor, conversion_units)
+        if analysis_type == AnalysisType.POISSONS_RATIO_CSV:
+            analysis.poissons_ratio_csv()
+        
         if analysis_type == AnalysisType.DISPLACEMENT:
             analysis.marker_movement_analysis(analysis_type, conversion_factor, conversion_units, 'output/displacement.csv', f'displacement ({conversion_units})', locator_type=locator_choice)
         if analysis_type == AnalysisType.DISTANCE:

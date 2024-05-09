@@ -4,8 +4,7 @@
 
 FIX
 - all tools definitely broke after refactor, so adjust the tools to work with new marker_movement_analysis function
-- move all poissons button function calls to self.call_analysis in main ui class
-    - functions don't need to be combined and simplified like the cell ones, but they should no longer need user units tuple and can instead receive indv args
+    - for poissons stuff that doesn't have the same args as new cell mvmt function, we can handle this by having a dictionary like the function map, or even a dictionary with tuple values where value 0 is the function and value 1 is a list of args that are then unpacked in the func call
 
 Housekeeping
 
@@ -26,7 +25,7 @@ Cell Mechanics
     - added button for displacement, separating displacement and distance
     - removed rms distance and rms displacement opting for the regular distance and displacement
     - changed all cell related analysis buttons (displacement, distance, velocity, and area) to call a TrackingUI class function 'call_analysis'
-    - this functioncalls marker movement analysis with the appropriate args depending on the enum given in the button function call
+    - this function calls marker movement analysis with the appropriate args depending on the enum given in the button function call
     - adjusted enums to not include the word marker and also split displacement into displacement and distance
     - added enum for locator type, so user can use the centroid as the marker from surface area tracking
     - error check to make sure user has centroid selected when using surface area cuz marker tracking will not give area or centroid
@@ -36,8 +35,10 @@ Cell Mechanics
     - grab time, x, and y values all the same way across analysis types, each analysis type just has a few unique lines for the specific operations it needs. 
     - depecreated velocity, displacement, and area functions opting for this new refactor
     - tl:dr combined 3 functions into 1 and it's way cleaner than any of the old ones were
+- switched get_plot_args to use kwargs
+- plot titles now include marker or centroid (if relevant)
+- poissons ratio function calls now also handled from main ui class call_analysis function
 
-git commit -m "marker mvmt analysis function works for disp, dist, area, vel in main ui"
 5/7
 - added formulas of how data is analyzed to readme
 - fixed multithread bug where if queue item is none it breaks in some threads because some threads tried to unpack iterable of queue item before checking if it's none
