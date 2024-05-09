@@ -3,10 +3,9 @@
 ## TODO
 
 FIX
-- if tracker gets lost, still records data in multithreaded version (it shouldn't)
-- await details on retrying RMS
-    - rms displacement (formula roberto sent)
-    - ensure what is currently being referred to as rms disp is changed to rms distance
+- all tools definitely broke after refactor, so adjust the tools to work with new marker_movement_analysis function
+- move all poissons button function calls to self.call_analysis in main ui class
+    - functions don't need to be combined and simplified like the cell ones, but they should no longer need user units tuple and can instead receive indv args
 
 Housekeeping
 
@@ -23,6 +22,22 @@ Cell Mechanics
 - commented out rms displacement from marker distance awaiting meeting to decide future of rms functionality
 - replaced it for now with regular displacement and distance
 
+- in marker movement refactor branch:
+    - added button for displacement, separating displacement and distance
+    - removed rms distance and rms displacement opting for the regular distance and displacement
+    - changed all cell related analysis buttons (displacement, distance, velocity, and area) to call a TrackingUI class function 'call_analysis'
+    - this functioncalls marker movement analysis with the appropriate args depending on the enum given in the button function call
+    - adjusted enums to not include the word marker and also split displacement into displacement and distance
+    - added enum for locator type, so user can use the centroid as the marker from surface area tracking
+    - error check to make sure user has centroid selected when using surface area cuz marker tracking will not give area or centroid
+    - added kwargs to marker movement analysis in prep for receiving the args like df and chosen video data from tool function calls
+    - determined df input path and x,y location column names based on locator type choice (marker or centroid)
+    - data multiplicity determines for range, instead of handling different data multiplicities differently in the for loop, this waaaaayy cleaner
+    - grab time, x, and y values all the same way across analysis types, each analysis type just has a few unique lines for the specific operations it needs. 
+    - depecreated velocity, displacement, and area functions opting for this new refactor
+    - tl:dr combined 3 functions into 1 and it's way cleaner than any of the old ones were
+
+git commit -m "marker mvmt analysis function works for disp, dist, area, vel in main ui"
 5/7
 - added formulas of how data is analyzed to readme
 - fixed multithread bug where if queue item is none it breaks in some threads because some threads tried to unpack iterable of queue item before checking if it's none

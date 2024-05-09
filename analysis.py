@@ -10,6 +10,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import json
 import re
+import os
 from collections import defaultdict
 
 from exceptions import error_popup, warning_popup
@@ -597,7 +598,7 @@ def analyze_necking_point(user_unit_conversion, df=None, will_save_figures=True,
 
     return times, radial_strains, plot_args, n_datasets
 
-def poissons_ratio(user_unit_conversion, is_removing=False):
+def poissons_ratio(user_unit_conversion):
     """
     Calculates Poisson's ratio for a material by analyzing longitudinal and radial strains, and additionally computes
     the derivatives of these strains over time. The function integrates data from previous tracking and necking operations,
@@ -742,8 +743,465 @@ def poissons_ratio_csv(user_unit_conversion, df=None, will_save_figures=True, ch
     return times, poissons_ratios, plot_args, n_datasets
 
 
-def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chosen_video_data=None):
+def boxplot_time_ranges(df, times, labels, conversion_units):
+    print(df, times, labels)
+
+    # find column of interest (the y column that will be averaged across time ranges)
+    interest_column, analysis_type = find_interest_column_and_type(df)
+    df_label_columns = [col for col in df.columns if 'data_label' in col]
+    time_col, time_label, time_unit = get_time_labels(df)
+    time_ranges_averages = defaultdict(list)
+    time_range_labels = [f"{float(t0)}-{float(tf)}" for t0, tf in times] # turn list of tuples into list of strings for boxplot labels
+    data_lists = []
+
+    for t0,tf in times: # iterate through tuple time ranges
+        t0, tf = float(t0), float(tf)
+        cur_range_interest_values = [] # list of all measured values within cur_time range to be averaged for a box
+        for label in labels: # iterate through all labels selected for analysis
+            for col in df_label_columns: # find dataset corresponding to current label
+                if df[col].str.contains(label).any():
+                    dataset_num = int(col.split('-', 1)[0])
+                    time_col, _, _ = get_time_labels(df, dataset_num)
+                    cur_range_df = df[(df[time_col] >= t0) & (df[time_col] <= tf)]
+                    cur_data = cur_range_df[f'{dataset_num}-{interest_column}']
+                    cur_range_interest_values.append(cur_data)
+            avg = np.mean(cur_range_interest_values)
+            time_ranges_averages[f'{t0}-{tf}'].append(avg)
+        data_lists.append(time_ranges_averages[f'{t0}-{tf}'])
+    print(time_ranges_averages)
+
+    fig, ax = plt.subplots()
+    boxplot = ax.boxplot(data_lists, patch_artist=True)
+
+    for patch in boxplot['boxes']:
+        patch.set_facecolor('white')
+
+    for median in boxplot['medians']:
+        median.set_color('black') 
+
+    for i, time_range in enumerate(time_range_labels, start=1):  # count from 1 to match boxplot positions
+        means = time_ranges_averages[time_range] # grab avg velocity previously calculated
+        print( means, time_range_labels, time_ranges_averages)
+        x_jitter = np.random.normal(i, 0.025, size=len(means)) # some x jitter so points don't overlap
+        ax.scatter(x_jitter, means, color='darkblue', zorder=3, marker='D', s=20, alpha=0.8) # plot mean value in the correct box with some x jitter
+
+    plot_args = get_plot_args(analysis_type, time_label=time_label, conversion_units=conversion_units, time_unit=time_unit)
+
+    with open("plot_opts/plot_customizations.json", 'r') as plot_customs_file:
+        plot_customs = json.load(plot_customs_file)
+    font = plot_customs['font']
+
+    tick_pos = list(range(1, len(time_range_labels) + 1))
+    plt.xticks(tick_pos, time_range_labels, fontsize=plot_customs['value_text_size'], fontfamily=font)
+    plt.yticks(fontsize=plot_customs['value_text_size'], fontfamily=font) 
+    plt.title(plot_args['title'], fontsize=plot_customs['title_text_size'], fontfamily=font)
+    plt.xlabel(plot_args['x_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
+    plt.ylabel(plot_args['y_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
+    plt.tick_params(axis='both', direction=plot_customs['tick_dir'])
+    plt.tight_layout()
+    plt.savefig(f"figures/{interest_column}_time_ranges_boxplot.{plot_customs['fig_format']}", dpi=plot_customs['fig_dpi'])
+
+    print("Done")
+
+
+def boxplot_conditions(df, conditions_dict, conversion_units):
+    print(df, conditions_dict)
+
+    # find column of interest
+    # this is the y value column name that will be averaged and plotted
+    interest_column, analysis_type = find_interest_column_and_type(df)
+    df_label_columns = [col for col in df.columns if 'data_label' in col]
+    condition_averages = defaultdict(list)
+    conditions = list(conditions_dict.keys())
+    _, time_label, time_unit = get_time_labels(df)
+
+    for condition, label_list in conditions_dict.items(): # iterate through each condition
+        print(condition, label_list)
+        for label in label_list: # iterate through the labels associated with that condition
+            print(label)
+            for col in df_label_columns: # iterate through data label cols to find dataset index
+                if df[col].str.contains(label).any(): # when we find the datalabel column for the cur label
+                    dataset_num = int(col.split('-', 1)[0])
+                    avg = np.mean(df[f'{dataset_num}-{interest_column}'])
+                    condition_averages[condition].append(avg)
+                    break
+
+    print(condition_averages)
+
+    data_lists = [condition_averages[condition] for condition in list(conditions_dict.keys())] # boxplot takes in a list of lists, each inner list is a list of points for the box
+    fig, ax = plt.subplots()
+    boxplot = ax.boxplot(data_lists, patch_artist=True)
+
+    for patch in boxplot['boxes']:
+        patch.set_facecolor('white')
+
+    for median in boxplot['medians']:
+        median.set_color('black') 
+
+    for i, condition in enumerate(conditions, start=1):  # count from 1 to match boxplot positions
+        means = condition_averages[condition] # grab avg previously calculated
+        print(means, conditions, condition_averages)
+        x_jitter = np.random.normal(i, 0.025, size=len(means)) # some x jitter so points don't overlap
+        ax.scatter(x_jitter, means, color='darkblue', zorder=3, marker='D', s=20, alpha=0.8) # plot mean value in the correct box with some x jitter
+
+    plot_args = get_plot_args(analysis_type, time_label=time_label, conversion_units=conversion_units, time_unit=time_unit)
+
+    with open("plot_opts/plot_customizations.json", 'r') as plot_customs_file:
+        plot_customs = json.load(plot_customs_file)
+    font = plot_customs['font']
+
+    tick_pos = list(range(1, len(condition_averages) + 1))
+    plt.xticks(tick_pos, list(condition_averages.keys()), fontsize=plot_customs['value_text_size'], fontfamily=font)
+    plt.yticks(fontsize=plot_customs['value_text_size'], fontfamily=font) 
+    plt.title(plot_args['title'], fontsize=plot_customs['title_text_size'], fontfamily=font)
+    plt.xlabel(plot_args['x_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
+    plt.ylabel(plot_args['y_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
+    plt.tick_params(axis='both', direction=plot_customs['tick_dir'])
+    plt.tight_layout()
+    
+    plt.savefig(f"figures/{interest_column}_conditions_boxplot.{plot_customs['fig_format']}", dpi=plot_customs['fig_dpi'])
+
+    print("Done")
+
+
+def marker_movement_analysis(analysis_type, conversion_factor, conversion_units, output_df_path, output_y_col_name, **kwargs):
     """
+
+    """
+    # unpack kwargs
+    df = kwargs.get('df', None)
+    will_save_figures = kwargs.get('will_save_figures', True)
+    chosen_video_data = kwargs.get('chosen_video_data', None)
+    locator_type = kwargs.get('locator_type', LocatorType.BBOX)
+
+    # determine if we are finding just marker distance or centroid distance
+    if locator_type == LocatorType.BBOX:
+        input_df_path = "output/Tracking_Output.csv"
+        x_loc_column = "-x (px)"
+        y_loc_column = "-y (px)"
+    elif locator_type == LocatorType.CENTROID:
+        input_df_path = "output/Surface_Area_Output.csv"
+        x_loc_column = "-x centroid location"
+        y_loc_column = "-y centroid location"
+        y_area_column = "-cell surface area (px^2)"
+    else:
+        raise Exception("Unkonwn locator type")
+
+    print(f"Finding Marker something maybe...")
+    if not isinstance(df, pd.DataFrame):
+        df = pd.read_csv(input_df_path) # open csv created/modified from marker tracking process
+    print(df.head())
+
+    if locator_type == LocatorType.BBOX:
+        n_trackers = df['1-Tracker'].dropna().unique().shape[0] # get number of trackers
+    else:
+        n_trackers = 1
+
+    time_col, time_label, time_unit = get_time_labels(df)
+    _, _, num_datasets = get_num_datasets(df) # get num datasets
+    
+    data_labels = []
+    analyzed_data = []
+    times = []
+
+    analysis_df = pd.DataFrame()
+    for_range = [0,0]
+
+    # determine if multiple videos, or multiple trackers, or single of both (outlier removal)
+    n_plots = 1
+    data_multiplicity_type = check_num_trackers_with_num_datasets(n_trackers, num_datasets)
+    if data_multiplicity_type == DataMultiplicity.VIDEOS:
+        for_range = [1, num_datasets+1] # output tracking csv's are 1 indexed
+        n_plots = num_datasets
+        print("VIDEOS")
+    elif data_multiplicity_type == DataMultiplicity.TRACKERS:
+        
+        for_range = [1, n_trackers+1]
+        n_plots = n_trackers
+        print("TRACKERS")
+    elif data_multiplicity_type == DataMultiplicity.SINGLE:
+        if chosen_video_data == None:
+            chosen_video_data = 1
+        for_range = [chosen_video_data, chosen_video_data+1]
+        print("SINGLE")
+
+    print(for_range)
+    for data_idx in range(for_range[0], for_range[1]):
+        try: # handle error that may occur of a column was removed manually by user
+            if data_multiplicity_type == DataMultiplicity.TRACKERS:
+                cur_df = df[df['1-Tracker'] == data_idx]
+            else:
+                cur_df = get_relevant_columns(df, data_idx)
+        except:
+            print(f"Dataset index: {data_idx} not found, skipping...")
+            continue
+
+        time_col, _, _ = get_time_labels(df, data_idx)
+        time = cur_df[time_col].values
+        time = time[~np.isnan(time)]
+        x = cur_df[f'{data_idx}{x_loc_column}'].values * conversion_factor
+        x = x[~np.isnan(x)]
+        y = cur_df[f'{data_idx}{y_loc_column}'].values * conversion_factor
+        y = y[~np.isnan(y)]
+
+        data_label = cur_df[f'{data_idx}-data_label'].dropna().unique()[0]
+        data_labels.append(data_label)
+        
+        if analysis_type == AnalysisType.DISTANCE:
+            interest_data = np.sqrt( np.diff(x)**2 + np.diff(y)**2 ) # magnitude of x and y differences
+            time = time[1:]
+
+        if analysis_type == AnalysisType.DISPLACEMENT:
+            interest_data = np.sqrt( (x - x[0])**2 + (y - y[0])**2 )[1:]
+            time = time[1:]
+
+        if analysis_type == AnalysisType.VELOCITY:
+            vel_x = np.diff(x) / np.diff(time)
+            vel_y = np.diff(y) / np.diff(time)
+            interest_data = np.sqrt(vel_x**2 + vel_y**2) # magnitude of velocities
+            time = time[1:]
+
+        if analysis_type == AnalysisType.SURFACE_AREA:
+            interest_data = df[f'{data_idx}{y_area_column}'].values * conversion_factor
+            interest_data = interest_data[~np.isnan(interest_data)]
+
+        analyzed_data.append(interest_data)
+        times.append(time)
+
+        print("time len", len(time), "; y len", len(interest_data))
+        cur_analysis_df = pd.DataFrame({
+            time_col: time,
+            f'{data_idx}-{output_y_col_name}': interest_data,
+            f'{data_idx}-locator_type': locator_type.value,
+            f'{data_idx}-data_label': data_label
+        })
+        analysis_df = pd.concat([analysis_df, cur_analysis_df], axis=1)
+
+    analysis_df.to_csv(output_df_path, index=False)
+
+    # plot
+    plot_args = get_plot_args(analysis_type, time_label, data_labels, conversion_units, time_unit)
+
+    if will_save_figures:
+        fig_name = locator_type.value + ' ' + os.path.splitext(os.path.basename(output_df_path))[0]
+        fig, ax = plot_scatter_data(times, analyzed_data, plot_args, n_plots, output_fig_name=fig_name)
+
+    print("Done")
+    return times, analyzed_data, plot_args, n_plots
+
+
+
+''' DEPRECATED FUNCTIONS '''
+
+
+def marker_distance(user_unit_conversion, df=None, will_save_figures=True, chosen_video_data=None, locator_type=LocatorType.BBOX):
+    """
+    DEPRECATED - opted for all encompassing marker_movement_analysis
+
+    CURRENTLY AWAITING DETAILS ON REIMPLEMENTING RMS, so currently just plots regular distance and displacement
+    magnitude of difference of 2D points
+
+    Calculates and plots the root mean square displacement of markers over time. This function reads tracking data,
+    processes it to compute the RMS displacement for each tracker or dataset, and plots the results.
+
+    Details:
+        - The function reads tracking data from 'output/Tracking_Output.csv'.
+        - It identifies whether data are from multiple trackers or multiple video datasets and calculates RMS displacement accordingly.
+        - Displacement calculations are based on changes in x and y positions over time, adjusted for a conversion factor to a specified unit.
+        - The plot is generated to visually represent the displacement over time for each dataset or tracker.
+
+    Note:
+        - Ensure the input CSV file is properly formatted with necessary columns for x and y positions.
+        - RMS calculations are sensitive to noise in the data, which can affect the results.
+        - Ensure directories for saving outputs exist if saving plots or data.
+
+    Args:
+        user_unit_conversion (tuple): Contains the conversion factor and units to convert pixel measurements to a desired unit.
+
+    Returns:
+        None: The function directly outputs a plot but does not return any variables.
+    """
+    # determine if we are finding just marker distance or centroid distance
+    if locator_type == LocatorType.BBOX:
+        df_path = "output/Tracking_Output.csv"
+        x_loc_column = "-x (px)"
+        y_loc_column = "-y (px)"
+    elif locator_type == LocatorType.CENTROID:
+        df_path = "output/Surface_Area_Output.csv"
+        x_loc_column = "-x centroid location"
+        y_loc_column = "-y centroid location"
+
+    print("Finding Marker Displacement and Distance...")
+    conversion_factor, conversion_units = user_unit_conversion
+    if not isinstance(df, pd.DataFrame):
+        df = pd.read_csv(df_path) # open csv created/modified from marker tracking process
+    print(df.head())
+    
+    time_col, time_label, time_unit = get_time_labels(df)
+    _, _, num_tracker_datasets = get_num_datasets(df) # get num datasets
+    n_trackers = df['1-Tracker'].dropna().unique().shape[0] # get number of trackers
+    data_labels = []
+    #rms_disps = []
+    displacements = []
+    distances = []
+    times = []
+    print(n_trackers, num_tracker_datasets)
+    n_plots = 0
+    rms_df = pd.DataFrame()
+
+    n_datasets = int(df.columns[-1].split('-', 1)[0])
+    # determine if there are multiple trackers and 1 video, or multiple videos and 1 tracker
+    if chosen_video_data is None:
+        chosen_video_data = 1
+        data_multiplicity_type = check_num_trackers_with_num_datasets(n_trackers, num_tracker_datasets)
+    else: # if called from data selector or outlier removal will do one dataset at a time
+        data_multiplicity_type = DataMultiplicity.SINGLE
+
+    if data_multiplicity_type == DataMultiplicity.TRACKERS or data_multiplicity_type == DataMultiplicity.SINGLE:
+        # account for mismatch lengths of tracker information (if 1 tracker fell off before the other)
+        #check_tracker_data_lengths(df, n_trackers)
+        n_plots = n_trackers
+
+        for tracker in range(n_trackers):
+            print("CHOSEN ", chosen_video_data)
+            time_col, _, _ = get_time_labels(df, chosen_video_data)
+            cur_df = df[df[f'{chosen_video_data}-Tracker'] == tracker+1]
+            time = cur_df[time_col].unique()
+            time = time[~np.isnan(time)]
+            x = cur_df[f'{chosen_video_data}{x_loc_column}'].values * conversion_factor
+            y = cur_df[f'{chosen_video_data}{y_loc_column}'].values * conversion_factor
+            data_label = cur_df[f'{chosen_video_data}-data_label'].dropna().unique()[0]
+            data_labels.append(data_label)
+            '''rms = rms_displacement(x[~np.isnan(x)], y[~np.isnan(y)])
+            rms_disps.append(rms)'''
+
+            disp = np.sqrt( (x - x[0])**2 + (y - y[0])**2 )[1:]
+            dist = np.sqrt( np.diff(x)**2 + np.diff(y)**2 ) # magnitude of x and y differences
+            times.append(time[:-1])
+            displacements.append(disp)
+            distances.append(dist)
+
+            print(len( time[:-1]),len(disp),len(dist),len(data_label),)
+            cur_rms_df = pd.DataFrame({
+                time_col: time[:-1],
+                f'{chosen_video_data}-displacement': disp,
+                f'{chosen_video_data}-distance': dist,
+                f'{chosen_video_data}-rms_displacement': np.nan,
+                f'{chosen_video_data}-data_label': data_label
+            })
+            rms_df = pd.concat([rms_df, cur_rms_df], axis=1)
+
+    elif data_multiplicity_type == DataMultiplicity.VIDEOS:
+        n_plots = num_tracker_datasets
+        for dataset in range(num_tracker_datasets):
+            cur_df = get_relevant_columns(df, dataset+1)
+            x = cur_df[f'{dataset+1}{x_loc_column}'].values * conversion_factor
+            y = cur_df[f'{dataset+1}{y_loc_column}'].values * conversion_factor
+            time_col, _, _ = get_time_labels(df, dataset+1)
+            time = cur_df[time_col].values
+            time = time[~np.isnan(time)]
+            data_label = cur_df[f'{dataset+1}-data_label'].dropna().unique()[0]
+            data_labels.append(data_label)
+            '''rms = rms_displacement(x[~np.isnan(x)], y[~np.isnan(y)])
+            rms_disps.append(rms)'''
+            disp = np.sqrt( (x - x[0])**2 + (y - y[0])**2 )
+            dist = np.sqrt( np.diff(x)**2 + np.diff(y)**2 ) # magnitude of x and y differences
+            times.append(time[:-1])
+            displacements.append(disp)
+            distances.append(dist)
+
+            cur_rms_df = pd.DataFrame({
+                time_col: time[:-1],
+                f'{dataset+1}-displacement': disp,
+                f'{dataset+1}-distance': dist,
+                f'{dataset+1}-rms_displacement': np.nan,
+                f'{dataset+1}-data_label': data_label
+            })
+            rms_df = pd.concat([rms_df, cur_rms_df], axis=1)
+
+    rms_df.to_csv("output/rms_displacement.csv", index=False)
+
+    
+    # plot marker velocity
+    disp_plot_args = get_plot_args(AnalysisType.MARKER_DISPLACEMENT, time_label, data_labels, conversion_units, time_unit)
+    dist_plot_args = get_plot_args(AnalysisType.MARKER_DISTANCE, time_label, data_labels, conversion_units, time_unit)
+
+    if will_save_figures:
+        disp_fig, disp_ax = plot_scatter_data(times, displacements, disp_plot_args, n_plots, output_fig_name='marker_displacement')
+        dist_fig, dist_ax = plot_scatter_data(times, distances, dist_plot_args, n_plots, output_fig_name='marker_distance')
+
+    print("Done")
+    return times, displacements, disp_plot_args, n_plots
+
+def single_marker_spread(user_unit_conversion, df=None, will_save_figures=True, chosen_video_data=None):
+    """
+    DEPRECATED - opted for all encompassing marker_movement_analysis
+    Analyzes and visualizes changes in tracked surface areas over time. This function processes the previously tracked surface
+    area data to compute metrics such as area growth rate and plots these changes over time to facilitate analysis.
+
+    Details:
+        - The function reads surface area tracking data from 'output/Surface_Are_Output.csv', which should contain surface area data
+          across multiple frames or conditions.
+        - It calculates the percentage change in surface area relative to the initial area and other relevant metrics.
+        - Results are visualized in a plot that displays changes in surface area over time, highlighting any significant growth or contraction.
+        - Optionally, the function can compare surface area changes across different experimental conditions if such data is available.
+
+    Note:
+        - Ensure that the input CSV file is formatted correctly with necessary columns for surface areas and possibly conditions.
+        - Accurate initial area measurements are crucial for meaningful percentage change calculations.
+        - Ensure directories for saving outputs exist if saving plots or data.
+
+    Args:
+        user_unit_conversion (tuple): Contains the conversion factor and units to convert pixel measurements to a desired unit.
+
+    Returns:
+        None: The function directly outputs a plot but does not return any variables.
+    """
+    print("Finding Marker Spread...")
+    conversion_factor, conversion_units = user_unit_conversion
+
+    if not isinstance(df, pd.DataFrame):
+        df = pd.read_csv("output/Surface_Area_Output.csv") # open csv created/modified from marker tracking process
+    print(df.head())
+
+    if chosen_video_data is None:
+        chosen_video_data = 1
+    
+    time_col, time_label, time_unit = get_time_labels(df, chosen_video_data)
+    _, _, num_tracker_datasets = get_num_datasets(df)
+    data_multiplicity_type = check_num_trackers_with_num_datasets(1, num_tracker_datasets)
+
+    surface_areas = []
+    data_labels = []
+    times = []
+    for i in range(num_tracker_datasets):
+        time = df[time_col].values
+        if data_multiplicity_type == DataMultiplicity.SINGLE:
+            if chosen_video_data is None:
+                chosen_video_data = 1
+            surface_area = df[f'{chosen_video_data}-cell surface area (px^2)'].values * conversion_factor
+            data_labels.append(df[f'{chosen_video_data}-data_label'].unique()[0])
+        else:
+            surface_area = df[f'{i+1}-cell surface area (px^2)'].values * conversion_factor
+            data_labels.append(df[f'{i+1}-data_label'].unique()[0])
+
+        times.append(time)
+        surface_areas.append(surface_area)
+
+    # plot
+    plot_args = get_plot_args(AnalysisType.SURFACE_AREA, time_label, data_labels, conversion_units)
+
+    if will_save_figures:
+        # plot marker velocity
+        area_fig, area_ax = plot_scatter_data(times, surface_areas, plot_args, num_tracker_datasets, output_fig_name='marker_surface_area')
+
+    print("Done")
+    return times, surface_areas, plot_args, num_tracker_datasets
+
+def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chosen_video_data=None):
+    """ 
+    DEPRECATED - opted for all encompassing marker_movement_analysis
+    
     Calculates and plots the velocities of tracked markers based on their positional data over time. Optionally performs
     Fourier transform to analyze the frequency components of these velocities. The function supports multiple datasets
     or multiple trackers within a single dataset and handles discrepancies in data lengths.
@@ -886,128 +1344,6 @@ def marker_velocity(user_unit_conversion, df=None, will_save_figures=True, chose
     print("Done")
     return times, tracker_velocities, plot_args, n_plots
 
-def boxplot_time_ranges(df, times, labels, conversion_units):
-    print(df, times, labels)
-
-    # find column of interest (the y column that will be averaged across time ranges)
-    interest_column, analysis_type = find_interest_column_and_type(df)
-    df_label_columns = [col for col in df.columns if 'data_label' in col]
-    time_col, time_label, time_unit = get_time_labels(df)
-    time_ranges_averages = defaultdict(list)
-    time_range_labels = [f"{float(t0)}-{float(tf)}" for t0, tf in times] # turn list of tuples into list of strings for boxplot labels
-    data_lists = []
-
-    for t0,tf in times: # iterate through tuple time ranges
-        t0, tf = float(t0), float(tf)
-        cur_range_interest_values = [] # list of all measured values within cur_time range to be averaged for a box
-        for label in labels: # iterate through all labels selected for analysis
-            for col in df_label_columns: # find dataset corresponding to current label
-                if df[col].str.contains(label).any():
-                    dataset_num = int(col.split('-', 1)[0])
-                    time_col, _, _ = get_time_labels(df, dataset_num)
-                    cur_range_df = df[(df[time_col] >= t0) & (df[time_col] <= tf)]
-                    cur_data = cur_range_df[f'{dataset_num}-{interest_column}']
-                    cur_range_interest_values.append(cur_data)
-            avg = np.mean(cur_range_interest_values)
-            time_ranges_averages[f'{t0}-{tf}'].append(avg)
-        data_lists.append(time_ranges_averages[f'{t0}-{tf}'])
-    print(time_ranges_averages)
-
-    fig, ax = plt.subplots()
-    boxplot = ax.boxplot(data_lists, patch_artist=True)
-
-    for patch in boxplot['boxes']:
-        patch.set_facecolor('white')
-
-    for median in boxplot['medians']:
-        median.set_color('black') 
-
-    for i, time_range in enumerate(time_range_labels, start=1):  # count from 1 to match boxplot positions
-        means = time_ranges_averages[time_range] # grab avg velocity previously calculated
-        print( means, time_range_labels, time_ranges_averages)
-        x_jitter = np.random.normal(i, 0.025, size=len(means)) # some x jitter so points don't overlap
-        ax.scatter(x_jitter, means, color='darkblue', zorder=3, marker='D', s=20, alpha=0.8) # plot mean value in the correct box with some x jitter
-
-    plot_args = get_plot_args(analysis_type, time_label=time_label, conversion_units=conversion_units, time_unit=time_unit)
-
-    with open("plot_opts/plot_customizations.json", 'r') as plot_customs_file:
-        plot_customs = json.load(plot_customs_file)
-    font = plot_customs['font']
-
-    tick_pos = list(range(1, len(time_range_labels) + 1))
-    plt.xticks(tick_pos, time_range_labels, fontsize=plot_customs['value_text_size'], fontfamily=font)
-    plt.yticks(fontsize=plot_customs['value_text_size'], fontfamily=font) 
-    plt.title(plot_args['title'], fontsize=plot_customs['title_text_size'], fontfamily=font)
-    plt.xlabel(plot_args['x_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
-    plt.ylabel(plot_args['y_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
-    plt.tick_params(axis='both', direction=plot_customs['tick_dir'])
-    plt.tight_layout()
-    plt.savefig(f"figures/{interest_column}_time_ranges_boxplot.{plot_customs['fig_format']}", dpi=plot_customs['fig_dpi'])
-
-    print("Done")
-
-
-def boxplot_conditions(df, conditions_dict, conversion_units):
-    print(df, conditions_dict)
-
-    # find column of interest
-    # this is the y value column name that will be averaged and plotted
-    interest_column, analysis_type = find_interest_column_and_type(df)
-    df_label_columns = [col for col in df.columns if 'data_label' in col]
-    condition_averages = defaultdict(list)
-    conditions = list(conditions_dict.keys())
-    _, time_label, time_unit = get_time_labels(df)
-
-    for condition, label_list in conditions_dict.items(): # iterate through each condition
-        print(condition, label_list)
-        for label in label_list: # iterate through the labels associated with that condition
-            print(label)
-            for col in df_label_columns: # iterate through data label cols to find dataset index
-                if df[col].str.contains(label).any(): # when we find the datalabel column for the cur label
-                    dataset_num = int(col.split('-', 1)[0])
-                    avg = np.mean(df[f'{dataset_num}-{interest_column}'])
-                    condition_averages[condition].append(avg)
-                    break
-
-    print(condition_averages)
-
-    data_lists = [condition_averages[condition] for condition in list(conditions_dict.keys())] # boxplot takes in a list of lists, each inner list is a list of points for the box
-    fig, ax = plt.subplots()
-    boxplot = ax.boxplot(data_lists, patch_artist=True)
-
-    for patch in boxplot['boxes']:
-        patch.set_facecolor('white')
-
-    for median in boxplot['medians']:
-        median.set_color('black') 
-
-    for i, condition in enumerate(conditions, start=1):  # count from 1 to match boxplot positions
-        means = condition_averages[condition] # grab avg previously calculated
-        print(means, conditions, condition_averages)
-        x_jitter = np.random.normal(i, 0.025, size=len(means)) # some x jitter so points don't overlap
-        ax.scatter(x_jitter, means, color='darkblue', zorder=3, marker='D', s=20, alpha=0.8) # plot mean value in the correct box with some x jitter
-
-    plot_args = get_plot_args(analysis_type, time_label=time_label, conversion_units=conversion_units, time_unit=time_unit)
-
-    with open("plot_opts/plot_customizations.json", 'r') as plot_customs_file:
-        plot_customs = json.load(plot_customs_file)
-    font = plot_customs['font']
-
-    tick_pos = list(range(1, len(condition_averages) + 1))
-    plt.xticks(tick_pos, list(condition_averages.keys()), fontsize=plot_customs['value_text_size'], fontfamily=font)
-    plt.yticks(fontsize=plot_customs['value_text_size'], fontfamily=font) 
-    plt.title(plot_args['title'], fontsize=plot_customs['title_text_size'], fontfamily=font)
-    plt.xlabel(plot_args['x_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
-    plt.ylabel(plot_args['y_label'], fontsize=plot_customs['label_text_size'], fontfamily=font)
-    plt.tick_params(axis='both', direction=plot_customs['tick_dir'])
-    plt.tight_layout()
-    
-    plt.savefig(f"figures/{interest_column}_conditions_boxplot.{plot_customs['fig_format']}", dpi=plot_customs['fig_dpi'])
-
-    print("Done")
-
-
-
 def velocity_boxplot(conditions, user_unit_conversion):
     """ DEPRECATED OPTING FOR BOXPLOTTER CLASS
     Generates a boxplot of cell velocities for specified conditions. This function reads cell velocity data,
@@ -1103,167 +1439,6 @@ def velocity_boxplot(conditions, user_unit_conversion):
     
     plt.savefig(f"figures/marker_velocity_boxplot.{plot_customs['fig_format']}", dpi=plot_customs['fig_dpi'])
 
-
-def marker_movement_analysis(analysis_type, conversion_factor, conversion_units, **kwargs):
-    """
-
-    """
-    # unpack kwargs
-    df = kwargs.get('df', None)
-    will_save_figures = kwargs.get('will_save_figures', True)
-    chosen_video_data = kwargs.get('chosen_video_data', None)
-    locator_type = kwargs.get('locator_type', LocatorType.BBOX)
-
-    # determine if we are finding just marker distance or centroid distance
-    if locator_type == LocatorType.BBOX:
-        df_path = "output/Tracking_Output.csv"
-        x_loc_column = "-x (px)"
-        y_loc_column = "-y (px)"
-    elif locator_type == LocatorType.CENTROID:
-        df_path = "output/Surface_Area_Output.csv"
-        x_loc_column = "-x centroid location"
-        y_loc_column = "-y centroid location"
-
-    print("Finding Marker Displacement and Distance...")
-    if not isinstance(df, pd.DataFrame):
-        df = pd.read_csv(df_path) # open csv created/modified from marker tracking process
-    print(df.head())
-    
-    time_col, time_label, time_unit = get_time_labels(df)
-    _, _, num_datasets = get_num_datasets(df) # get num datasets
-    n_trackers = df['1-Tracker'].dropna().unique().shape[0] # get number of trackers
-    
-    data_labels = []
-    #rms_disps = []
-    displacements = []
-    distances = []
-    times = []
-
-    rms_df = pd.DataFrame()
-    for_range = [0,0]
-
-    # determine if multiple videos, or multiple trackers, or single of both (outlier removal)
-    data_multiplicity_type = check_num_trackers_with_num_datasets(n_trackers, num_datasets)
-    if data_multiplicity_type == DataMultiplicity.VIDEOS:
-        for_range = [1, num_datasets+1] # output tracking csv's are 1 indexed
-    elif data_multiplicity_type == DataMultiplicity.TRACKERS:
-        for_range = [1, n_trackers+1]
-    elif data_multiplicity_type == DataMultiplicity.SINGLE:
-        if chosen_video_data == None:
-            chosen_video_data = 1
-        for_range = [chosen_video_data, chosen_video_data+1]
-
-    for data_idx in range(for_range[0], for_range[1]):
-        try: # handle error that may occur of a column was removed manually by user
-            cur_df = get_relevant_columns(df, data_idx)
-        except:
-            print(f"Dataset index: {data_idx} not found, skipping...")
-            continue
-
-        time_col, _, _ = get_time_labels(df, data_idx)
-        time = cur_df[time_col].values
-        time = time[~np.isnan(time)]
-        x = cur_df[f'{data_idx}{x_loc_column}'].values * conversion_factor
-        x = x[~np.isnan(x)]
-        y = cur_df[f'{data_idx}{y_loc_column}'].values * conversion_factor
-        y = y[~np.isnan(y)]
-
-        data_label = cur_df[f'{data_idx}-data_label'].dropna().unique()[0]
-        data_labels.append(data_label)
-        '''rms = rms_displacement(x[~np.isnan(x)], y[~np.isnan(y)])
-        rms_disps.append(rms)'''
-        disp = np.sqrt( (x - x[0])**2 + (y - y[0])**2 )
-        dist = np.sqrt( np.diff(x)**2 + np.diff(y)**2 ) # magnitude of x and y differences
-        times.append(time[:-1])
-        displacements.append(disp)
-        distances.append(dist)
-
-        cur_rms_df = pd.DataFrame({
-            time_col: time[:-1],
-            f'{data_idx}-displacement': disp,
-            f'{data_idx}-distance': dist,
-            f'{data_idx}-rms_displacement': np.nan,
-            f'{data_idx}-data_label': data_label
-        })
-        rms_df = pd.concat([rms_df, cur_rms_df], axis=1)
-
-    rms_df.to_csv("output/rms_displacement.csv", index=False)
-
-    
-    # plot marker velocity
-    disp_plot_args = get_plot_args(AnalysisType.MARKER_DISPLACEMENT, time_label, data_labels, conversion_units, time_unit)
-    dist_plot_args = get_plot_args(AnalysisType.MARKER_DISTANCE, time_label, data_labels, conversion_units, time_unit)
-
-    if will_save_figures:
-        disp_fig, disp_ax = plot_scatter_data(times, displacements, disp_plot_args, n_plots, output_fig_name='marker_displacement')
-        dist_fig, dist_ax = plot_scatter_data(times, distances, dist_plot_args, n_plots, output_fig_name='marker_distance')
-
-    print("Done")
-    return times, displacements, disp_plot_args, n_plots
-
-def single_marker_spread(user_unit_conversion, df=None, will_save_figures=True, chosen_video_data=None):
-    """
-    Analyzes and visualizes changes in tracked surface areas over time. This function processes the previously tracked surface
-    area data to compute metrics such as area growth rate and plots these changes over time to facilitate analysis.
-
-    Details:
-        - The function reads surface area tracking data from 'output/Surface_Are_Output.csv', which should contain surface area data
-          across multiple frames or conditions.
-        - It calculates the percentage change in surface area relative to the initial area and other relevant metrics.
-        - Results are visualized in a plot that displays changes in surface area over time, highlighting any significant growth or contraction.
-        - Optionally, the function can compare surface area changes across different experimental conditions if such data is available.
-
-    Note:
-        - Ensure that the input CSV file is formatted correctly with necessary columns for surface areas and possibly conditions.
-        - Accurate initial area measurements are crucial for meaningful percentage change calculations.
-        - Ensure directories for saving outputs exist if saving plots or data.
-
-    Args:
-        user_unit_conversion (tuple): Contains the conversion factor and units to convert pixel measurements to a desired unit.
-
-    Returns:
-        None: The function directly outputs a plot but does not return any variables.
-    """
-    print("Finding Marker Spread...")
-    conversion_factor, conversion_units = user_unit_conversion
-
-    if not isinstance(df, pd.DataFrame):
-        df = pd.read_csv("output/Surface_Area_Output.csv") # open csv created/modified from marker tracking process
-    print(df.head())
-
-    if chosen_video_data is None:
-        chosen_video_data = 1
-    
-    time_col, time_label, time_unit = get_time_labels(df, chosen_video_data)
-    _, _, num_tracker_datasets = get_num_datasets(df)
-    data_multiplicity_type = check_num_trackers_with_num_datasets(1, num_tracker_datasets)
-
-    surface_areas = []
-    data_labels = []
-    times = []
-    for i in range(num_tracker_datasets):
-        time = df[time_col].values
-        if data_multiplicity_type == DataMultiplicity.SINGLE:
-            if chosen_video_data is None:
-                chosen_video_data = 1
-            surface_area = df[f'{chosen_video_data}-cell surface area (px^2)'].values * conversion_factor
-            data_labels.append(df[f'{chosen_video_data}-data_label'].unique()[0])
-        else:
-            surface_area = df[f'{i+1}-cell surface area (px^2)'].values * conversion_factor
-            data_labels.append(df[f'{i+1}-data_label'].unique()[0])
-
-        times.append(time)
-        surface_areas.append(surface_area)
-
-    # plot
-    plot_args = get_plot_args(AnalysisType.SURFACE_AREA, time_label, data_labels, conversion_units)
-
-    if will_save_figures:
-        # plot marker velocity
-        area_fig, area_ax = plot_scatter_data(times, surface_areas, plot_args, num_tracker_datasets, output_fig_name='marker_surface_area')
-
-    print("Done")
-    return times, surface_areas, plot_args, num_tracker_datasets
 
 if __name__=='__main__':
     analyze_marker_deltas()

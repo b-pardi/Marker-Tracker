@@ -40,5 +40,5 @@ class AnalysisType(Enum):
     SURFACE_AREA = auto()
 
 class LocatorType(Enum):
-    BBOX = auto()
-    CENTROID = auto()
+    BBOX = 'marker'
+    CENTROID = 'centroid'

@@ -324,8 +324,8 @@ class TrackingUI:
         cell_displacement_btn.grid(row=8, column=1, padx=4, pady=4)
         cell_spread_btn = ttk.Button(submission_frame, text="Marker spread", command=lambda: self.call_analysis(AnalysisType.SURFACE_AREA), style='Regular.TButton')
         cell_spread_btn.grid(row=10, column=1, padx=4, pady=4)
-        cell_velocity_btn = ttk.Button(submission_frame, text="Marker velocity", command=lambda: self.call_analysis(AnalysisType.VELOCTIY), style='Regular.TButton')
-        cell_velocity_btn.grid(row=11, column=1, padx=4, pady=4)
+        cell_velocity_btn = ttk.Button(submission_frame, text="Marker velocity", command=lambda: self.call_analysis(AnalysisType.VELOCITY), style='Regular.TButton')
+        cell_velocity_btn.grid(row=9, column=1, padx=4, pady=4)
     
         data_selector_button = ttk.Button(submission_frame, text="Data selector", command=self.data_selector, style='Regular.TButton')
         data_selector_button.grid(row=19, column=0, columnspan=2, pady=(24,0))
@@ -500,20 +500,20 @@ class TrackingUI:
     def call_analysis(self, analysis_type):
         conversion_factor = float(self.conversion_factor_entry.get())
         conversion_units = self.conversion_units_entry.get()
-        locator_choice = self.locator_choice_var.get()
+        locator_choice = LocatorType(self.locator_choice_var.get())
 
+        if analysis_type == AnalysisType.DISPLACEMENT:
+            analysis.marker_movement_analysis(analysis_type, conversion_factor, conversion_units, 'output/displacement.csv', f'displacement ({conversion_units})', locator_type=locator_choice)
         if analysis_type == AnalysisType.DISTANCE:
-            if locator_choice == LocatorType.BBOX:
-                pass
-            if locator_choice == LocatorType.CENTROID:
-                pass       
-
+            analysis.marker_movement_analysis(analysis_type, conversion_factor, conversion_units, 'output/distance.csv', f'distance ({conversion_units})', locator_type=locator_choice)
+        if analysis_type == AnalysisType.VELOCITY:
+            analysis.marker_movement_analysis(analysis_type, conversion_factor, conversion_units, 'output/velocity.csv', f'velocity ({conversion_units})', locator_type=locator_choice)
         if analysis_type == AnalysisType.SURFACE_AREA:
-            pass
-
-        analysis.marker_movement_analysis(analysis_type, conversion_factor, conversion_units)
-
-
+            if locator_choice == LocatorType.BBOX: # marker tracking not viable for surface area
+                msg = "Error: Please select Centroid locator type for surface area,\nand ensure surface area tracking was done previously"
+                error_popup(msg)
+            else:
+                analysis.marker_movement_analysis(analysis_type, conversion_factor, conversion_units, 'output/surface_area.csv', f'surface_area ({conversion_units})', locator_type=locator_choice)
 
     def on_submit_tracking(self):
         """calls the appropriate functions with user spec'd args when tracking start button clicked"""        
