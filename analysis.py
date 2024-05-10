@@ -912,13 +912,16 @@ def marker_movement_analysis(analysis_type, conversion_factor, conversion_units,
 
     # determine if multiple videos, or multiple trackers, or single of both (outlier removal)
     n_plots = 1
-    data_multiplicity_type = check_num_trackers_with_num_datasets(n_trackers, num_datasets)
+    if chosen_video_data is None:
+        data_multiplicity_type = check_num_trackers_with_num_datasets(n_trackers, num_datasets)
+    else:
+        data_multiplicity_type = DataMultiplicity.SINGLE
+    
     if data_multiplicity_type == DataMultiplicity.VIDEOS:
         for_range = [1, num_datasets+1] # output tracking csv's are 1 indexed
         n_plots = num_datasets
         print("VIDEOS")
     elif data_multiplicity_type == DataMultiplicity.TRACKERS:
-        
         for_range = [1, n_trackers+1]
         n_plots = n_trackers
         print("TRACKERS")
@@ -952,17 +955,17 @@ def marker_movement_analysis(analysis_type, conversion_factor, conversion_units,
         
         if analysis_type == AnalysisType.DISTANCE:
             interest_data = np.sqrt( np.diff(x)**2 + np.diff(y)**2 ) # magnitude of x and y differences
-            time = time[1:]
+            time = time[:-1]
 
         if analysis_type == AnalysisType.DISPLACEMENT:
             interest_data = np.sqrt( (x - x[0])**2 + (y - y[0])**2 )[1:]
-            time = time[1:]
+            time = time[:-1]
 
         if analysis_type == AnalysisType.VELOCITY:
             vel_x = np.diff(x) / np.diff(time)
             vel_y = np.diff(y) / np.diff(time)
             interest_data = np.sqrt(vel_x**2 + vel_y**2) # magnitude of velocities
-            time = time[1:]
+            time = time[:-1]
 
         if analysis_type == AnalysisType.SURFACE_AREA:
             interest_data = df[f'{data_idx}{y_area_column}'].values * conversion_factor

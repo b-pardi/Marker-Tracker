@@ -4,7 +4,9 @@
 
 FIX
 - all tools definitely broke after refactor, so adjust the tools to work with new marker_movement_analysis function
-    - for poissons stuff that doesn't have the same args as new cell mvmt function, we can handle this by having a dictionary like the function map, or even a dictionary with tuple values where value 0 is the function and value 1 is a list of args that are then unpacked in the func call
+
+- distance in outlier removal isn't removing the point selected. need to just plot and remove the the distance.csv file directly
+- have option to remove from original file or remove from analyzed data file
 
 Housekeeping
 
@@ -16,6 +18,14 @@ Cell Mechanics
 - see about surface tracking on the stained videos (awaiting videos)
 
 # Changelog
+
+5/9
+- adapted outlier removal tool to work with new refactor
+    - since args are not all the same vars for all functions now, new dictionary self.function_args_map made and called right before function call to pass in **args to analysis function appropriately
+    - added centroid or marker options to outlier removal
+        - this dictates the df input file for marker movement functions
+        - added error checking to ensure centroid not selected if using poissons ratio analysis
+        - added error checking to ensure centroid IS selected for surface area
 
 5/8
 - commented out rms displacement from marker distance awaiting meeting to decide future of rms functionality
