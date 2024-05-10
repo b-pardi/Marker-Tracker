@@ -1139,8 +1139,8 @@ class OutlierRemoval:
 
         # define analysis function args
         self.set_analysis_function_args()
-
-        self.x_data, self.y_data, self.plot_args, _ = analysis_function(**self.function_args_map.get(self.analysis_choice))
+        args = self.function_args_map.get(self.analysis_choice)
+        self.x_data, self.y_data, self.plot_args, _ = analysis_function(**args)
 
         with open("plot_opts/plot_customizations.json", 'r') as plot_customs_file:
             plot_customs = json.load(plot_customs_file)
@@ -1210,33 +1210,38 @@ class OutlierRemoval:
 
 
 class DataSelector:
-    def __init__(self, parent, user_units):
+    def __init__(self, parent, conversion_factor, conversion_units):
         self.parent = parent
-        self.user_units = user_units
-        self.window = tk.Toplevel(self.parent)
+        self.root = parent.root
+        self.conversion_factor = conversion_factor
+        self.conversion_units = conversion_units
+        self.window = tk.Toplevel(self.root)
         self.window.title("Select a region of a plot")
         self.window.iconphoto(False, tk.PhotoImage(file="ico/m3b_comp.png"))
 
         self.label_to_dataset = {}
+
         # file options
         self.output_files = {
             'Longitudinal strain': 'output/Tracking_Output.csv',
             'Radial strain': 'output/Necking_Point_Output.csv',
             "Poisson's ratio (from csv)": 'output/poissons_ratio.csv',
-            'Marker velocity': 'output/Tracking_Output.csv',
-            'Marker RMS distance': 'output/Tracking_Output.csv',
-            'Surface area': 'output/Surface_Area_Output.csv'
+            'Marker velocity': ('output/Tracking_Output.csv', 'output/Surface_Area_Output.csv'), # movement can use marker or centroid locators
+            'Marker distance': ('output/Tracking_Output.csv', 'output/Surface_Area_Output.csv'),
+            'Marker displacement': ('output/Tracking_Output.csv', 'output/Surface_Area_Output.csv'),
+            'Surface area': 'output/Surface_Area_Output.csv',
         }
 
+        # analysis_function(self.user_units, self.df, False, self.dataset_index)
         self.function_map = {
             'Longitudinal strain': analysis.analyze_marker_deltas,
-            'Radial strain': analysis.analyze_necking_point,
+            'Radial strain':  analysis.analyze_necking_point,
             "Poisson's ratio (from csv)": analysis.poissons_ratio_csv,
-            'Marker velocity': analysis.marker_velocity,
-            'Marker RMS distance': analysis.marker_distance,
-            'Surface area': analysis.single_marker_spread
+            'Marker velocity':  analysis.marker_movement_analysis,
+            'Marker distance': analysis.marker_movement_analysis,
+            'Marker displacement': analysis.marker_movement_analysis,
+            'Surface area':  analysis.marker_movement_analysis
         }
-
         screen_width = self.window.winfo_screenwidth()
         screen_height = self.window.winfo_screenheight()
         system_dpi = self.window.winfo_fpixels('1i')  # This fetches the DPI in some environments
@@ -1245,17 +1250,27 @@ class DataSelector:
 
         # Create a combobox widget for user units selection
         data_selection_frame = tk.Frame(self.window)
+
+        locator_choice_label = ttk.Label(data_selection_frame, text="Locator choice for:\ndiplacement, distance, and velocity")
+        locator_choice_label.grid(row=0, column=0, columnspan=2, padx=4, pady=(8,2))
+        self.locator_choice_var = tk.StringVar()
+        self.locator_choice_var.set(LocatorType.BBOX.value)
+        locator_marker_choice_radio = ttk.Radiobutton(data_selection_frame, text='Marker (use marker tracker)', variable=self.locator_choice_var, value=LocatorType.BBOX.value)
+        locator_marker_choice_radio.grid(row=1, column=0)
+        locator_choice_centroid_radio = ttk.Radiobutton(data_selection_frame, text='Centroid (use surface area)', variable=self.locator_choice_var, value=LocatorType.CENTROID.value)
+        locator_choice_centroid_radio.grid(row=1, column=1, pady=12)
+
         analysis_selector_label = ttk.Label(data_selection_frame, text="Select analysis option")
-        analysis_selector_label.grid(row=0, column=0)
+        analysis_selector_label.grid(row=2, column=0)
         self.analysis_selector = ttk.Combobox(data_selection_frame, values=list(self.output_files.keys()))
         self.analysis_selector.set('Select analysis option')  # Set default placeholder text
-        self.analysis_selector.grid(row=1, column=0, padx=8, pady=12)  # Pack the combobox into the window
+        self.analysis_selector.grid(row=3, column=0, padx=8, pady=12)  # Pack the combobox into the window
 
         # Create a second combobox for data labels, initially empty
         data_label_selector_label = ttk.Label(data_selection_frame, text="Select data label(s)")
-        data_label_selector_label.grid(row=0, column=1)
+        data_label_selector_label.grid(row=2, column=1)
         self.data_label_selector = tk.Listbox(data_selection_frame, selectmode='multiple', exportselection=0, height=5)
-        self.data_label_selector.grid(row=1, column=1, padx=8, pady=12)
+        self.data_label_selector.grid(row=3, column=1, padx=8, pady=12)
 
         buttons_frame = tk.Frame(self.window)
         self.go_button = ttk.Button(buttons_frame, text='Go', command=self.execute_analysis)
@@ -1281,9 +1296,19 @@ class DataSelector:
 
     def update_data_label_selector(self, event):
         selected_analysis = self.analysis_selector.get()
-        csv_file_path = self.output_files.get(selected_analysis)
-        if csv_file_path:
-            self.df = pd.read_csv(csv_file_path)
+        self.csv_file_path_item = self.output_files.get(selected_analysis)
+        
+        self.locator_type = LocatorType(self.locator_choice_var.get())
+        if isinstance(self.csv_file_path_item, tuple): # for applicable analysis functions, choose appropriate input df path based on locator type selection
+            self.csv_file_path = self.csv_file_path_item[0] if self.locator_type == LocatorType.BBOX else self.csv_file_path_item[1]
+        else: # ensure that centroid not selected for analysis options that can't use centroid locator
+            self.csv_file_path = self.csv_file_path_item
+            if self.locator_type == LocatorType.CENTROID and selected_analysis != 'Surface area':
+                msg = f"Warning: Centroid locator not viable for {selected_analysis},\ndefaulting to data from {self.csv_file_path}"
+                warning_popup(msg)
+
+        if self.csv_file_path:
+            self.df = pd.read_csv(self.csv_file_path)
             label_columns = [col for col in self.df.columns if 'data_label' in col]
             unique_values = set()
             self.label_to_dataset = {}  # Reinitialize to avoid holding outdated entries
@@ -1300,7 +1325,75 @@ class DataSelector:
             self.data_label_selector.delete(0, tk.END)  # Clear the listbox if no csv file is selected
             self.data_label_selector.insert(tk.END, 'Choose from first selector')
 
+    def set_analysis_function_args(self, dataset_index):
+        self.function_args_map = {
+            'Longitudinal strain': {
+                'conversion_factor': self.conversion_factor,
+                'conversion_units': self.conversion_units,
+                'df': self.df,
+                'will_save_figures': False,
+                'chosen_video_data': dataset_index
+            },
+            'Radial strain': {
+                'conversion_factor': self.conversion_factor,
+                'conversion_units': self.conversion_units,
+                'df': self.df,
+                'will_save_figures': False,
+                'chosen_video_data': dataset_index
+            },
+            "Poisson's ratio (from csv)": {
+                'df': self.df,
+                'will_save_figures': False,
+                'chosen_video_data': dataset_index
+            },
+            'Marker velocity': {
+                'analysis_type': AnalysisType.VELOCITY,
+                'conversion_factor': self.conversion_factor,
+                'conversion_units': self.conversion_units,
+                'output_df_path': 'output/velocity.csv',
+                'output_y_col_name':  f'velocity ({self.conversion_units})',
+                'df': self.df,
+                'will_save_figures': False,
+                'chosen_video_data': dataset_index,
+                'locator_type': self.locator_type
+            },
+            'Marker distance': {
+                'analysis_type': AnalysisType.DISTANCE,
+                'conversion_factor': self.conversion_factor,
+                'conversion_units': self.conversion_units,
+                'output_df_path': 'output/distance.csv',
+                'output_y_col_name':  f'distance ({self.conversion_units})',
+                'df': self.df,
+                'will_save_figures': False,
+                'chosen_video_data': dataset_index,
+                'locator_type': self.locator_type
+            },
+            'Marker displacement': {
+                'analysis_type': AnalysisType.DISPLACEMENT,
+                'conversion_factor': self.conversion_factor,
+                'conversion_units': self.conversion_units,
+                'output_df_path': 'output/displacement.csv',
+                'output_y_col_name':  f'displacement ({self.conversion_units})',
+                'df': self.df,
+                'will_save_figures': False,
+                'chosen_video_data': dataset_index,
+                'locator_type': self.locator_type
+            },
+            'Surface area': {
+                'analysis_type': AnalysisType.SURFACE_AREA,
+                'conversion_factor': self.conversion_factor,
+                'conversion_units': self.conversion_units,
+                'output_df_path': 'output/surface_area.csv',
+                'output_y_col_name':  f'surface_area ({self.conversion_units})',
+                'df': self.df,
+                'will_save_figures': False,
+                'chosen_video_data': dataset_index,
+                'locator_type': self.locator_type
+            }
+        }
+
     def execute_analysis(self):
+        self.analysis_choice = self.analysis_selector.get()
         self.selected_indices = self.data_label_selector.curselection()
         self.selected_labels = [self.data_label_selector.get(i) for i in self.selected_indices]
         self.selected_analysis = self.analysis_selector.get()
@@ -1312,13 +1405,19 @@ class DataSelector:
         num_datasets = len(self.selected_labels)
         print(self.selected_labels)
         self.ax.clear()
+        self.all_x = []
+        self.all_y = []
         for selected_label in self.selected_labels:
             which_dataset = self.label_to_dataset.get(selected_label, 0)  # Retrieve dataset number from label
             if self.analysis_func and which_dataset:
-                result = self.analysis_func(self.user_units, self.df, False, which_dataset)
+                self.set_analysis_function_args(which_dataset)
+                args = self.function_args_map.get(self.analysis_choice)
+                result = self.analysis_func(**args)
                 if result:
                     x, y, plot_args, _ = result
                     self.x, self.y = x[0], y[0]
+                    self.all_x.append(self.x)
+                    self.all_y.append(self.y)
                     print(self.x, self.y, plot_args, num_datasets)
                     self.plot_data(plot_args, num_datasets)
 
@@ -1360,15 +1459,17 @@ class DataSelector:
         
         averages = []
         stddevs = []
-        for label in self.selected_labels:
-            print(self.x, '\n*****', xmin, xmax)
-            idxs_in_range = (self.x >= xmin) & (self.x <= xmax)    
-            y_in_range = self.y[idxs_in_range]
+        for i, label in enumerate(self.selected_labels):
+            print(self.all_x[i], '\n*****', xmin, xmax)
+            x, y = self.all_x[i], self.all_y[i]
+            idxs_in_range = (x >= xmin) & (x <= xmax)  
+            print(y, idxs_in_range)  
+            y_in_range = np.asarray(y)[idxs_in_range]
             averages.append(np.mean(y_in_range))
             stddevs.append(np.std(y_in_range))
 
         df = pd.DataFrame({'Averages': averages, 'StdDev': stddevs}, index=self.selected_labels)
-        global_series = pd.Series({'Averages': np.mean(averages), 'StdDev': np.mean(stddevs)}, name='Global')
+        global_series = pd.Series({'Averages': np.mean(np.asarray(self.all_y).flatten()), 'StdDev': np.std(np.asarray(self.all_y).flatten())}, name='Global')
         df = pd.concat([df, global_series], axis=1)
 
         df.to_csv(f"output/data_selector/data_selector_stats_{self.selected_analysis}.csv")

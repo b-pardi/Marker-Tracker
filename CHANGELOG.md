@@ -8,6 +8,8 @@ FIX
 - distance in outlier removal isn't removing the point selected. need to just plot and remove the the distance.csv file directly
 - have option to remove from original file or remove from analyzed data file
 
+- multithreading issue with different frame record intervals?
+
 Housekeeping
 
 Hydrogel
@@ -26,6 +28,9 @@ Cell Mechanics
         - this dictates the df input file for marker movement functions
         - added error checking to ensure centroid not selected if using poissons ratio analysis
         - added error checking to ensure centroid IS selected for surface area
+- adapted data selector to new refactor
+- fixed bug where data selector was not finding mean and std dev of labels individually
+- fixed how data selector was calculating global mean and std dev
 
 5/8
 - commented out rms displacement from marker distance awaiting meeting to decide future of rms functionality
