@@ -3,10 +3,12 @@
 ## TODO
 
 FIX
-- if tracker gets lost, still records data in multithreaded version (it shouldn't)
-- await details on retrying RMS
-    - rms displacement (formula roberto sent)
-    - ensure what is currently being referred to as rms disp is changed to rms distance
+- all tools definitely broke after refactor, so adjust the tools to work with new marker_movement_analysis function
+
+- distance in outlier removal isn't removing the point selected. need to just plot and remove the the distance.csv file directly
+- have option to remove from original file or remove from analyzed data file
+
+- multithreading issue with different frame record intervals?
 
 Housekeeping
 
@@ -19,12 +21,44 @@ Cell Mechanics
 
 # Changelog
 
+5/9
+- adapted outlier removal tool to work with new refactor
+    - since args are not all the same vars for all functions now, new dictionary self.function_args_map made and called right before function call to pass in **args to analysis function appropriately
+    - added centroid or marker options to outlier removal
+        - this dictates the df input file for marker movement functions
+        - added error checking to ensure centroid not selected if using poissons ratio analysis
+        - added error checking to ensure centroid IS selected for surface area
+- adapted data selector to new refactor
+- fixed bug where data selector was not finding mean and std dev of labels individually
+- fixed how data selector was calculating global mean and std dev
+- fixed bug where plot args would only look for poissons ratio enum not also poissons ratio CSV
+- data selector refactored
+    - mainly just adapted interest column grabber and added updated output file names
+
 5/8
 - commented out rms displacement from marker distance awaiting meeting to decide future of rms functionality
 - replaced it for now with regular displacement and distance
 - fixed bug where contours were not being drawn on frame in multithreaded version
 
 - beginning major refactor to put distance, displacement, velocity, and surface area into the same analysis function, and accounting for centroid vs marker locations
+
+- in marker movement refactor branch:
+    - added button for displacement, separating displacement and distance
+    - removed rms distance and rms displacement opting for the regular distance and displacement
+    - changed all cell related analysis buttons (displacement, distance, velocity, and area) to call a TrackingUI class function 'call_analysis'
+    - this function calls marker movement analysis with the appropriate args depending on the enum given in the button function call
+    - adjusted enums to not include the word marker and also split displacement into displacement and distance
+    - added enum for locator type, so user can use the centroid as the marker from surface area tracking
+    - error check to make sure user has centroid selected when using surface area cuz marker tracking will not give area or centroid
+    - added kwargs to marker movement analysis in prep for receiving the args like df and chosen video data from tool function calls
+    - determined df input path and x,y location column names based on locator type choice (marker or centroid)
+    - data multiplicity determines for range, instead of handling different data multiplicities differently in the for loop, this waaaaayy cleaner
+    - grab time, x, and y values all the same way across analysis types, each analysis type just has a few unique lines for the specific operations it needs. 
+    - depecreated velocity, displacement, and area functions opting for this new refactor
+    - tl:dr combined 3 functions into 1 and it's way cleaner than any of the old ones were
+- switched get_plot_args to use kwargs
+- plot titles now include marker or centroid (if relevant)
+- poissons ratio function calls now also handled from main ui class call_analysis function
 
 5/7
 - added formulas of how data is analyzed to readme

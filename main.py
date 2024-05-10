@@ -248,8 +248,6 @@ class TrackingUI:
         multithread_check.grid(row=0, column=0, columnspan=2, pady=(24,0))
         track_btn = ttk.Button(track_record_frame, text="Begin tracking", command=self.on_submit_tracking, style='Regular.TButton')
         track_btn.grid(row=2, column=0, columnspan=2, padx=32, pady=(24,4))
-        remove_outliers_button = ttk.Button(track_record_frame, text="Remove outliers", command=self.remove_outliers, style='Regular.TButton')
-        remove_outliers_button.grid(row=3, column=0, columnspan=2, padx=32, pady=(4,24))
         
         undo_buttons_frame = tk.Frame(track_record_frame)
         undo_label = ttk.Label(undo_buttons_frame, text="Undo previous appended tracking data recording.")
@@ -300,45 +298,50 @@ class TrackingUI:
 
         # submission fields/buttons
         submission_frame = tk.Frame(section2)
-        marker_deltas_btn = ttk.Button(submission_frame, text="Marker deltas analysis", command=lambda: analysis.analyze_marker_deltas((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
+        marker_deltas_btn = ttk.Button(submission_frame, text="Marker deltas analysis", command=lambda: self.call_analysis(AnalysisType.MARKER_DELTAS), style='Regular.TButton')
         marker_deltas_btn.grid(row=6, column=0, padx=4, pady=4)
-        necking_pt_btn = ttk.Button(submission_frame, text="Necking point analysis", command=lambda: analysis.analyze_necking_point((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
+        necking_pt_btn = ttk.Button(submission_frame, text="Necking point analysis", command=lambda: self.call_analysis(AnalysisType.NECKING_POINT), style='Regular.TButton')
         necking_pt_btn.grid(row=7, column=0, padx=4, pady=4)
-        poissons_ratio_calc_btn = ttk.Button(submission_frame, text="Poisson's ratio\n(calculate)", command=lambda: analysis.poissons_ratio((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='LessYPadding.TButton')
+        poissons_ratio_calc_btn = ttk.Button(submission_frame, text="Poisson's ratio\n(calculate)", command=lambda: self.call_analysis(AnalysisType.POISSONS_RATIO), style='LessYPadding.TButton')
         poissons_ratio_calc_btn.grid(row=8, column=0, padx=4, pady=4)
-        poissons_ratio_csv_btn = ttk.Button(submission_frame, text="Poisson's ratio\n(from csv)", command=lambda: analysis.poissons_ratio_csv((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='LessYPadding.TButton')
+        poissons_ratio_csv_btn = ttk.Button(submission_frame, text="Poisson's ratio\n(from csv)", command=lambda: self.call_analysis(AnalysisType.POISSONS_RATIO_CSV), style='LessYPadding.TButton')
         poissons_ratio_csv_btn.grid(row=9, column=0, padx=4, pady=4)
 
-        '''locator_choice_label = ttk.Label(submission_frame, text="Marker or Centroid distance/displacement")
+        locator_choice_label = ttk.Label(submission_frame, text="Locator choice for:\ndiplacement, distance, and velocity")
         locator_choice_label.grid(row=4, column=1, padx=4, pady=(8,2))
         self.locator_choice_var = tk.StringVar()
         self.locator_choice_var.set(LocatorType.BBOX.value)
         locator_marker_choice_radio = ttk.Radiobutton(submission_frame, text='Marker (use marker tracker)', variable=self.locator_choice_var, value=LocatorType.BBOX.value)
         locator_marker_choice_radio.grid(row=5, column=1)
         locator_choice_centroid_radio = ttk.Radiobutton(submission_frame, text='Centroid (use surface area)', variable=self.locator_choice_var, value=LocatorType.CENTROID.value)
-        locator_choice_centroid_radio.grid(row=6, column=1)'''
+        locator_choice_centroid_radio.grid(row=6, column=1)
         
-        cell_distance_btn = ttk.Button(submission_frame, text="Marker distance", command=lambda: analysis.marker_distance((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
+        cell_distance_btn = ttk.Button(submission_frame, text="Marker distance", command=lambda: self.call_analysis(AnalysisType.DISTANCE), style='Regular.TButton')
         cell_distance_btn.grid(row=7, column=1, padx=4, pady=4)
-        cell_spread_btn = ttk.Button(submission_frame, text="Marker spread", command=lambda: analysis.single_marker_spread((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
-        cell_spread_btn.grid(row=9, column=1, padx=4, pady=4)
-        cell_velocity_btn = ttk.Button(submission_frame, text="Marker velocity", command=lambda: analysis.marker_velocity((float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), style='Regular.TButton')
-        cell_velocity_btn.grid(row=8, column=1, padx=4, pady=4)
+        cell_displacement_btn = ttk.Button(submission_frame, text="Marker displacement", command=lambda: self.call_analysis(AnalysisType.DISPLACEMENT), style='Regular.TButton')
+        cell_displacement_btn.grid(row=8, column=1, padx=4, pady=4)
+        cell_spread_btn = ttk.Button(submission_frame, text="Marker spread", command=lambda: self.call_analysis(AnalysisType.SURFACE_AREA), style='Regular.TButton')
+        cell_spread_btn.grid(row=10, column=1, padx=4, pady=4)
+        cell_velocity_btn = ttk.Button(submission_frame, text="Marker velocity", command=lambda: self.call_analysis(AnalysisType.VELOCITY), style='Regular.TButton')
+        cell_velocity_btn.grid(row=9, column=1, padx=4, pady=4)
     
-        data_selector_button = ttk.Button(submission_frame, text="Data selector", command=self.data_selector, style='Regular.TButton')
-        data_selector_button.grid(row=19, column=0, columnspan=2, pady=(24,0))
+        remove_outliers_button = ttk.Button(submission_frame, text="Remove outliers", command=self.remove_outliers, style='Regular.TButton')
+        remove_outliers_button.grid(row=18, column=0, columnspan=2, padx=32, pady=(24,0))
         
-        data_selector_button = ttk.Button(submission_frame, text="Box plotter", command=self.box_plotter, style='Regular.TButton')
-        data_selector_button.grid(row=20, column=0, columnspan=2, pady=(4,0))
+        data_selector_button = ttk.Button(submission_frame, text="Data selector", command=self.data_selector, style='Regular.TButton')
+        data_selector_button.grid(row=19, column=0, columnspan=2, pady=(4,0))
+        
+        box_plotter_button = ttk.Button(submission_frame, text="Box plotter", command=self.box_plotter, style='Regular.TButton')
+        box_plotter_button.grid(row=20, column=0, columnspan=2, pady=(4,0))
         
         exit_btn = ttk.Button(submission_frame, text='Exit', command=sys.exit, style='Regular.TButton')
         exit_btn.grid(row=25, column=0, columnspan=2, padx=32, pady=(24,12))
         submission_frame.grid(row=2, column=0)
+        section2.grid(row=0, column=1, padx=(64,16),sticky='n')
 
         self.adjust_window_size()        
         self.scrollable_frame.bind("<Enter>", lambda e: self.scrollable_frame.bind_all("<MouseWheel>", self.on_mousewheel))
         self.scrollable_frame.bind("<Leave>", lambda e: self.scrollable_frame.unbind_all("<MouseWheel>"))
-        section2.grid(row=0, column=1, padx=(64,16),sticky='n')
 
     def on_frame_configure(self, event):
         '''Reset the scroll region to encompass the inner frame and adjust window size if necessary'''
@@ -408,13 +411,13 @@ class TrackingUI:
             error_popup(msg)
 
     def remove_outliers(self):
-        OutlierRemoval(self.root, (float(self.conversion_factor_entry.get()), self.conversion_units_entry.get()))
+        OutlierRemoval(self, float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())
 
     def data_selector(self):
-        DataSelector(self.root, (float(self.conversion_factor_entry.get()), self.conversion_units_entry.get()))
+        DataSelector(self, float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())
 
     def box_plotter(self):
-        Boxplotter(self.root, (float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())), 
+        Boxplotter(self, float(self.conversion_factor_entry.get()), self.conversion_units_entry.get()), 
 
     def video_compression(self):
         if self.video_path != "":
@@ -495,6 +498,32 @@ class TrackingUI:
         
         return data_label_err_flag
 
+    def call_analysis(self, analysis_type):
+        conversion_factor = float(self.conversion_factor_entry.get())
+        conversion_units = self.conversion_units_entry.get()
+        locator_choice = LocatorType(self.locator_choice_var.get())
+
+        if analysis_type == AnalysisType.MARKER_DELTAS:
+            analysis.analyze_marker_deltas(conversion_factor, conversion_units)
+        if analysis_type == AnalysisType.NECKING_POINT:
+            analysis.analyze_necking_point(conversion_factor, conversion_units)
+        if analysis_type == AnalysisType.POISSONS_RATIO:
+            analysis.poissons_ratio(conversion_factor, conversion_units)
+        if analysis_type == AnalysisType.POISSONS_RATIO_CSV:
+            analysis.poissons_ratio_csv()
+        
+        if analysis_type == AnalysisType.DISPLACEMENT:
+            analysis.marker_movement_analysis(analysis_type, conversion_factor, conversion_units, 'output/displacement.csv', f'displacement', locator_type=locator_choice)
+        if analysis_type == AnalysisType.DISTANCE:
+            analysis.marker_movement_analysis(analysis_type, conversion_factor, conversion_units, 'output/distance.csv', f'distance', locator_type=locator_choice)
+        if analysis_type == AnalysisType.VELOCITY:
+            analysis.marker_movement_analysis(analysis_type, conversion_factor, conversion_units, 'output/velocity.csv', f'velocity', locator_type=locator_choice)
+        if analysis_type == AnalysisType.SURFACE_AREA:
+            if locator_choice == LocatorType.BBOX: # marker tracking not viable for surface area
+                msg = "Error: Please select Centroid locator type for surface area,\nand ensure surface area tracking was done previously"
+                error_popup(msg)
+            else:
+                analysis.marker_movement_analysis(analysis_type, conversion_factor, conversion_units, 'output/surface_area.csv', f'surface_area', locator_type=locator_choice)
 
     def on_submit_tracking(self):
         """calls the appropriate functions with user spec'd args when tracking start button clicked"""        
@@ -894,10 +923,12 @@ class FrameSelector:
 
 
 class OutlierRemoval:
-    def __init__(self, parent, user_units):
+    def __init__(self, parent, conversion_factor, conversion_units):
         self.parent = parent
-        self.user_units = user_units
-        self.window = tk.Toplevel(self.parent)
+        self.root = parent.root
+        self.conversion_factor = conversion_factor
+        self.conversion_units = conversion_units
+        self.window = tk.Toplevel(self.root)
         self.window.title("Select outlier points to remove them")
         self.window.iconphoto(False, tk.PhotoImage(file="ico/m3b_comp.png"))
 
@@ -915,18 +946,21 @@ class OutlierRemoval:
             'Longitudinal strain': 'output/Tracking_Output.csv',
             'Radial strain': 'output/Necking_Point_Output.csv',
             "Poisson's ratio (from csv)": 'output/poissons_ratio.csv',
-            'Marker velocity': 'output/Tracking_Output.csv',
-            'Marker RMS distance': 'output/Tracking_Output.csv',
-            'Surface area': 'output/Surface_Area_Output.csv'
+            'Marker velocity': ('output/Tracking_Output.csv', 'output/Surface_Area_Output.csv'), # movement can use marker or centroid locators
+            'Marker distance': ('output/Tracking_Output.csv', 'output/Surface_Area_Output.csv'),
+            'Marker displacement': ('output/Tracking_Output.csv', 'output/Surface_Area_Output.csv'),
+            'Surface area': 'output/Surface_Area_Output.csv',
         }
 
+        # analysis_function(self.user_units, self.df, False, self.dataset_index)
         self.function_map = {
             'Longitudinal strain': analysis.analyze_marker_deltas,
-            'Radial strain': analysis.analyze_necking_point,
+            'Radial strain':  analysis.analyze_necking_point,
             "Poisson's ratio (from csv)": analysis.poissons_ratio_csv,
-            'Marker velocity': analysis.marker_velocity,
-            'Marker RMS distance': analysis.marker_distance,
-            'Surface area': analysis.single_marker_spread
+            'Marker velocity':  analysis.marker_movement_analysis,
+            'Marker distance': analysis.marker_movement_analysis,
+            'Marker displacement': analysis.marker_movement_analysis,
+            'Surface area':  analysis.marker_movement_analysis
         }
 
         # dynamically set figure/window size
@@ -939,15 +973,25 @@ class OutlierRemoval:
         # Setup for file selection and data label listbox
         file_selection_frame = tk.Frame(self.window)
         analysis_selector_label = ttk.Label(file_selection_frame, text="Select file type:")
-        analysis_selector_label.grid(row=0, column=0)
+        analysis_selector_label.grid(row=2, column=0)
         self.analysis_selector = ttk.Combobox(file_selection_frame, values=list(self.output_files.keys()))
         self.analysis_selector.set('Select analysis type')
-        self.analysis_selector.grid(row=1, column=0, padx=8, pady=12)
+        self.analysis_selector.grid(row=3, column=0, padx=8, pady=12)
 
         data_label_selector_label = ttk.Label(file_selection_frame, text="Select data labels:")
-        data_label_selector_label.grid(row=0, column=1)
+        data_label_selector_label.grid(row=2, column=1)
         self.data_label_selector = tk.Listbox(file_selection_frame, selectmode='single', exportselection=0, height=4)
-        self.data_label_selector.grid(row=1, column=1, padx=8, pady=12)
+        self.data_label_selector.grid(row=3, column=1, padx=8, pady=12)
+        
+        locator_choice_label = ttk.Label(file_selection_frame, text="Locator choice for:\ndiplacement, distance, and velocity")
+        locator_choice_label.grid(row=0, column=0, columnspan=2, padx=4, pady=(8,2))
+        self.locator_choice_var = tk.StringVar()
+        self.locator_choice_var.set(LocatorType.BBOX.value)
+        locator_marker_choice_radio = ttk.Radiobutton(file_selection_frame, text='Marker (use marker tracker)', variable=self.locator_choice_var, value=LocatorType.BBOX.value)
+        locator_marker_choice_radio.grid(row=1, column=0)
+        locator_choice_centroid_radio = ttk.Radiobutton(file_selection_frame, text='Centroid (use surface area)', variable=self.locator_choice_var, value=LocatorType.CENTROID.value)
+        locator_choice_centroid_radio.grid(row=1, column=1, pady=12)
+
         file_selection_frame.grid(row=0, column=0)
 
         # Control buttons
@@ -976,7 +1020,23 @@ class OutlierRemoval:
 
     def load_data_labels(self, event):
         selected_analysis = self.analysis_selector.get()
-        self.csv_file_path = self.output_files.get(selected_analysis)
+        self.csv_file_path_item = self.output_files.get(selected_analysis)
+        
+        self.locator_type = LocatorType(self.locator_choice_var.get())
+        if isinstance(self.csv_file_path_item, tuple): # for applicable analysis functions, choose appropriate input df path based on locator type selection
+            self.csv_file_path = self.csv_file_path_item[0] if self.locator_type == LocatorType.BBOX else self.csv_file_path_item[1]
+        else: # ensure that centroid not selected for analysis options that can't use centroid locator
+            self.csv_file_path = self.csv_file_path_item
+            if self.locator_type == LocatorType.CENTROID and selected_analysis != 'Surface area':
+                msg = f"Warning: Centroid locator not viable for {selected_analysis},\ndefaulting to data from {self.csv_file_path}"
+                warning_popup(msg)
+        print(self.csv_file_path)
+
+        # ensure centroid is selected for surface area
+        if self.locator_type != LocatorType.CENTROID and selected_analysis == 'Surface area':
+            msg = "Warning: Must use centroid locator type for surface area analysis.\nDefaulting to surface area input file"
+            warning_popup(msg)
+
         if self.csv_file_path:
             self.df = pd.read_csv(self.csv_file_path)
             label_columns = [col for col in self.df.columns if 'data_label' in col]
@@ -995,10 +1055,77 @@ class OutlierRemoval:
             self.data_label_selector.delete(0, tk.END)  # Clear the listbox if no csv file is selected
             self.data_label_selector.insert(tk.END, 'Choose from first selector')
 
+    def set_analysis_function_args(self):
+        self.function_args_map = {
+            'Longitudinal strain': {
+                'conversion_factor': self.conversion_factor,
+                'conversion_units': self.conversion_units,
+                'df': self.df,
+                'will_save_figures': False,
+                'chosen_video_data': self.dataset_index
+            },
+            'Radial strain': {
+                'conversion_factor': self.conversion_factor,
+                'conversion_units': self.conversion_units,
+                'df': self.df,
+                'will_save_figures': False,
+                'chosen_video_data': self.dataset_index
+            },
+            "Poisson's ratio (from csv)": {
+                'df': self.df,
+                'will_save_figures': False,
+                'chosen_video_data': self.dataset_index
+            },
+            'Marker velocity': {
+                'analysis_type': AnalysisType.VELOCITY,
+                'conversion_factor': self.conversion_factor,
+                'conversion_units': self.conversion_units,
+                'output_df_path': 'output/velocity.csv',
+                'output_y_col_name':  f'velocity ({self.conversion_units})',
+                'df': self.df,
+                'will_save_figures': False,
+                'chosen_video_data': self.dataset_index,
+                'locator_type': self.locator_type
+            },
+            'Marker distance': {
+                'analysis_type': AnalysisType.DISTANCE,
+                'conversion_factor': self.conversion_factor,
+                'conversion_units': self.conversion_units,
+                'output_df_path': 'output/distance.csv',
+                'output_y_col_name':  f'distance ({self.conversion_units})',
+                'df': self.df,
+                'will_save_figures': False,
+                'chosen_video_data': self.dataset_index,
+                'locator_type': self.locator_type
+            },
+            'Marker displacement': {
+                'analysis_type': AnalysisType.DISPLACEMENT,
+                'conversion_factor': self.conversion_factor,
+                'conversion_units': self.conversion_units,
+                'output_df_path': 'output/displacement.csv',
+                'output_y_col_name':  f'displacement ({self.conversion_units})',
+                'df': self.df,
+                'will_save_figures': False,
+                'chosen_video_data': self.dataset_index,
+                'locator_type': self.locator_type
+            },
+            'Surface area': {
+                'analysis_type': AnalysisType.SURFACE_AREA,
+                'conversion_factor': self.conversion_factor,
+                'conversion_units': self.conversion_units,
+                'output_df_path': 'output/surface_area.csv',
+                'output_y_col_name':  f'surface_area ({self.conversion_units})',
+                'df': self.df,
+                'will_save_figures': False,
+                'chosen_video_data': self.dataset_index,
+                'locator_type': self.locator_type
+            }
+        }
 
     def generate_plot(self, is_refreshing=False):
         self.analysis_choice = self.analysis_selector.get()
         analysis_function = self.function_map.get(self.analysis_choice)
+
         if not is_refreshing:
             print("Generating plot...")
             selected_labels = [self.data_label_selector.get(idx) for idx in self.data_label_selector.curselection()]
@@ -1010,7 +1137,10 @@ class OutlierRemoval:
                         print(f"Dataset index found: {self.dataset_index} in column: {column}")
                         break
 
-        self.x_data, self.y_data, self.plot_args, _ = analysis_function(self.user_units, self.df, False, self.dataset_index)
+        # define analysis function args
+        self.set_analysis_function_args()
+        args = self.function_args_map.get(self.analysis_choice)
+        self.x_data, self.y_data, self.plot_args, _ = analysis_function(**args)
 
         with open("plot_opts/plot_customizations.json", 'r') as plot_customs_file:
             plot_customs = json.load(plot_customs_file)
@@ -1043,9 +1173,14 @@ class OutlierRemoval:
 
         time_col, _, _ = analysis.get_time_labels(self.df, self.dataset_index)
         time_point = self.x_data[0][index]
-        indices_to_remove = self.df[(self.df[time_col] == time_point)].index.tolist()
-        print("indices:", indices_to_remove, "\nrel cols: ", relevant_columns)
+        try:
+            indices_to_remove = self.df[(self.df[time_col] == time_point)].index.tolist()
+        except KeyError as ke:
+            print(ke)
+            msg = "Error: No data label selected"
+            error_popup(msg)
 
+        print("indices:", indices_to_remove, "\nrel cols: ", relevant_columns)
         for col in relevant_columns:
             self.df.loc[indices_to_remove, col] = np.nan
 
@@ -1059,7 +1194,7 @@ class OutlierRemoval:
     def undo_selections(self):
         self.removed_label.grid(row=2, column=0, pady=8)
         self.window.after(5000, lambda: self.removed_label.grid_forget())
-        self.df = pd.read_csv(self.output_files[self.analysis_choice]) # reload original dataframe
+        self.df = pd.read_csv(self.csv_file_path) # reload original dataframe
         self.update_plot()
         
     def confirm(self):
@@ -1075,33 +1210,38 @@ class OutlierRemoval:
 
 
 class DataSelector:
-    def __init__(self, parent, user_units):
+    def __init__(self, parent, conversion_factor, conversion_units):
         self.parent = parent
-        self.user_units = user_units
-        self.window = tk.Toplevel(self.parent)
+        self.root = parent.root
+        self.conversion_factor = conversion_factor
+        self.conversion_units = conversion_units
+        self.window = tk.Toplevel(self.root)
         self.window.title("Select a region of a plot")
         self.window.iconphoto(False, tk.PhotoImage(file="ico/m3b_comp.png"))
 
         self.label_to_dataset = {}
+
         # file options
         self.output_files = {
             'Longitudinal strain': 'output/Tracking_Output.csv',
             'Radial strain': 'output/Necking_Point_Output.csv',
             "Poisson's ratio (from csv)": 'output/poissons_ratio.csv',
-            'Marker velocity': 'output/Tracking_Output.csv',
-            'Marker RMS distance': 'output/Tracking_Output.csv',
-            'Surface area': 'output/Surface_Area_Output.csv'
+            'Marker velocity': ('output/Tracking_Output.csv', 'output/Surface_Area_Output.csv'), # movement can use marker or centroid locators
+            'Marker distance': ('output/Tracking_Output.csv', 'output/Surface_Area_Output.csv'),
+            'Marker displacement': ('output/Tracking_Output.csv', 'output/Surface_Area_Output.csv'),
+            'Surface area': 'output/Surface_Area_Output.csv',
         }
 
+        # analysis_function(self.user_units, self.df, False, self.dataset_index)
         self.function_map = {
             'Longitudinal strain': analysis.analyze_marker_deltas,
-            'Radial strain': analysis.analyze_necking_point,
+            'Radial strain':  analysis.analyze_necking_point,
             "Poisson's ratio (from csv)": analysis.poissons_ratio_csv,
-            'Marker velocity': analysis.marker_velocity,
-            'Marker RMS distance': analysis.marker_distance,
-            'Surface area': analysis.single_marker_spread
+            'Marker velocity':  analysis.marker_movement_analysis,
+            'Marker distance': analysis.marker_movement_analysis,
+            'Marker displacement': analysis.marker_movement_analysis,
+            'Surface area':  analysis.marker_movement_analysis
         }
-
         screen_width = self.window.winfo_screenwidth()
         screen_height = self.window.winfo_screenheight()
         system_dpi = self.window.winfo_fpixels('1i')  # This fetches the DPI in some environments
@@ -1110,17 +1250,27 @@ class DataSelector:
 
         # Create a combobox widget for user units selection
         data_selection_frame = tk.Frame(self.window)
+
+        locator_choice_label = ttk.Label(data_selection_frame, text="Locator choice for:\ndiplacement, distance, and velocity")
+        locator_choice_label.grid(row=0, column=0, columnspan=2, padx=4, pady=(8,2))
+        self.locator_choice_var = tk.StringVar()
+        self.locator_choice_var.set(LocatorType.BBOX.value)
+        locator_marker_choice_radio = ttk.Radiobutton(data_selection_frame, text='Marker (use marker tracker)', variable=self.locator_choice_var, value=LocatorType.BBOX.value)
+        locator_marker_choice_radio.grid(row=1, column=0)
+        locator_choice_centroid_radio = ttk.Radiobutton(data_selection_frame, text='Centroid (use surface area)', variable=self.locator_choice_var, value=LocatorType.CENTROID.value)
+        locator_choice_centroid_radio.grid(row=1, column=1, pady=12)
+
         analysis_selector_label = ttk.Label(data_selection_frame, text="Select analysis option")
-        analysis_selector_label.grid(row=0, column=0)
+        analysis_selector_label.grid(row=2, column=0)
         self.analysis_selector = ttk.Combobox(data_selection_frame, values=list(self.output_files.keys()))
         self.analysis_selector.set('Select analysis option')  # Set default placeholder text
-        self.analysis_selector.grid(row=1, column=0, padx=8, pady=12)  # Pack the combobox into the window
+        self.analysis_selector.grid(row=3, column=0, padx=8, pady=12)  # Pack the combobox into the window
 
         # Create a second combobox for data labels, initially empty
         data_label_selector_label = ttk.Label(data_selection_frame, text="Select data label(s)")
-        data_label_selector_label.grid(row=0, column=1)
+        data_label_selector_label.grid(row=2, column=1)
         self.data_label_selector = tk.Listbox(data_selection_frame, selectmode='multiple', exportselection=0, height=5)
-        self.data_label_selector.grid(row=1, column=1, padx=8, pady=12)
+        self.data_label_selector.grid(row=3, column=1, padx=8, pady=12)
 
         buttons_frame = tk.Frame(self.window)
         self.go_button = ttk.Button(buttons_frame, text='Go', command=self.execute_analysis)
@@ -1146,9 +1296,19 @@ class DataSelector:
 
     def update_data_label_selector(self, event):
         selected_analysis = self.analysis_selector.get()
-        csv_file_path = self.output_files.get(selected_analysis)
-        if csv_file_path:
-            self.df = pd.read_csv(csv_file_path)
+        self.csv_file_path_item = self.output_files.get(selected_analysis)
+        
+        self.locator_type = LocatorType(self.locator_choice_var.get())
+        if isinstance(self.csv_file_path_item, tuple): # for applicable analysis functions, choose appropriate input df path based on locator type selection
+            self.csv_file_path = self.csv_file_path_item[0] if self.locator_type == LocatorType.BBOX else self.csv_file_path_item[1]
+        else: # ensure that centroid not selected for analysis options that can't use centroid locator
+            self.csv_file_path = self.csv_file_path_item
+            if self.locator_type == LocatorType.CENTROID and selected_analysis != 'Surface area':
+                msg = f"Warning: Centroid locator not viable for {selected_analysis},\ndefaulting to data from {self.csv_file_path}"
+                warning_popup(msg)
+
+        if self.csv_file_path:
+            self.df = pd.read_csv(self.csv_file_path)
             label_columns = [col for col in self.df.columns if 'data_label' in col]
             unique_values = set()
             self.label_to_dataset = {}  # Reinitialize to avoid holding outdated entries
@@ -1165,7 +1325,75 @@ class DataSelector:
             self.data_label_selector.delete(0, tk.END)  # Clear the listbox if no csv file is selected
             self.data_label_selector.insert(tk.END, 'Choose from first selector')
 
+    def set_analysis_function_args(self, dataset_index):
+        self.function_args_map = {
+            'Longitudinal strain': {
+                'conversion_factor': self.conversion_factor,
+                'conversion_units': self.conversion_units,
+                'df': self.df,
+                'will_save_figures': False,
+                'chosen_video_data': dataset_index
+            },
+            'Radial strain': {
+                'conversion_factor': self.conversion_factor,
+                'conversion_units': self.conversion_units,
+                'df': self.df,
+                'will_save_figures': False,
+                'chosen_video_data': dataset_index
+            },
+            "Poisson's ratio (from csv)": {
+                'df': self.df,
+                'will_save_figures': False,
+                'chosen_video_data': dataset_index
+            },
+            'Marker velocity': {
+                'analysis_type': AnalysisType.VELOCITY,
+                'conversion_factor': self.conversion_factor,
+                'conversion_units': self.conversion_units,
+                'output_df_path': 'output/velocity.csv',
+                'output_y_col_name':  f'velocity ({self.conversion_units})',
+                'df': self.df,
+                'will_save_figures': False,
+                'chosen_video_data': dataset_index,
+                'locator_type': self.locator_type
+            },
+            'Marker distance': {
+                'analysis_type': AnalysisType.DISTANCE,
+                'conversion_factor': self.conversion_factor,
+                'conversion_units': self.conversion_units,
+                'output_df_path': 'output/distance.csv',
+                'output_y_col_name':  f'distance ({self.conversion_units})',
+                'df': self.df,
+                'will_save_figures': False,
+                'chosen_video_data': dataset_index,
+                'locator_type': self.locator_type
+            },
+            'Marker displacement': {
+                'analysis_type': AnalysisType.DISPLACEMENT,
+                'conversion_factor': self.conversion_factor,
+                'conversion_units': self.conversion_units,
+                'output_df_path': 'output/displacement.csv',
+                'output_y_col_name':  f'displacement ({self.conversion_units})',
+                'df': self.df,
+                'will_save_figures': False,
+                'chosen_video_data': dataset_index,
+                'locator_type': self.locator_type
+            },
+            'Surface area': {
+                'analysis_type': AnalysisType.SURFACE_AREA,
+                'conversion_factor': self.conversion_factor,
+                'conversion_units': self.conversion_units,
+                'output_df_path': 'output/surface_area.csv',
+                'output_y_col_name':  f'surface_area ({self.conversion_units})',
+                'df': self.df,
+                'will_save_figures': False,
+                'chosen_video_data': dataset_index,
+                'locator_type': self.locator_type
+            }
+        }
+
     def execute_analysis(self):
+        self.analysis_choice = self.analysis_selector.get()
         self.selected_indices = self.data_label_selector.curselection()
         self.selected_labels = [self.data_label_selector.get(i) for i in self.selected_indices]
         self.selected_analysis = self.analysis_selector.get()
@@ -1177,13 +1405,19 @@ class DataSelector:
         num_datasets = len(self.selected_labels)
         print(self.selected_labels)
         self.ax.clear()
+        self.all_x = []
+        self.all_y = []
         for selected_label in self.selected_labels:
             which_dataset = self.label_to_dataset.get(selected_label, 0)  # Retrieve dataset number from label
             if self.analysis_func and which_dataset:
-                result = self.analysis_func(self.user_units, self.df, False, which_dataset)
+                self.set_analysis_function_args(which_dataset)
+                args = self.function_args_map.get(self.analysis_choice)
+                result = self.analysis_func(**args)
                 if result:
                     x, y, plot_args, _ = result
                     self.x, self.y = x[0], y[0]
+                    self.all_x.append(self.x)
+                    self.all_y.append(self.y)
                     print(self.x, self.y, plot_args, num_datasets)
                     self.plot_data(plot_args, num_datasets)
 
@@ -1225,15 +1459,17 @@ class DataSelector:
         
         averages = []
         stddevs = []
-        for label in self.selected_labels:
-            print(self.x, '\n*****', xmin, xmax)
-            idxs_in_range = (self.x >= xmin) & (self.x <= xmax)    
-            y_in_range = self.y[idxs_in_range]
+        for i, label in enumerate(self.selected_labels):
+            print(self.all_x[i], '\n*****', xmin, xmax)
+            x, y = self.all_x[i], self.all_y[i]
+            idxs_in_range = (x >= xmin) & (x <= xmax)  
+            print(y, idxs_in_range)  
+            y_in_range = np.asarray(y)[idxs_in_range]
             averages.append(np.mean(y_in_range))
             stddevs.append(np.std(y_in_range))
 
         df = pd.DataFrame({'Averages': averages, 'StdDev': stddevs}, index=self.selected_labels)
-        global_series = pd.Series({'Averages': np.mean(averages), 'StdDev': np.mean(stddevs)}, name='Global')
+        global_series = pd.Series({'Averages': np.mean(np.asarray(self.all_y).flatten()), 'StdDev': np.std(np.asarray(self.all_y).flatten())}, name='Global')
         df = pd.concat([df, global_series], axis=1)
 
         df.to_csv(f"output/data_selector/data_selector_stats_{self.selected_analysis}.csv")
@@ -1254,19 +1490,22 @@ class DataSelector:
 
 
 class Boxplotter:
-    def __init__(self, parent, user_units):
+    def __init__(self, parent, conversion_factor, conversion_units):
         self.parent = parent
-        self.user_units = user_units
-        self.window = tk.Toplevel(self.parent)
+        self.root = parent.root
+        self.conversion_factor = conversion_factor
+        self.conversion_units = conversion_units
+        self.window = tk.Toplevel(self.root)
         self.window.title("Select a region of a plot")
         self.window.iconphoto(False, tk.PhotoImage(file="ico/m3b_comp.png"))
 
         self.label_to_dataset = {}
         self.output_files = {
             "Poisson's ratio (from csv)": 'output/poissons_ratio.csv',
-            'Marker velocity': 'output/marker_velocity.csv',
-            'Marker RMS displacement': 'output/rms_displacement.csv',
-            'Surface area': 'output/Surface_Area_Output.csv'
+            'Marker velocity': 'output/velocity.csv',
+            'Marker displacement': 'output/displacement.csv',
+            'Marker distance': 'output/distance.csv',
+            'Surface area': 'output/surface_area.csv'
         }
 
         warning_label = ttk.Label(self.window, text="Please ensure you have ran the preliminary analysis in the main UI before using this tool", font=('TkDefaultFont', 12, 'bold'))
@@ -1434,10 +1673,14 @@ class Boxplotter:
     def execute_analysis(self):
         # Check which grouping method is selected and call the corresponding function
         if self.grouping_var.get() == "conditions":
-            analysis.boxplot_conditions(self.df, self.condition_to_label, self.user_units[1])
+            analysis.boxplot_conditions(self.df, self.condition_to_label, self.conversion_units)
         elif self.grouping_var.get() == "time_points":
             selected_labels = [self.data_label_selector.get(i) for i in self.data_label_selector.curselection()]
-            analysis.boxplot_time_ranges(self.df, self.time_ranges, selected_labels, self.user_units[1])
+            if not selected_labels:
+                msg = "Warning: No data labels are selected for analysis"
+                warning_popup(msg)
+                return
+            analysis.boxplot_time_ranges(self.df, self.time_ranges, selected_labels, self.conversion_units)
         else:
             print("No valid analysis type selected")
 
