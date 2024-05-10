@@ -118,25 +118,28 @@ def check_num_trackers_with_num_datasets(n_trackers, num_tracker_datasets):
 def find_interest_column_and_type(df):
     interest_cols = [
         'v', # poissons ratio df
-        'magnitude_velocity_tracker', # marker velocity df
-        'rms_displacement', # rms displacement df
-        'cell surface area (px^2)' # surface spread
+        'velocity', # velocity df
+        'displacement', # displacement df
+        'distance', # distance df
+        'surface_area' # surface spread
     ]
 
     analysis_types = [
-        AnalysisType.POISSONS_RATIO,
-        AnalysisType.MARKER_VELOCITY,
-        AnalysisType.MARKER_RMS_DISTANCE,
+        AnalysisType.POISSONS_RATIO_CSV,
+        AnalysisType.VELOCITY,
+        AnalysisType.DISTANCE,
+        AnalysisType.DISPLACEMENT,
         AnalysisType.SURFACE_AREA
     ]
 
     # get column names of df, excluding the dataset index
     df_cols = [col.split('-', 1)[1] for col in df.columns]
     df_unique_cols = set(df_cols)
+    print(df_unique_cols, interest_cols)
     y_col, analysis_type = None, None
     for df_col in df_unique_cols:
         for i, interest_col in enumerate(interest_cols):
-            if df_col == interest_col:
+            if interest_col == df_col:
                 print("found ", interest_col)
                 y_col = interest_col
                 analysis_type = analysis_types[i]
@@ -172,7 +175,7 @@ def get_plot_args(analysis_type, **kwargs):
             'data_label': data_labels,
             'has_legend': True
         }
-    if analysis_type == AnalysisType.POISSONS_RATIO:
+    if analysis_type == AnalysisType.POISSONS_RATIO or analysis_type == AnalysisType.POISSONS_RATIO_CSV:
         plot_args = {
             'title': r"Poisson's Ratio - $\mathit{\nu(t)}$",
             'x_label': time_label,
@@ -979,6 +982,7 @@ def marker_movement_analysis(analysis_type, conversion_factor, conversion_units,
             time_col: time,
             f'{data_idx}-{output_y_col_name}': interest_data,
             f'{data_idx}-locator_type': locator_type.value,
+            f'{data_idx}-units': conversion_units,
             f'{data_idx}-data_label': data_label
         })
         analysis_df = pd.concat([analysis_df, cur_analysis_df], axis=1)

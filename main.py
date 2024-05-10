@@ -513,17 +513,17 @@ class TrackingUI:
             analysis.poissons_ratio_csv()
         
         if analysis_type == AnalysisType.DISPLACEMENT:
-            analysis.marker_movement_analysis(analysis_type, conversion_factor, conversion_units, 'output/displacement.csv', f'displacement ({conversion_units})', locator_type=locator_choice)
+            analysis.marker_movement_analysis(analysis_type, conversion_factor, conversion_units, 'output/displacement.csv', f'displacement', locator_type=locator_choice)
         if analysis_type == AnalysisType.DISTANCE:
-            analysis.marker_movement_analysis(analysis_type, conversion_factor, conversion_units, 'output/distance.csv', f'distance ({conversion_units})', locator_type=locator_choice)
+            analysis.marker_movement_analysis(analysis_type, conversion_factor, conversion_units, 'output/distance.csv', f'distance', locator_type=locator_choice)
         if analysis_type == AnalysisType.VELOCITY:
-            analysis.marker_movement_analysis(analysis_type, conversion_factor, conversion_units, 'output/velocity.csv', f'velocity ({conversion_units})', locator_type=locator_choice)
+            analysis.marker_movement_analysis(analysis_type, conversion_factor, conversion_units, 'output/velocity.csv', f'velocity', locator_type=locator_choice)
         if analysis_type == AnalysisType.SURFACE_AREA:
             if locator_choice == LocatorType.BBOX: # marker tracking not viable for surface area
                 msg = "Error: Please select Centroid locator type for surface area,\nand ensure surface area tracking was done previously"
                 error_popup(msg)
             else:
-                analysis.marker_movement_analysis(analysis_type, conversion_factor, conversion_units, 'output/surface_area.csv', f'surface_area ({conversion_units})', locator_type=locator_choice)
+                analysis.marker_movement_analysis(analysis_type, conversion_factor, conversion_units, 'output/surface_area.csv', f'surface_area', locator_type=locator_choice)
 
     def on_submit_tracking(self):
         """calls the appropriate functions with user spec'd args when tracking start button clicked"""        
@@ -1490,19 +1490,22 @@ class DataSelector:
 
 
 class Boxplotter:
-    def __init__(self, parent, user_units):
+    def __init__(self, parent, conversion_factor, conversion_units):
         self.parent = parent
-        self.user_units = user_units
-        self.window = tk.Toplevel(self.parent)
+        self.root = parent.root
+        self.conversion_factor = conversion_factor
+        self.conversion_units = conversion_units
+        self.window = tk.Toplevel(self.root)
         self.window.title("Select a region of a plot")
         self.window.iconphoto(False, tk.PhotoImage(file="ico/m3b_comp.png"))
 
         self.label_to_dataset = {}
         self.output_files = {
             "Poisson's ratio (from csv)": 'output/poissons_ratio.csv',
-            'Marker velocity': 'output/marker_velocity.csv',
-            'Marker RMS displacement': 'output/rms_displacement.csv',
-            'Surface area': 'output/Surface_Area_Output.csv'
+            'Marker velocity': 'output/velocity.csv',
+            'Marker displacement': 'output/displacement.csv',
+            'Marker distance': 'output/distance.csv',
+            'Surface area': 'output/surface_area.csv'
         }
 
         warning_label = ttk.Label(self.window, text="Please ensure you have ran the preliminary analysis in the main UI before using this tool", font=('TkDefaultFont', 12, 'bold'))
@@ -1670,10 +1673,14 @@ class Boxplotter:
     def execute_analysis(self):
         # Check which grouping method is selected and call the corresponding function
         if self.grouping_var.get() == "conditions":
-            analysis.boxplot_conditions(self.df, self.condition_to_label, self.user_units[1])
+            analysis.boxplot_conditions(self.df, self.condition_to_label, self.conversion_units)
         elif self.grouping_var.get() == "time_points":
             selected_labels = [self.data_label_selector.get(i) for i in self.data_label_selector.curselection()]
-            analysis.boxplot_time_ranges(self.df, self.time_ranges, selected_labels, self.user_units[1])
+            if not selected_labels:
+                msg = "Warning: No data labels are selected for analysis"
+                warning_popup(msg)
+                return
+            analysis.boxplot_time_ranges(self.df, self.time_ranges, selected_labels, self.conversion_units)
         else:
             print("No valid analysis type selected")
 

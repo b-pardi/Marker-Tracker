@@ -31,6 +31,9 @@ Cell Mechanics
 - adapted data selector to new refactor
 - fixed bug where data selector was not finding mean and std dev of labels individually
 - fixed how data selector was calculating global mean and std dev
+- fixed bug where plot args would only look for poissons ratio enum not also poissons ratio CSV
+- data selector refactored
+    - mainly just adapted interest column grabber and added updated output file names
 
 5/8
 - commented out rms displacement from marker distance awaiting meeting to decide future of rms functionality
