@@ -32,7 +32,8 @@ def marker_euclidean_distance(p1x, p1y, p2x, p2y):
     return np.sqrt((p2x - p1x)**2 + (p2y - p1y)**2)
 
 def rms_distance(x, y):
-    """calculate the root mean square distance of x, y points over time
+    """
+    calculate the root mean square distance of x, y points over time
     characterize the magnitude of fluctuations/movements of the marker
 
     Args:
@@ -62,6 +63,8 @@ def get_time_labels(df, col_num=1):
         - time column in dataframe
         - plot x axis label
         - specific time unit
+
+    Expects dataframe in the formatting of the tracking methods output.
     '''
     time_col = f'{col_num}-' + (df.filter(like='Time').columns[0]).split('-', 1)[1] # accounts for any kind of units in time col
     time_label = r'Time, $\mathit{t}$ (s)'
@@ -76,6 +79,25 @@ def get_time_labels(df, col_num=1):
     return time_col, time_label, time_unit
 
 def check_tracker_data_lengths(df, n_trackers):
+    """
+    Verifies the consistency of data lengths across multiple trackers within the datasets contained in a DataFrame.
+    This function ensures that all trackers have recorded data for the same number of entries.
+
+    Details:
+        - Iterates through each dataset and tracker, collecting the number of data entries (rows) for each.
+        - Checks if the minimum and maximum data lengths across all trackers are equal.
+        - If discrepancies are found in data lengths, an error message is raised, indicating a potential issue in the tracking or data collection process.
+
+    Note:
+        - Expects dataframe in the formatting of the tracking methods output.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing tracker data, with trackers and datasets identified by columns.
+        n_trackers (int): The number of trackers used in the data collection, expected to be consistent across all datasets.
+
+    Returns:
+        None: The function does not return a value but raises an exception if discrepancies in data lengths are found.
+    """
     tracker_shapes  = []
     col_start, col_end, n_sets = get_num_datasets(df)
     for dataset in range(col_start, col_end+1, 1):
@@ -87,8 +109,19 @@ def check_tracker_data_lengths(df, n_trackers):
         msg = "ERROR: Length of data entries for trackers are different.\n\n"+\
             "Please reattempt tracking"
         error_popup(msg)
+        raise Exception(msg)
 
 def get_num_datasets(df):
+    """
+    Calculates the number of datasets represented within a DataFrame based on the naming convention of its columns.
+    Expects dataframe in the formatting of the tracking methods output.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing data with columns named according to dataset identifiers.
+
+    Returns:
+        tuple: Returns the starting identifier, ending identifier, and total number of datasets (int, int, int).
+    """
     col_start = int(df.columns[0][0])
     col_end = int(df.columns[-1][0])
     n_sets = col_end - col_start + 1
@@ -96,16 +129,44 @@ def get_num_datasets(df):
     return col_start, col_end, n_sets
 
 def get_relevant_columns(df, col_num):
+    """
+    Extracts columns relevant to a specific dataset number from a DataFrame, based on the naming convention of its columns.
+
+    Details:
+        - Filters columns that begin with a specific dataset number followed by a hyphen, indicating dataset-specific data.
+
+    Args:
+        df (pd.DataFrame): DataFrame from which to filter columns.
+        col_num (int): The dataset number used to identify relevant columns.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing only the columns relevant to the specified dataset number.
+    """
     relevant_cols = [col for col in df.columns if col.startswith(f"{col_num}-")]
     return df[relevant_cols]
 
 def check_num_trackers_with_num_datasets(n_trackers, num_tracker_datasets):
+    """
+    Determines the multiplicity of data sources (trackers and datasets) and provides a classification based on the analysis suitability.
+
+    Details:
+        - Checks if there are multiple trackers and multiple datasets, which might complicate analysis unless handled correctly.
+        - Identifies four possible scenarios: multiple videos (datasets), multiple trackers, both, or single tracker and single dataset.
+
+    Args:
+        n_trackers (int): The number of trackers used in the data collection.
+        num_tracker_datasets (int): The number of distinct video datasets involved.
+
+    Returns:
+        enum: An enum value indicating the type of data multiplicity (SINGLE, TRACKERS, VIDEOS, BOTH).
+    """
     data_multiplicity_type = 0
     if num_tracker_datasets > 1 and n_trackers > 1:
         msg = "ERROR: When using the append feature, only use one tracker per tracking operation.\n"+\
         "If using multiple trackers, only use one video tracking at a time for analysis\n"
         error_popup(msg)
-        data_multiplicity_type = DataMultiplicity.BOTH
+        raise Exception(msg)
+    
     elif num_tracker_datasets > 1 and n_trackers == 1:
         data_multiplicity_type = DataMultiplicity.VIDEOS
     elif n_trackers > 1 and num_tracker_datasets == 1:
@@ -116,6 +177,27 @@ def check_num_trackers_with_num_datasets(n_trackers, num_tracker_datasets):
     return data_multiplicity_type
 
 def find_interest_column_and_type(df):
+    """
+    Identifies the column of interest for analysis and determines the corresponding type of analysis based on predefined
+    column names. This function is designed to automate the selection of data columns from various datasets for subsequent
+    analysis and visualization.
+
+    Details:
+        - The function searches through the DataFrame columns to match against a predefined list of interest columns that
+          correspond to different types of analyses, such as velocity, displacement, or surface area.
+        - Each column of interest is associated with a specific type of analysis, which is determined during the process.
+        - This utility supports multiple analysis types and ensures that the data is correctly identified for accurate processing.
+
+    Note:
+        - Expects dataframe in the formatting of the tracking methods output.
+        - If no matching column is found, the function raises a ValueError, so handle exceptions appropriately where this function is called.
+
+    Args:
+        df (pd.DataFrame): The DataFrame from which to identify the column of interest for further analysis.
+
+    Returns:
+        tuple: A tuple containing the name of the column of interest (str) and the corresponding type of analysis (enum), if found.
+    """
     interest_cols = [
         'v', # poissons ratio df
         'velocity', # velocity df
@@ -151,6 +233,11 @@ def find_interest_column_and_type(df):
     return y_col, analysis_type
 
 def get_plot_args(analysis_type, **kwargs):
+    '''
+    Simple util function to take in the analysis type and plot_arg values and return the appropriate dictionary
+    This was just cleaner than defining these in every function
+    '''
+
     time_label = kwargs.get('time_label', '')
     data_labels = kwargs.get('data_labels', '')
     conversion_units = kwargs.get('conversion_units', '')
@@ -361,6 +448,7 @@ def plot_avgs_bar_data(n_ranges, x, y, plot_args, n_trackers=1, output_fig_name=
 
 def plot_fft(freqs, mags, N, n_datasets, plot_args):  
     """
+    '''DEPRECATED'''
     Plots the Fast Fourier Transform (FFT) of given signal data. This function visualizes frequency domains of multiple datasets,
     highlighting the dominant frequency for each dataset.
 
@@ -399,6 +487,7 @@ def plot_fft(freqs, mags, N, n_datasets, plot_args):
     fft_fig.savefig("figures/marker_velocity_FFT.png")
 
 def get_marker_data(user_unit_conversion, df):
+    '''DEPRECATED'''
     print("Grabbing tracker data...")
     conversion_factor, conversion_units = user_unit_conversion
 
@@ -543,7 +632,8 @@ def analyze_necking_point(conversion_factor, conversion_units, df=None, will_sav
         - If saving plots, ensure that the 'figures' directory exists or handle potential FileNotFoundError issues.
 
     Args:
-        user_unit_conversion (tuple): Tuple containing a conversion factor and unit name to convert pixel measurements to a desired unit.
+        conversion_factor (float): The factor to convert pixel measurements to a desired unit.
+        conversion_units (str): The units resulting from the conversion for labeling and output.
         df (pd.DataFrame, optional): DataFrame containing necking point tracking data. If not provided, data is read from 'output/Necking_Point_Output.csv'.
         will_save_figures (bool, optional): If True, saves generated plots to the 'figures' directory. Defaults to True.
 
@@ -623,7 +713,8 @@ def poissons_ratio(conversion_factor, conversion_units):
         - Ensure proper handling of directories for saving outputs and that the necessary CSV files are formatted correctly.
 
     Args:
-        user_unit_conversion (tuple): Tuple containing a conversion factor and unit name to convert pixel measurements to a desired unit.
+        conversion_factor (float): The factor to convert pixel measurements to a desired unit.
+        conversion_units (str): The units resulting from the conversion for labeling and output.
         will_calculate (Bool): determines if will calculate from recorded data, or if read from csv (False when removing points in OutlierRemoval)
         
     Returns:
@@ -719,6 +810,13 @@ def poissons_ratio(conversion_factor, conversion_units):
     print("Done")
 
 def poissons_ratio_csv(df=None, will_save_figures=True, chosen_video_data=None):
+    """
+    Performs similar function to poissons_ratio(), but reads from the csv that that function creates
+    This is for two reasons:
+        - Outlier removal tool needs the points from the poissons ratio csv file directly as opposed to removing points and recalculating everytime
+            - This is because removing a point in the poissons plot will not directly correspond to that point being removed in the marker deltas and necking point files
+        - It is faster to not have to run the calculations everytime
+    """
     if not isinstance(df, pd.DataFrame):
         df = pd.read_csv('output/poissons_ratio.csv')
         
@@ -750,6 +848,30 @@ def poissons_ratio_csv(df=None, will_save_figures=True, chosen_video_data=None):
 
 
 def boxplot_time_ranges(df, times, labels, conversion_units):
+    """
+    Groups data by specified time ranges, calculates the average of the data for each label within these ranges, 
+    and generates boxplots to compare these averages across the different time ranges.
+
+    Details:
+        - The function first determines which data points fall within each specified time range.
+        - It then computes the average of these data points for each label within the time ranges.
+        - A boxplot is generated for each time range, displaying the distribution of these averages, allowing for
+          comparison across different periods.
+        - This function is designed to handle any data that can be segmented into time ranges and is flexible to
+          various types of analyses depending on the data column provided.
+
+    Note:
+        - Expects dataframe in the formatting of the tracking methods output.
+        - Ensure directories for saving outputs exist if saving plots to avoid FileNotFoundError.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing the data to be plotted, which includes at least a time column and data columns.
+        time_ranges (list of tuples): A list where each tuple represents a start and end time defining a range.
+        conversion_units (str): The units for the data being plotted, used for labeling the y-axis.
+
+    Returns:
+        None: This function does not return any values but outputs a boxplot to a file.
+    """
     print(df, times, labels)
 
     # find column of interest (the y column that will be averaged across time ranges)
@@ -811,6 +933,32 @@ def boxplot_time_ranges(df, times, labels, conversion_units):
 
 
 def boxplot_conditions(df, conditions_dict, conversion_units):
+    """
+    Aggregates data by user-defined conditions and generates boxplots for each condition. This function
+    calculates the average values of specified data columns associated with each condition and presents 
+    them in a comparative visualization.
+
+    Details:
+        - This function identifies relevant data columns based on user-specified conditions and data labels in the DataFrame.
+            - Data labels correspond to label identifiers also spec'd by user when recording data.
+        - It computes the average of the values for these columns, grouping them according to the conditions provided.
+        - A boxplot is then generated to display the distribution of these averages across the specified conditions.
+        - The function supports customization of the plot's appearance and saves the plot to a specified directory.
+
+    Note:
+        - find_interest_column_and_type() is used to determine which analysis type is selected and find the appropriate y column of interest.
+        - Ensure that the 'figures' directory exists to prevent a FileNotFoundError when saving the plot.
+        - Expects dataframe in the formatting of the tracking methods output.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing the data to be plotted.
+        conditions_dict (dict): A dictionary where keys are condition names and values are lists of data labels under each condition.
+        conversion_units (str): The units for the data being plotted, used for labeling the y-axis.
+
+    Returns:
+        None: This function does not return any values but outputs a boxplot to a file.
+    """
+
     print(df, conditions_dict)
 
     # find column of interest
@@ -872,7 +1020,37 @@ def boxplot_conditions(df, conditions_dict, conversion_units):
 
 def marker_movement_analysis(analysis_type, conversion_factor, conversion_units, output_df_path, output_y_col_name, **kwargs):
     """
+    Analyzes marker movement data to calculate distance, displacement, velocity, or surface area changes over time.
+    This function supports multiple types of analysis and is configurable to handle different types of location data.
+    It also supports visualization and saving of results based on user configuration.
 
+    Details:
+        - The function reads tracking data from specified input CSV files depending on the locator type.
+        - It performs the specified analysis type: distance, displacement, velocity, or changes in surface area.
+        - Supports analysis of data from multiple trackers within a single video, multiple videos, or specified subsets of data.
+        - Results are saved to a specified output path and visualized if configured.
+    
+    Note:
+        - Ensure the input data files are properly formatted with the necessary columns for x and y locations or areas.
+            - This should not be an issue if recorded csv data files are left unmodified
+        - Parameters for the analysis such as `conversion_factor` and `conversion_units` are user spec'd.
+        - The function uses additional optional parameters from the kwargs when called from the data selector or outlier removal tool.
+        - Expects dataframe in the formatting of the tracking methods output.
+
+    Args:
+        analysis_type (enum): The type of analysis to perform (distance, displacement, velocity, or surface area).
+        conversion_factor (float): The factor to convert pixel measurements to a desired unit.
+        conversion_units (str): The units resulting from the conversion for labeling and output.
+        output_df_path (str): The path to save the resulting DataFrame as a CSV file.
+        output_y_col_name (str): The column name for the y-axis data in the output DataFrame.
+        kwargs:
+            df (pd.DataFrame, optional): DataFrame containing the tracking data. If not provided, data is read from the specified CSV.
+            will_save_figures (bool, optional): If True, saves generated plots to files. Defaults to True.
+            chosen_video_data (int, optional): Specifies a particular dataset to analyze if multiple datasets are present.
+            locator_type (enum, optional): Specifies whether the data comes from bounding boxes or centroids.
+
+    Returns:
+        tuple: Contains time arrays, data arrays for each analyzed dataset, plot arguments, and the number of plots or datasets processed.
     """
     # unpack kwargs
     df = kwargs.get('df', None)

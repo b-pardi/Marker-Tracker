@@ -3,8 +3,6 @@
 ## TODO
 
 FIX
-- all tools definitely broke after refactor, so adjust the tools to work with new marker_movement_analysis function
-
 - distance in outlier removal isn't removing the point selected. need to just plot and remove the the distance.csv file directly
 - have option to remove from original file or remove from analyzed data file
 

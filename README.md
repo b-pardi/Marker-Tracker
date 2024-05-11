@@ -76,11 +76,16 @@
 ### Beginning Tracking
 - Select either marker tracking or necking point detection
 - Specify parameters (detailed below)
-- Click submit, each option's process is described below
+- Check to use multithreaded tracking if desired
+    - Over 3 times faster than regular single thread, but unstable
+- Click begin tracking, each option's process is described below
     - **Note** if there was a mistake or error in an appended tracking operation, the 3 buttons on the bottom left allow you to remove the most recently appended recorded data from each of the 3 tracking operations separately
 
 ## Individual Tracking Operation Details
 ### Marker Tracking
+- For hydrogels, click on 2 markers on the hydrogel to track
+- For cell tracking, click one or more cells to track
+    - **Note** if using append feature to track cells across multiple datasets, use only one marker per video
 - Tunable parameters include:
     - Size of bounding box (bbox) for tracker (default 100 pixels)
         - bbox should be slightly larger than the object being tracked
@@ -109,7 +114,10 @@
     - Green lines are detected edges, top and bottom edges are what are looked at vertical distance of necking point
     - blue lines are visualizations of the vertical distances to ensure they are touching the top and bottom green edges
     - red line moving around is tracking the minimum distance
-- Outputs are saved to 'output/Necking_Point_Detection.csv'
+- **Midpoint method**
+    - Alternatively, you can track the necking point with the midpoint method which will simply keep track of the vertical distance at the midpoint between 2 tracked markers
+        - Includes same threshold parameter fom necking point above, as well as tracker bbox size described in Marker Tracking section
+- Outputs are saved to 'output/Necking_Point_Detection.csv' and there will be a column to indicate if it was from minimum distance or midpoint method
 
 ### Surface Area Tracking
 - Tunable parameters include:
@@ -122,10 +130,10 @@
         - This parameter is the maximum distance from the marker to look for contours
         - i.e. when the marker is placed and this paramter is at the default 150, the tracking will only consider contours less than or equal to 150 pixels away from the center of the marker
         - This is so the algorithm knows which contours to pay attention to
-- When submitting, the first frame will popup to place a marker to select a cell
+- When beginning tracking, the first frame will popup to place a marker to select a cell
     - This is the same marker selection as the marker tracker uses
 - Hit enter after marker is placed to begin tracking
-- The green box will follow the cell and the blue lines indicate the contours of the cell, recording the surface area within the blue boundaries
+- The green box will follow the cell and the blue lines indicate the contours of the cell, recording the surface area within the blue boundaries, as well as a red dot to track the centroid
 - Outputs are saved to 'output/Surface_Area_Output.csv'
 
 ## Multithreading Capabilities
@@ -144,7 +152,8 @@ necking midpt method (3 threads):
 surface area (4 threads):
 9.96 -> 6.85
 
-## After Tracking Videos, Further Analysis
+# After Tracking Videos, Data Cleaning and Customized Visualization
+
 ### Outlier Removal
 - Sometimes necking point or less commonly marker tracker jump around certain points and can skew data
 - There is a 'Remove outliers' button which opens a new window prompting choice between available tracking output files
@@ -154,8 +163,6 @@ surface area (4 threads):
 - Simply click on points that are outliers to be removed, the plot will updated with the removed points gone after each click
 - selections can be saved or undone via buttons at the top, as nothing is saved until the 'Confirm Removal' button is clicked
 - Removed points become nan values in the datasheet
-
-# Data Visualization
 
 ### Unit Conversion
 - Users have the ability to convert units from pixels to whatever units they are working in, as long as they know the conversion ratio
@@ -207,19 +214,26 @@ surface area (4 threads):
         - Repeat for all desired time ranges
         - Click 'Go' and a box plot will be generated
     
-## Currently 7 analysis buttons are available for tracking visualizations
+### Plot Customizations
+- All plotting functions read customization options from 'plot_opts/plot_customizations.json'
+- The values associated with each key are modifiable to the user, and will save on exiting of the software so they do not need to be adjusted constantly
 
+# Currently 8 analysis buttons are available for tracking visualizations
+
+## Poisson's Ratio Related Analysis (Hydrogels)
 ### Marker deltas:
 - 'marker_deltas' plots the distance that 2 tracked markers are moving away from eachother, showing the horizontal (x) distance, as well as the euclidean distance for comparison
     - euclidean distance defined as: np.sqrt((p2x - p1x)**2 + (p2y - p1y)**2)
     - p1 and p2 are 2 points that the distance between is being calculated
 - 'longitudinal_strain' plots the longitudinal strain ((L-L0) / L0) where L is the distance between the markers at time t and L0 is the initial distance between the markers
+    - This is the plot for Marker deltas that shows in the outlier removal tool
 - 'marker_euclidean_horizontal_differences' plots the discrepancies between euclidean and horizontal distances
 
 ### Necking point:
 - 'necking_point_location' plots as a control the horizontal marker location of the necking point (minimum diameter)
 - 'diameter_at_necking_point' plots the length of the vertical red marker from the tracking operation
 - 'radial_strain' plots the radial strain ((R-R0) / R0) where R is the diameter of the necking point and R0 is the initial diameter
+    - This is the plot for necking point that shows in the outlier removal tool
 
 ### Poisson's ratio (plots all of the above, in addition to):
 - 'poissons_ratio' plots the poissons ratio using above calculations (-rad_strain / long_strain)
@@ -233,28 +247,34 @@ surface area (4 threads):
         - This is because removing points at indices selecting in the poissons ratio does not necessarily correlate to removing them from the predecessor data files, necking point and marker output, due to the various calculations done
     - **Important** Poisson's ratio calculate will need to be run first no matter what, and then when plotting after removing outliers, the from_csv button will generate and save the plot with the modified data
 
+## Cell Related Analysis
+**Important Note for the following analysis methods**
+- You have the option to user either the marker or centroid to determine the position of the cell
+    - This choice will herein be referred to as 'locator choice/type'
+- Above the analysis buttons there are radio buttons to indicate which you'd like to use
+- If you would like to use Centroid locator type, track your video using the 'Surface area' tracker
+- If you would like to use the traditional marker bounding box (bbox), track your video with marker tracker
+- The locator choice will be reported in the output csv files of the analysis, as well as the figure name and title
+    - Figures are named as: "{locator type} {analysis type}.{extension}"
+- **Note** Surface area analysis button will require the centroid radio button to be selected as surface area data is only possible to record in this one
+
 ### Marker velocity:
-- 'marker_velocity' plots the magnitude of the differences of x and y locations over time
+- '{locator_type}_velocity' plots the magnitude of the differences of x and y locations over time
     - we get this the following way:
         - find dx, dy, dt (the differences between each x, y, and time value)
         - get velocity of x and y separately: dx / dt and dy / dt
         - magnitude of velocity: np.sqrt(vel_x**2 + vel_y**2) 
 
-### Marker disance
+### Marker Distance
 - RMS metrics are work in progress, for now we are just plotting the difference between points for distance, and the difference of points from there initial (displacement)
-    - magnitude of difference of 2D points
+    - '{locator_type}_distance' plots the magnitude of differences of x and y coordinate points overtime
 
-- 'marker_RMS_distance' plots the root mean squared (RMS) distance travelled by the marker over time
-    - find dx and dy same as in marker velocity and then square them all
-    - function for rms distance given as: np.sqrt(np.cumsum(dx_sq + dy_sq) / (np.arange(len(dx))+1))
-    - or (sort of) in English: RMS_dist(i) = sqrt( sum[k=1:i]( dx_k^2 + dy_k^2 ) / i)
-- 'marker_RMS_displacement' plots RMS displacement travelled by marker over time
-    - 
-
+### Marker Displacement
+- RMS metrics are work in progress, for now we are just plotting the difference of points from there initial location
+    - '{locator_type}_displacement' plots the magnitude of the differences of x-x0 and y-y0 over time
 
 ### Marker spread
-- 'marker_surface_area' plots the surface area of the tracked contours over time
-
+- 'centroid_surface_area' plots the surface area of the tracked contours over time
 
 ### Plot Customizations
 - In the plot opts folder there are 2 json files, in order to customize your plot you may edit any variable in the 'plot_customizations.json' file, while the 'default_opts.json' is purely for reference
