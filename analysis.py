@@ -561,11 +561,12 @@ def analyze_marker_deltas(conversion_factor, conversion_units, df=None, will_sav
         # grab relevant data and put into np array
         m1_df = cur_df[cur_df[f'{i}-Tracker'] == 1]
         m2_df = cur_df[cur_df[f'{i}-Tracker'] == 2]
-        time = cur_df[time_col].unique()
+        time = m1_df[time_col]
         m1_x = m1_df[f'{i}-x (px)'].values * conversion_factor
         m1_y = m1_df[f'{i}-y (px)'].values * conversion_factor
         m2_x = m2_df[f'{i}-x (px)'].values * conversion_factor
         m2_y = m2_df[f'{i}-y (px)'].values * conversion_factor
+        print(len(time), len(m1_x), len(m2_x), len(m2_x), len(m2_y))
         
         # find euclidean distances of markers
         marker_dist = []
@@ -1135,18 +1136,19 @@ def marker_movement_analysis(analysis_type, conversion_factor, conversion_units,
         data_labels.append(data_label)
         
         if analysis_type == AnalysisType.DISTANCE:
-            interest_data = np.sqrt( np.diff(x)**2 + np.diff(y)**2 ) # magnitude of x and y differences
-            time = time[:-1]
+            incr_dist = np.sqrt( np.diff(x)**2 + np.diff(y)**2 ) # magnitude of x and y differences
+            cum_distance = np.cumsum(incr_dist)
+            interest_data = np.insert(cum_distance, 0, 0.0)
 
         if analysis_type == AnalysisType.DISPLACEMENT:
-            interest_data = np.sqrt( (x - x[0])**2 + (y - y[0])**2 )[1:]
-            time = time[:-1]
+            disps = np.sqrt( (x - x[0])**2 + (y - y[0])**2 )[1:]
+            interest_data = np.insert(disps, 0, 0.0)
 
         if analysis_type == AnalysisType.VELOCITY:
             vel_x = np.diff(x) / np.diff(time)
             vel_y = np.diff(y) / np.diff(time)
             interest_data = np.sqrt(vel_x**2 + vel_y**2) # magnitude of velocities
-            time = time[:-1]
+            interest_data = np.insert(interest_data, 0, 0.0)
 
         if analysis_type == AnalysisType.SURFACE_AREA:
             interest_data = df[f'{data_idx}{y_area_column}'].values * conversion_factor

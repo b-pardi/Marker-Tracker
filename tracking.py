@@ -358,6 +358,10 @@ def frame_capture_thread(
         if stop_event.is_set():
             break
         ret, frame = cap.read()
+        
+        # only need to concern with setting frames if interval other than 1, which is default of cap.read()
+        if frame_record_interval != 1:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
 
         if not ret:
             #message_queue.put("Error: Frame failed to read")
@@ -1093,7 +1097,6 @@ def frame_tracker_midpt_finder_thread(
         message_queue,
         stop_event,
         trackers,
-        scale_frame,
         frame_end
     ):
     """
@@ -1361,8 +1364,6 @@ def necking_point_midpoint_threaded(
             message_queue,
             stop_event,
             trackers,
-            scale_frame,
-            frame_start,
             frame_end
         ), daemon=True
     )
@@ -1911,8 +1912,6 @@ def track_area_threaded(
             message_queue,
             stop_event,
             trackers,
-            scale_frame,
-            frame_start,
             frame_end
         ), daemon=True
     )

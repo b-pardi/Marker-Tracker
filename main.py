@@ -1467,9 +1467,9 @@ class DataSelector:
             y_in_range = np.asarray(y)[idxs_in_range]
             averages.append(np.mean(y_in_range))
             stddevs.append(np.std(y_in_range))
-
+        print(np.concatenate(self.all_y), '\n', np.asarray(self.all_y).shape, '\n', self.all_y)
         df = pd.DataFrame({'Averages': averages, 'StdDev': stddevs}, index=self.selected_labels)
-        global_series = pd.Series({'Averages': np.mean(np.asarray(self.all_y).flatten()), 'StdDev': np.std(np.asarray(self.all_y).flatten())}, name='Global')
+        global_series = pd.Series({'Averages': np.mean(np.concatenate(self.all_y).flatten()), 'StdDev': np.std(np.concatenate(self.all_y).flatten())}, name='Global')
         df = pd.concat([df, global_series], axis=1)
 
         df.to_csv(f"output/data_selector/data_selector_stats_{self.selected_analysis}.csv")

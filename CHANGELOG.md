@@ -8,6 +8,9 @@ FIX
 
 - multithreading issue with different frame record intervals?
 
+- AAAAAA CAP.SET FUCKED EVERYTHING
+
+
 Housekeeping
 
 Hydrogel
@@ -18,6 +21,19 @@ Cell Mechanics
 - see about surface tracking on the stained videos (awaiting videos)
 
 # Changelog
+
+5/15
+- changed locator distance analysis from incremental distance to total distance at each time point
+- fixed bug where data selector could not handle if 2 selected datasets were different lenghts (broke in the averaging section) due to np deprecating arr.flatten() 's ability to squeeze ndarrays with diff lens
+    - used np.concatenate instead of arr.flatten()
+- fixed multithreading bug with frame_tracker_midpt_finder_thread()
+    - removed passing of scale frame in one area but didn't remove it function defn
+- fixed bug in marker deltas where one particular video recorded multiple time values and broke marker deltas
+    - changed how time values are attained, using time col of one of the marker dataframes instead of .unique() of current dataframe
+- fixed bug with multithreading where changing frame record_interval meant if left the tracking loop early
+    - literally just left out cap.set
+    - putting it in slowed it down like crazy WHY GOD WHY
+    - at least made it faster for tracking all frames
 
 5/9
 - adapted outlier removal tool to work with new refactor
