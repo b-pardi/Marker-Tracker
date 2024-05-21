@@ -749,13 +749,6 @@ def poissons_ratio(conversion_factor, conversion_units):
     time_col = time_col[2:]
 
     for i in range(n_datasets):
-        # ensure tracking operations previously ran on the same data in the same time range
-        if not (marker_times[i][0] == necking_times[i][0] and marker_times[i][-1] == necking_times[i][-1] and len(marker_times[i]) == len(necking_times[i])):
-            msg = "Warning: Found discrepancies in marker deltas output and necking point output.\n"+\
-            "If this is due to outlier removal in one but not the other, proceed as normal.\n"+\
-            "Otherwise please ensure that both marker tracking and necking point detection are run on the same experiment within the same time frame."
-            warning_popup(msg)
-
         # align values, as time values in one may have some missing from the other (from outlier removal)
         marker_df = pd.DataFrame({
             f'{i+1}-{time_col}': marker_times[i],

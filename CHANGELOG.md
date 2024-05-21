@@ -3,13 +3,6 @@
 ## TODO
 
 FIX
-- distance in outlier removal isn't removing the point selected. need to just plot and remove the the distance.csv file directly
-- have option to remove from original file or remove from analyzed data file
-
-- multithreading issue with different frame record intervals?
-
-- AAAAAA CAP.SET FUCKED EVERYTHING
-
 
 Housekeeping
 
@@ -21,6 +14,10 @@ Cell Mechanics
 - see about surface tracking on the stained videos (awaiting videos)
 
 # Changelog
+
+5/21
+- removed old err msg that prevented poissons ratio calculations being different sizes across different dataset
+- fixed bug in dataselector where selecting range with 2 different size datasets broke it
 
 5/15
 - changed locator distance analysis from incremental distance to total distance at each time point

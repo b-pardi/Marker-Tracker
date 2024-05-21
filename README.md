@@ -241,11 +241,11 @@ surface area (4 threads):
 - 'long_strain_prime' derivative of long_strain
 - 'rad_strain_prime' derivative of rad_strain
 - **NOTE** Distinguishing between calculate and csv buttons
-    - poissons ratio calculate or from csv both generate the same plots, however calculate runs all the calculations using the original data in necking point and marker output csv files
-    - From csv will read data from 'poissons_ratio.csv', which is generated and updated from poisson's ratio calculate button
+    - poissons ratio calculate or from csv both plot the poissons ratio, however calculate runs all the calculations using the original data in necking point and marker output csv files, 
+    and from csv will use the output csv file produced by the calculate button
     - The difference is so poisson's ratio can benefit from the Outlier removal and Data selector tools. So when selecting data or removing outliers, it will look in and modify that csv file
         - This is because removing points at indices selecting in the poissons ratio does not necessarily correlate to removing them from the predecessor data files, necking point and marker output, due to the various calculations done
-    - **Important** Poisson's ratio calculate will need to be run first no matter what, and then when plotting after removing outliers, the from_csv button will generate and save the plot with the modified data
+    - **Important** Poisson's ratio calculate will need to be run first no matter what, and then when plotting after removing outliers or using data selector, the from_csv button will generate and save the plot with the modified data
 
 ## Cell Related Analysis
 **Important Note for the following analysis methods**
