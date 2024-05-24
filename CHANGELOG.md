@@ -34,6 +34,12 @@ Cell Mechanics
     - scaled frame to even smaller for frame selection to it's all visible
     - put all stylings into a function, and OS specific styles are dictated
 - added styles to things that were originally default (labels, checkboxes)
+- added buttons for klt optical flow
+- began implementation of optical flow
+    - new function called in main (single thread only rn)
+    - currently ignoring user inputted markers
+        - need to do something about that probably
+- boiler plate code for isaac to do frame preprocessing tool
 
 
 5/22

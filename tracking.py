@@ -210,9 +210,12 @@ def init_trackers(marker_positions, bbox_size, first_frame, tracker_choice=Track
     elif tracker_choice == TrackerChoice.CSRT:
         for _ in range(len(marker_positions)):
             trackers.append(cv2.TrackerCSRT_create())
-    elif tracker_choice == TrackerChoice.MedianFlow:
-        for _ in range(len(marker_positions)):
-            trackers.append(cv2.legacy.TrackerMedianFlow_create())
+    elif tracker_choice == TrackerChoice.KLT:
+        old_gray = cv2.cvtColor(scale_frame(first_frame)[0], cv2.COLOR_BGR2GRAY)
+        marker_positions = [mp[0] for mp in marker_positions]
+        p0 = cv2.goodFeaturesToTrack(old_gray, mask=None, maxCorners=100, qualityLevel=0.3, minDistance=7, blockSize=7)
+        #p0 = np.array(marker_positions, dtype=np.float32).reshape(-1, 1, 2)
+        return old_gray, p0
 
     # init trackers
     scaled_first_frame, scale_factor = scale_frame(first_frame)
@@ -225,13 +228,25 @@ def init_trackers(marker_positions, bbox_size, first_frame, tracker_choice=Track
 
     return trackers
 
+def preprocess_frame(frame):
+    # call contrast
+    # call sharpen
+    # call gamma adjusted
+
+    # return processed frame
+    pass
+
 def enhance_contrast(frame):
     clip_limit=3.0
     tile_grid_size=(8, 8)
-    # CLAHE
+    # CLAHE (contrast limited adaptive histogram equalization)
+
+    return frame
+
 
 def sharpen_frame(frame):
     # Define a sharpening kernel
+    # experiment with different kernels and the kernel can be scaled based on the user indications
     kernel = np.array([[ 0, -1,  0],
                        [-1, 7, -1],
                        [ 0, -1,  0]])
@@ -240,18 +255,84 @@ def sharpen_frame(frame):
     sharpened = cv2.filter2D(frame, -1, kernel)
     return sharpened
 
-def adjust_gamma(image, gamma=1.0):
-    inv_gamma = 1.0 / gamma
-    table = np.array([((i / 255.0) ** inv_gamma) * 255
-                      for i in np.arange(0, 256)]).astype("uint8")
-    return cv2.LUT(image, table)
+def adjust_gamma(frame, gamma=1.0):
+    pass
 
-def linear_contrast_stretch(image):
-    yuv = cv2.cvtColor(image, cv2.COLOR_BGR2YUV)
-    y, u, v = cv2.split(yuv)
-    y = cv2.normalize(y, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
-    yuv_stretched = cv2.merge((y, u, v))
-    return cv2.cvtColor(yuv_stretched, cv2.COLOR_YUV2BGR)
+
+def track_klt_optical_flow(
+        marker_positions,
+        first_frame,
+        frame_start,
+        frame_end,
+        cap,
+        bbox_size,
+        tracker_choice,
+        frame_record_interval,
+        frame_interval,
+        time_units,
+        file_mode,
+        video_file_name,
+        data_label):
+
+    prev_gray, p0 = init_trackers(marker_positions, bbox_size, first_frame, tracker_choice)
+    iter_lim = 10 # lk stop critera will try max 10 iterations or,
+    goal_acc = 0.03 # if accuracy is <= 3%
+
+    print('p0: ', p0, '\n\nprev_gray: ', prev_gray)
+
+    lk_params = {
+        'winSize': (15,15),
+        'maxLevel': 2, # number of pyramid levels, 2 would be using image at original, half, and quarter scales
+        'criteria': (cv2.TermCriteria_EPS | cv2.TermCriteria_COUNT, iter_lim, goal_acc)
+    }
+
+    tracker_data = defaultdict(list)
+    frame_num = frame_start
+
+    while True:
+        ret, frame = cap.read()
+        frame_num += frame_record_interval
+        if frame_record_interval != 1:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
+
+        if not ret:
+            break
+
+        scaled_frame, scale_factor = scale_frame(frame)
+        enhanced_frame = enhance_contrast(scaled_frame)
+
+        frame_gray = cv2.cvtColor(enhanced_frame, cv2.COLOR_BGR2GRAY)
+
+        # calculates optical flow giving us new pt locations, status of if each pt was found, and err of each pt
+        p1, st, err = cv2.calcOpticalFlowPyrLK(prev_gray, frame_gray, p0, None, **lk_params)
+
+        # use points that had a successful update
+        good_p1 = p1[st == 1]
+        good_p0 = p0[st == 1]
+
+        for i, (new, old) in enumerate(zip(good_p1, good_p0)):
+            x1, y1 = new.ravel()
+            x0, y0 = old.ravel()
+            print(x1, y1)
+            tracker_data[f'1-Time({time_units})'].append(np.float16((frame_num - frame_start) / cap.get(cv2.CAP_PROP_FPS)))
+            tracker_data['1-Frame'].append(frame_num - frame_start)
+            tracker_data['1-Tracker'].append(i + 1)
+            tracker_data['1-x (px)'].append(x1)
+            tracker_data['1-y (px)'].append(y1)
+            cv2.circle(enhanced_frame, (int(x0), int(y0)), 5, (0, 0, 255), -1)
+            cv2.circle(enhanced_frame, (int(x1), int(y1)), 5, (0, 255, 0), -1)
+
+        prev_gray = frame_gray.copy() # update old frame to get ready for next loop
+        p0 = good_p1.reshape(-1, 1, 2)
+
+        cv2.imshow("Tracking...", enhanced_frame)  # show updated frame tracking
+
+        if cv2.waitKey(1) == 27 or frame_num >= frame_end:  # cut tracking loop short if ESC hit
+            break
+    
+    record_data(file_mode, tracker_data, "output/Tracking_Output.csv")
+
+    cap.release()
 
 def track_markers(
         marker_positions,
@@ -293,6 +374,7 @@ def track_markers(
         video_file_name (str): Name of the video file being processed.
         data_label (str): Unique identifier for the tracking session, used in data labeling.
     """    
+
 
     trackers = init_trackers(marker_positions, bbox_size, first_frame, tracker_choice)
 

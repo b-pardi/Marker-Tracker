@@ -188,6 +188,7 @@ class TrackingUI:
         tracker_CSRT_radio.grid(row=2, column=1, padx=4)
         tracker_klt_radio = ttk.Radiobutton(self.tracking_frame, text="KLT optical flow\n(best for slow objects)", variable=self.tracker_choice_intvar, value=TrackerChoice.KLT.value, width=30, style='Outline.TButton')
         tracker_klt_radio.grid(row=2, column=2, padx=4)
+        
         # options for necking point
         self.necking_frame = tk.Frame(self.section1)
         percent_crop_label = ttk.Label(self.necking_frame, text="% of video width to\nexclude outter edges of\n(0 for none)", style='Regular.TLabel')
@@ -785,21 +786,37 @@ class TrackingUI:
                                 range_id
                             )
                         else:
-                            tracking.track_markers(
-                                selected_markers,
-                                first_frame,
-                                self.frame_start,
-                                self.frame_end,
-                                cap,
-                                bbox_size,
-                                tracker_choice,
-                                frame_record_interval,
-                                self.frame_interval,
-                                self.time_units,
-                                file_mode,
-                                video_name,
-                                range_id
-                            )
+                            if tracker_choice == TrackerChoice.KLT:
+                                tracking.track_klt_optical_flow(
+                                    selected_markers,
+                                    first_frame,
+                                    self.frame_start,
+                                    self.frame_end,
+                                    cap,
+                                    bbox_size,
+                                    tracker_choice,
+                                    frame_record_interval,
+                                    self.frame_interval,
+                                    self.time_units,
+                                    file_mode,
+                                    video_name,
+                                    range_id
+                                )
+                                tracking.track_markers(
+                                    selected_markers,
+                                    first_frame,
+                                    self.frame_start,
+                                    self.frame_end,
+                                    cap,
+                                    bbox_size,
+                                    tracker_choice,
+                                    frame_record_interval,
+                                    self.frame_interval,
+                                    self.time_units,
+                                    file_mode,
+                                    video_name,
+                                    range_id
+                                )
                         profiler.disable()
                         stats = pstats.Stats(profiler)
                         stats.sort_stats('cumulative').print_stats(10)
@@ -2084,11 +2101,15 @@ class FramePreprocessor:
 
         # checkboxes to select preprocessing options
         # sharpness, contrast, blurring, brightness
+        # these have been instantiated in tracking.py btwn lines 231 and 259
 
         # upon checking the checkbox, a slider for each option should appear, where the user can adjust the strength of the preprocessing
         # there should also be a display of the first frame of the video selected that updates whenever the slider is adjusted
         # (not sure if live adjusting would be too taxing on the system so it's fine if it updates just when the slider is released or when a button like 'show'preview' is pressed)
         # this visual indicator should display with all combined adjustments if multiple adjustments are made
+        
+        # for a reference on how to effectively use tkinter sliders, see the CropCompress class
+        # for putting a frame into a tkinter window and having it move/update with a slider, see the FrameSelector class
 
 
 if __name__ == '__main__':
