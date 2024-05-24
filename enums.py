@@ -28,6 +28,7 @@ class TrackerChoice(Enum):
     UNSELECTED = auto()
     KCF = auto()
     CSRT = auto()
+    KLT = auto()
 
 class AnalysisType(Enum):
     MARKER_DELTAS = auto()

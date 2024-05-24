@@ -20,6 +20,7 @@ import cProfile
 import pstats
 import os
 import sys
+import platform
 
 from exceptions import error_popup, warning_popup, warning_prompt
 from enums import *
@@ -33,21 +34,8 @@ class TrackingUI:
         self.root.title("Marker Tracker - M3B Lab")
         self.root.iconphoto(False, tk.PhotoImage(file="ico/m3b_comp.png"))
 
+        self.setup_styles()
 
-        # ttk widget stylings
-        radio_btn_style = ttk.Style()
-        radio_btn_style.configure("Outline.TButton", borderwidth=2, relief="solid", padding=(2, 5), foreground="black")
-        btn_style = ttk.Style()
-        btn_style.configure("Regular.TButton", padding=(10,5), relief="raised", width=20)
-        small_text_btn_style = ttk.Style()
-        small_text_btn_style.configure("LessYPadding.TButton", padding=(10,0), relief="raised", width=20, anchor='center')
-
-        # "Outline.TButton" style map
-        radio_btn_style.map("Outline.TButton",
-                foreground=[('selected', 'blue'), ('!selected', 'black')],
-                background=[('selected', 'blue'), ('!selected', 'white')])
-        radio_btn_style.configure("Outline.TButton", width=20)
-        
         # scrollbar
         self.root.grid_rowconfigure(0, weight=1)
         self.root.grid_columnconfigure(0, weight=1)
@@ -79,14 +67,16 @@ class TrackingUI:
         # file name label
         self.data_label_var = tk.StringVar()
         self.data_label_var.set("File not selected")
-        data_label = ttk.Label(file_selection_frame, textvariable=self.data_label_var)
+        data_label = ttk.Label(file_selection_frame, textvariable=self.data_label_var, style='Regular.TLabel')
         data_label.grid(row=2, column=0, pady=(0,8))
 
-        # video cropping and compression tools window
-        compression_window_btn = ttk.Button(file_selection_frame, text="Crop/Compress video", command=self.video_compression, style='Regular.TButton')
-        compression_window_btn.grid(row=3, column=0, pady=12)
-
         file_selection_frame.grid(row=2, column=0)
+
+        preprocess_frame = tk.Frame(self.section1)
+
+        # video cropping and compression tools window
+        compression_window_btn = ttk.Button(preprocess_frame, text="Crop/Compress video", command=self.video_compression, style='Regular.TButton')
+        compression_window_btn.grid(row=0, column=0, pady=(12,0))
 
         # frame selection button
         self.frame_start = -1
@@ -94,34 +84,39 @@ class TrackingUI:
         self.child = None
         self.frame_label_var = tk.StringVar()
         self.frame_label_var.set("Frame range: FULL")
-        self.frame_label = ttk.Label(self.section1, textvariable=self.frame_label_var)
-        self.frame_selector_btn = ttk.Button(self.section1, text="Select start/end frames", command=self.select_frames, style='Regular.TButton')
-        self.frame_selector_btn.grid(row=3, pady=(12,4))
-        self.frame_label.grid(row=4, column=0, pady=(0,8))
+        self.frame_label = ttk.Label(preprocess_frame, textvariable=self.frame_label_var, style='Regular.TLabel')
+        self.frame_selector_btn = ttk.Button(preprocess_frame, text="Select start/end frames", command=self.select_frames, style='Regular.TButton')
+        self.frame_selector_btn.grid(row=0, column=1, pady=(12,0))
+        self.frame_label.grid(row=1, column=1, pady=(0,8))
+
+        self.frame_preprocessing_opts_btn = ttk.Button(preprocess_frame, text="Frame Preprocessing", command=self.frame_preprocessor, style='Regular.TButton')
+        self.frame_preprocessing_opts_btn.grid(row=0, column=2, pady=(12,0))
+
+        preprocess_frame.grid(row=4, column=0)
 
         # frame interval input
         self.frame_interval = 0
         self.time_units = TimeUnits.SECONDS
         self.is_timelapse_var = tk.IntVar()
-        is_timelapse_check = ttk.Checkbutton(self.section1, text="Is this video a timelapse? ", variable=self.is_timelapse_var, onvalue=1, offvalue=0, command=self.handle_checkbuttons)
+        is_timelapse_check = ttk.Checkbutton(self.section1, text="Is this video a timelapse? ", variable=self.is_timelapse_var, onvalue=1, offvalue=0, command=self.handle_checkbuttons, style='Regular.TCheckbutton')
         is_timelapse_check.grid(row=5, column=0)
         self.frame_interval_frame = tk.Frame(self.section1)
-        time_units_label = ttk.Label(self.frame_interval_frame, text="Units of time:")
+        time_units_label = ttk.Label(self.frame_interval_frame, text="Units of time:", style='Regular.TLabel')
         time_units_label.grid(row=0, column=0, columnspan=3, pady=6)
 
         time_units_frame = tk.Frame(self.frame_interval_frame)
         self.time_units_var = tk.StringVar()
         self.time_units_var.set(TimeUnits.UNSELECTED.value)
-        time_units_seconds_radio = ttk.Radiobutton(time_units_frame, text='s', variable=self.time_units_var, value=TimeUnits.SECONDS.value)
+        time_units_seconds_radio = ttk.Radiobutton(time_units_frame, text='s', variable=self.time_units_var, value=TimeUnits.SECONDS.value, style='Regular.TRadiobutton')
         time_units_seconds_radio.grid(row=0, column=0)
-        time_units_minutes_radio = ttk.Radiobutton(time_units_frame, text='min', variable=self.time_units_var, value=TimeUnits.MINUTES.value)
+        time_units_minutes_radio = ttk.Radiobutton(time_units_frame, text='min', variable=self.time_units_var, value=TimeUnits.MINUTES.value, style='Regular.TRadiobutton')
         time_units_minutes_radio.grid(row=0, column=1)
-        time_units_hours_radio = ttk.Radiobutton(time_units_frame, text='hr', variable=self.time_units_var, value=TimeUnits.HOURS.value)
+        time_units_hours_radio = ttk.Radiobutton(time_units_frame, text='hr', variable=self.time_units_var, value=TimeUnits.HOURS.value, style='Regular.TRadiobutton')
         time_units_hours_radio.grid(row=0, column=2)
 
-        frame_interval_label = ttk.Label(self.frame_interval_frame, text="Frame interval: \n(image is taken every\n'x' unit of time)")
+        frame_interval_label = ttk.Label(self.frame_interval_frame, text="Frame interval: \n(image is taken every\n'x' unit of time)", style='Regular.TLabel')
         frame_interval_label.grid(row=2, column=0, padx=16, pady=16)
-        self.frame_interval_entry = ttk.Entry(self.frame_interval_frame, width=10)
+        self.frame_interval_entry = ttk.Entry(self.frame_interval_frame, style='Regular.TEntry')
         self.frame_interval_entry.grid(row=2, column=1)
         time_units_frame.grid(row=1, column=0, columnspan=2)
 
@@ -129,29 +124,29 @@ class TrackingUI:
         self.append_or_overwrite_frame = tk.Frame(self.section1)
         self.append_or_overwrite_var = tk.IntVar()
         self.append_or_overwrite_var.set(FileMode.UNSELECTED.value)
-        append_or_overwrite_label = ttk.Label(self.append_or_overwrite_frame, text="Append or overwrite existing tracking data?\n")
+        append_or_overwrite_label = ttk.Label(self.append_or_overwrite_frame, text="Append or overwrite existing tracking data?\n", style='Regular.TLabel')
         append_or_overwrite_label.grid(row=0, column=0, columnspan=2)
-        self.append_radio = ttk.Radiobutton(self.append_or_overwrite_frame, text="Append", variable=self.append_or_overwrite_var, value=FileMode.APPEND.value)
+        self.append_radio = ttk.Radiobutton(self.append_or_overwrite_frame, text="Append", variable=self.append_or_overwrite_var, value=FileMode.APPEND.value, style='Regular.TRadiobutton')
         self.append_radio.grid(row=1, column=0)
-        self.overwrite_radio = ttk.Radiobutton(self.append_or_overwrite_frame, text="Overwrite", variable=self.append_or_overwrite_var, value=FileMode.OVERWRITE.value)
+        self.overwrite_radio = ttk.Radiobutton(self.append_or_overwrite_frame, text="Overwrite", variable=self.append_or_overwrite_var, value=FileMode.OVERWRITE.value, style='Regular.TRadiobutton')
         self.overwrite_radio.grid(row=1, column=1)
         self.append_or_overwrite_frame.grid(row=7, column=0, pady=12)
 
         # skip frames when tracking option
         skip_frames_frame = tk.Frame(self.section1)
-        skip_frames_label_prefix = ttk.Label(skip_frames_frame, text="Track every ")
+        skip_frames_label_prefix = ttk.Label(skip_frames_frame, text="Track every ", style='Regular.TLabel')
         skip_frames_label_prefix.grid(row=0, column=0)
-        self.skip_frames_entry = ttk.Entry(skip_frames_frame, width=4)
+        self.skip_frames_entry = ttk.Entry(skip_frames_frame, width=4, style='Regular.TEntry')
         self.skip_frames_entry.insert(0, '1')
         self.skip_frames_entry.grid(row=0, column=1)
-        skip_frames_label_postfix = ttk.Label(skip_frames_frame, text="frame(s)")
+        skip_frames_label_postfix = ttk.Label(skip_frames_frame, text="frame(s)", style='Regular.TLabel')
         skip_frames_label_postfix.grid(row=0, column=2)
         skip_frames_frame.grid(row=8, column=0, pady=12)
 
         # optional range identifier
-        range_identifier_label = ttk.Label(self.section1, text="Enter an optional identifier label for the tracking data: ")
+        range_identifier_label = ttk.Label(self.section1, text="Enter an optional identifier label for the tracking data: ", style='Regular.TLabel')
         range_identifier_label.grid(row=9, column=0, pady=(8,4))
-        self.range_identifier_entry = ttk.Entry(self.section1)
+        self.range_identifier_entry = ttk.Entry(self.section1, style='Regular.TEntry')
         self.range_identifier_entry.grid(row=10, column=0, pady=(0,8))
 
         # buttons for selecting operation
@@ -172,85 +167,86 @@ class TrackingUI:
         operation_area_radio.grid(row=0, column=3, padx=4, pady=(16,4))
         
         operation_frame.grid(row=11, column=0)
-        self.select_msg = ttk.Label(self.section1, text="Select from above for more customizable parameters")
+        self.select_msg = ttk.Label(self.section1, text="Select from above for more customizable parameters", style='Regular.TLabel')
         self.select_msg.grid(row=12, column=0)
 
         # options for marker tracking
         self.tracking_frame = tk.Frame(self.section1)
-        bbox_tracking_size_label = ttk.Label(self.tracking_frame, text="Tracker bounding box size (px)")
+        bbox_tracking_size_label = ttk.Label(self.tracking_frame, text="Tracker bounding box size (px)", style='Regular.TLabel')
         bbox_tracking_size_label.grid(row=0, column=0, padx=4, pady=8)
-        self.bbox_size_tracking_entry = ttk.Entry(self.tracking_frame, width=10)
+        self.bbox_size_tracking_entry = ttk.Entry(self.tracking_frame, style='Regular.TEntry')
         self.bbox_size_tracking_entry.insert(0, "100")
         self.bbox_size_tracking_entry.grid(row=0, column=1, padx=4, pady=8)
 
         self.tracker_choice_intvar = tk.IntVar()
         self.tracker_choice_intvar.set(TrackerChoice.UNSELECTED.value)
-        tracker_choice_label = ttk.Label(self.tracking_frame, text="Choose tracking algorithm")
+        tracker_choice_label = ttk.Label(self.tracking_frame, text="Choose tracking algorithm", style='Regular.TLabel')
         tracker_choice_label.grid(row=1, column=0, columnspan=2, padx=4, pady=(12,4))
-        tracker_KCF_radio = ttk.Radiobutton(self.tracking_frame, text="KCF tracker\n(best for consistent shape tracking)", variable=self.tracker_choice_intvar, value=TrackerChoice.KCF.value, width=36, style='Outline.TButton')
+        tracker_KCF_radio = ttk.Radiobutton(self.tracking_frame, text="KCF tracker\n(best for consistent shape tracking)", variable=self.tracker_choice_intvar, value=TrackerChoice.KCF.value, width=30, style='Outline.TButton')
         tracker_KCF_radio.grid(row=2, column=0, padx=4)
-        tracker_CSRT_radio = ttk.Radiobutton(self.tracking_frame, text="CSRT tracker\n(best for deformable shape tracking)", variable=self.tracker_choice_intvar, value=TrackerChoice.CSRT.value, width=36, style='Outline.TButton')
+        tracker_CSRT_radio = ttk.Radiobutton(self.tracking_frame, text="CSRT tracker\n(best for deformable shape tracking)", variable=self.tracker_choice_intvar, value=TrackerChoice.CSRT.value, width=30, style='Outline.TButton')
         tracker_CSRT_radio.grid(row=2, column=1, padx=4)
-
+        tracker_klt_radio = ttk.Radiobutton(self.tracking_frame, text="KLT optical flow\n(best for slow objects)", variable=self.tracker_choice_intvar, value=TrackerChoice.KLT.value, width=30, style='Outline.TButton')
+        tracker_klt_radio.grid(row=2, column=2, padx=4)
         # options for necking point
         self.necking_frame = tk.Frame(self.section1)
-        percent_crop_label = ttk.Label(self.necking_frame, text="% of video width to\nexclude outter edges of\n(0 for none)")
+        percent_crop_label = ttk.Label(self.necking_frame, text="% of video width to\nexclude outter edges of\n(0 for none)", style='Regular.TLabel')
         percent_crop_label.grid(row=0, column=0, rowspan=2, padx=4, pady=8)
-        percent_crop_left_label = ttk.Label(self.necking_frame, text="left edge") 
+        percent_crop_left_label = ttk.Label(self.necking_frame, text="left edge", style='Regular.TLabel') 
         percent_crop_left_label.grid(row=0, column=1)    
-        self.percent_crop_left_entry = ttk.Entry(self.necking_frame, width=10)
+        self.percent_crop_left_entry = ttk.Entry(self.necking_frame, style='Regular.TEntry')
         self.percent_crop_left_entry.insert(0, "0")
         self.percent_crop_left_entry.grid(row=1, column=1, padx=4, pady=8)
 
-        percent_crop_right_label = ttk.Label(self.necking_frame, text="right edge")     
+        percent_crop_right_label = ttk.Label(self.necking_frame, text="right edge", style='Regular.TLabel')     
         percent_crop_right_label.grid(row=0, column=2)    
-        self.percent_crop_right_entry = ttk.Entry(self.necking_frame, width=10)
+        self.percent_crop_right_entry = ttk.Entry(self.necking_frame, style='Regular.TEntry')
         self.percent_crop_right_entry.insert(0, "0")
         self.percent_crop_right_entry.grid(row=1, column=2, padx=4, pady=8)
 
-        binarize_intensity_thresh_label = ttk.Label(self.necking_frame, text="pixel intensity value\nfor frame binarization\n(0-255)")
+        binarize_intensity_thresh_label = ttk.Label(self.necking_frame, text="pixel intensity value\nfor frame binarization\n(0-255)", style='Regular.TLabel')
         binarize_intensity_thresh_label.grid(row=2, column=0, padx=4, pady=8)
-        self.binarize_intensity_thresh_entry = ttk.Entry(self.necking_frame, width=10)
+        self.binarize_intensity_thresh_entry = ttk.Entry(self.necking_frame, style='Regular.TEntry')
         self.binarize_intensity_thresh_entry.insert(0, "120")
         self.binarize_intensity_thresh_entry.grid(row=2, column=1, columnspan=2, padx=4, pady=8)
 
         # some opts for necking point also relevant for necking midpoint
         self.necking_midpt_frame = tk.Frame(self.section1)
-        bbox_tracking_size_label = ttk.Label(self.necking_midpt_frame, text="Tracker bounding box size (px)")
+        bbox_tracking_size_label = ttk.Label(self.necking_midpt_frame, text="Tracker bounding box size (px)", style='Regular.TLabel')
         bbox_tracking_size_label.grid(row=0, column=0, padx=4, pady=8)
-        self.bbox_size_necking_midpt_entry = ttk.Entry(self.necking_midpt_frame, width=10)
+        self.bbox_size_necking_midpt_entry = ttk.Entry(self.necking_midpt_frame, style='Regular.TEntry')
         self.bbox_size_necking_midpt_entry.insert(0, "100")
         self.bbox_size_necking_midpt_entry.grid(row=0, column=1, padx=4, pady=8)
 
-        binarize_intensity_thresh_label_midpt = ttk.Label(self.necking_midpt_frame, text="pixel intensity value\nfor frame binarization\n(0-255)")
+        binarize_intensity_thresh_label_midpt = ttk.Label(self.necking_midpt_frame, text="pixel intensity value\nfor frame binarization\n(0-255)", style='Regular.TLabel')
         binarize_intensity_thresh_label_midpt.grid(row=2, column=0, padx=4, pady=8)
-        self.binarize_intensity_thresh_midpt_entry = ttk.Entry(self.necking_midpt_frame, width=10)
+        self.binarize_intensity_thresh_midpt_entry = ttk.Entry(self.necking_midpt_frame, style='Regular.TEntry')
         self.binarize_intensity_thresh_midpt_entry.insert(0, "120")
         self.binarize_intensity_thresh_midpt_entry.grid(row=2, column=1, columnspan=2, padx=4, pady=8)
 
         # options for surface area tracking
         self.area_frame = tk.Frame(self.section1)
-        bbox_area_size_label = ttk.Label(self.area_frame, text="Tracker bounding box size (px)")
+        bbox_area_size_label = ttk.Label(self.area_frame, text="Tracker bounding box size (px)", style='Regular.TLabel')
         bbox_area_size_label.grid(row=0, column=0, padx=4, pady=8)
-        self.bbox_size_area_entry = ttk.Entry(self.area_frame, width=10)
+        self.bbox_size_area_entry = ttk.Entry(self.area_frame, style='Regular.TEntry')
         self.bbox_size_area_entry.insert(0, "100")
         self.bbox_size_area_entry.grid(row=0, column=1, padx=4, pady=8)
-        distance_from_marker_thresh_label = ttk.Label(self.area_frame, text="Max distance from marker to find contours (px)")
+        distance_from_marker_thresh_label = ttk.Label(self.area_frame, text="Max distance from marker to find contours (px)", style='Regular.TLabel')
         distance_from_marker_thresh_label.grid(row=1, column=0, padx=4, pady=8)
-        self.distance_from_marker_thresh_entry = ttk.Entry(self.area_frame, width=10)
+        self.distance_from_marker_thresh_entry = ttk.Entry(self.area_frame, style='Regular.TEntry')
         self.distance_from_marker_thresh_entry.insert(0, "150")
         self.distance_from_marker_thresh_entry.grid(row=1, column=1, padx=4, pady=8)
 
         # tracking operation buttons
         track_record_frame = tk.Frame(self.section1)
         self.multithread_intvar = tk.IntVar()
-        multithread_check = ttk.Checkbutton(track_record_frame, text="Use multi-threading? (unstable but faaast)", variable=self.multithread_intvar, offvalue=0, onvalue=1)
+        multithread_check = ttk.Checkbutton(track_record_frame, text="Use multi-threading? (unstable but faaast)", variable=self.multithread_intvar, offvalue=0, onvalue=1, style='Regular.TCheckbutton')
         multithread_check.grid(row=0, column=0, columnspan=2, pady=(24,0))
         track_btn = ttk.Button(track_record_frame, text="Begin tracking", command=self.on_submit_tracking, style='Regular.TButton')
         track_btn.grid(row=2, column=0, columnspan=2, padx=32, pady=(24,4))
         
         undo_buttons_frame = tk.Frame(track_record_frame)
-        undo_label = ttk.Label(undo_buttons_frame, text="Undo previous appended tracking data recording.")
+        undo_label = ttk.Label(undo_buttons_frame, text="Undo previous appended tracking data recording.", style='Regular.TLabel')
         undo_label.grid(row=0, column=0, columnspan=3)
         undo_marker_tracking_append_btn = ttk.Button(undo_buttons_frame, text="Marker tracking", command=lambda: self.undo_last_tracking_append("output/Tracking_Output.csv"), style='Regular.TButton')
         undo_marker_tracking_append_btn.grid(row=1, column=0)        
@@ -269,28 +265,28 @@ class TrackingUI:
 
         # some data dependent graph options (more in plot_opts.json)
         graph_opts_frame = tk.Frame(section2)
-        graph_opts_label = ttk.Label(graph_opts_frame, text="Data dependent graph options")
+        graph_opts_label = ttk.Label(graph_opts_frame, text="Data dependent graph options", style='Regular.TLabel')
         graph_opts_label.grid(row=0, column=0, columnspan=2, pady=(0,12))
-        conversion_factor_label = ttk.Label(graph_opts_frame, text="Enter the conversion factor\nto convert pixels to\nyour desired units: ")
+        conversion_factor_label = ttk.Label(graph_opts_frame, text="Enter the conversion factor\nto convert pixels to\nyour desired units: ", style='Regular.TLabel')
         conversion_factor_label.grid(row=1, column=0)
-        self.conversion_factor_entry = ttk.Entry(graph_opts_frame)
+        self.conversion_factor_entry = ttk.Entry(graph_opts_frame, style='Regular.TEntry')
         self.conversion_factor_entry.insert(0, "1.0")
         self.conversion_factor_entry.grid(row=1, column=1, padx=32)
-        conversion_units_label = ttk.Label(graph_opts_frame, text="Enter the units that result\nfrom this conversion\n(mm, µm, nm, etc.): ")
+        conversion_units_label = ttk.Label(graph_opts_frame, text="Enter the units that result\nfrom this conversion\n(mm, µm, nm, etc.): ", style='Regular.TLabel')
         conversion_units_label.grid(row=2, column=0, pady=(0,16))
-        self.conversion_units_entry = ttk.Entry(graph_opts_frame)
+        self.conversion_units_entry = ttk.Entry(graph_opts_frame, style='Regular.TEntry')
         self.conversion_units_entry.insert(0, "pixels")
         self.conversion_units_entry.grid(row=2, column=1, padx=32)
 
-        axis_limits_label = ttk.Label(graph_opts_frame, text="Set 'y' axis limits for plots in units specified above\n(Leave blank for default)")
+        axis_limits_label = ttk.Label(graph_opts_frame, text="Set 'y' axis limits for plots in units specified above\n(Leave blank for default)", style='Regular.TLabel')
         axis_limits_label.grid(row=3, column=0, pady=(0, 6), columnspan=2)
-        lower_limit_label = ttk.Label(graph_opts_frame, text="Lower")
+        lower_limit_label = ttk.Label(graph_opts_frame, text="Lower", style='Regular.TLabel')
         lower_limit_label.grid(row=4, column=0)
-        upper_limit_label = ttk.Label(graph_opts_frame, text="Upper")
+        upper_limit_label = ttk.Label(graph_opts_frame, text="Upper", style='Regular.TLabel')
         upper_limit_label.grid(row=4, column=1)
-        self.lower_limit_entry = ttk.Entry(graph_opts_frame)
+        self.lower_limit_entry = ttk.Entry(graph_opts_frame, style='Regular.TEntry')
         self.lower_limit_entry.grid(row=5, column=0, pady=(0, 16))
-        self.upper_limit_entry = ttk.Entry(graph_opts_frame)
+        self.upper_limit_entry = ttk.Entry(graph_opts_frame, style='Regular.TEntry')
         self.upper_limit_entry.grid(row=5, column=1, pady=(0, 16))
         set_limits_btn = ttk.Button(graph_opts_frame, text="Set limits", command=self.set_axis_limits, style='Regular.TButton')
         set_limits_btn.grid(row=6, column=0, columnspan=2)
@@ -307,13 +303,13 @@ class TrackingUI:
         poissons_ratio_csv_btn = ttk.Button(submission_frame, text="Poisson's ratio\n(from csv)", command=lambda: self.call_analysis(AnalysisType.POISSONS_RATIO_CSV), style='LessYPadding.TButton')
         poissons_ratio_csv_btn.grid(row=9, column=0, padx=4, pady=4)
 
-        locator_choice_label = ttk.Label(submission_frame, text="Locator choice for:\ndiplacement, distance, and velocity")
+        locator_choice_label = ttk.Label(submission_frame, text="Locator choice for:\ndiplacement, distance, and velocity", style='Regular.TLabel')
         locator_choice_label.grid(row=4, column=1, padx=4, pady=(8,2))
         self.locator_choice_var = tk.StringVar()
         self.locator_choice_var.set(LocatorType.BBOX.value)
-        locator_marker_choice_radio = ttk.Radiobutton(submission_frame, text='Marker (use marker tracker)', variable=self.locator_choice_var, value=LocatorType.BBOX.value)
+        locator_marker_choice_radio = ttk.Radiobutton(submission_frame, text='Marker (use marker tracker)', variable=self.locator_choice_var, value=LocatorType.BBOX.value, style='Regular.TRadiobutton')
         locator_marker_choice_radio.grid(row=5, column=1)
-        locator_choice_centroid_radio = ttk.Radiobutton(submission_frame, text='Centroid (use surface area)', variable=self.locator_choice_var, value=LocatorType.CENTROID.value)
+        locator_choice_centroid_radio = ttk.Radiobutton(submission_frame, text='Centroid (use surface area)', variable=self.locator_choice_var, value=LocatorType.CENTROID.value, style='Regular.TRadiobutton')
         locator_choice_centroid_radio.grid(row=6, column=1)
         
         cell_distance_btn = ttk.Button(submission_frame, text="Marker distance", command=lambda: self.call_analysis(AnalysisType.DISTANCE), style='Regular.TButton')
@@ -339,9 +335,154 @@ class TrackingUI:
         submission_frame.grid(row=2, column=0)
         section2.grid(row=0, column=1, padx=(64,16),sticky='n')
 
-        self.adjust_window_size()        
+        self.adjust_window_size()  
+
+        # bind scroll wheel for windows and mac
+        self.scrollable_frame.bind("<Enter>", self.bind_scroll_events)
+        self.scrollable_frame.bind("<Leave>", self.unbind_scroll_events)   
+        '''  
         self.scrollable_frame.bind("<Enter>", lambda e: self.scrollable_frame.bind_all("<MouseWheel>", self.on_mousewheel))
         self.scrollable_frame.bind("<Leave>", lambda e: self.scrollable_frame.unbind_all("<MouseWheel>"))
+        '''
+    
+    def setup_styles(self):
+        # ttk widget stylings
+        self.radio_btn_style = ttk.Style()
+        self.radio_btn_style.configure(
+            "Outline.TButton",
+            borderwidth=2,
+            relief="solid",
+            padding=(2, 5),
+            foreground="black",
+            background="white"
+        )
+        self.btn_style = ttk.Style()
+        self.btn_style.configure(
+            "Regular.TButton",
+            padding=(10, 5),
+            relief="raised",
+            width=20
+        )
+        self.small_text_btn_style = ttk.Style()
+        self.small_text_btn_style.configure(
+            "LessYPadding.TButton",
+            padding=(10, 0),
+            relief="raised",
+            width=20,
+            anchor='center'
+        )
+
+        # "Outline.TButton" style map
+        self.radio_btn_style.map(
+            "Outline.TButton",
+            foreground=[('selected', 'blue'), ('!selected', 'black')],
+            background=[('selected', 'blue'), ('!selected', 'white')]
+        )
+
+        self.label_style = ttk.Style()
+        self.label_style.configure(
+            "Regular.TLabel",
+            padding=(10, 5)
+        )
+
+        self.checkbox_style = ttk.Style()
+        self.checkbox_style.configure(
+            "Regular.TCheckbutton",
+            padding=(10, 5)
+        )
+
+        self.radio_button_style = ttk.Style()
+        self.radio_button_style.configure(
+            "Regular.TRadiobutton",
+            padding=(10, 5)
+        )
+
+        self.entry_style = ttk.Style()
+        self.entry_style.configure(
+            "Regular.TEntry",
+            padding=(10, 5)
+        )
+
+        # Platform-specific adjustments
+        if platform.system() == 'Darwin' or platform.system() == 'Linux':  # macOS and Linux
+            self.radio_btn_style.configure(
+                "Outline.TButton",
+                font=("Helvetica", 12),
+                padding=(4, 8),
+                width=15
+            )
+            self.btn_style.configure(
+                "Regular.TButton",
+                font=("Helvetica", 12),
+                padding=(12, 8),
+                width=15
+            )
+            self.small_text_btn_style.configure(
+                "LessYPadding.TButton",
+                font=("Helvetica", 12),
+                padding=(12, 6),
+                width=15
+            )
+            self.label_style.configure(
+                "Regular.TLabel",
+                font=("Helvetica", 12),
+                padding=(12, 8)
+            )
+            self.checkbox_style.configure(
+                "Regular.TCheckbutton",
+                font=("Helvetica", 12),
+                padding=(12, 8)
+            )
+            self.radio_button_style.configure(
+                "Regular.TRadiobutton",
+                font=("Helvetica", 12),
+                padding=(12, 8)
+            )
+            self.entry_style.configure(
+                "Regular.TEntry",
+                font=("Helvetica", 12),
+                padding=(8, 4)
+            )
+
+        elif platform.system() == 'Windows':  # Windows
+            self.radio_btn_style.configure(
+                "Outline.TButton",
+                font=("Segoe UI", 10),
+                padding=(2, 5),
+                width=20
+            )
+            self.btn_style.configure(
+                "Regular.TButton",
+                font=("Segoe UI", 10),
+                padding=(10, 5),
+                width=20
+            )
+            self.small_text_btn_style.configure(
+                "LessYPadding.TButton",
+                font=("Segoe UI", 10),
+                padding=(10, 0),
+                width=20
+            )
+            self.label_style.configure(
+                "Regular.TLabel",
+                font=("Segoe UI", 10),
+                padding=(10, 5)
+            )
+            self.checkbox_style.configure(
+                "Regular.TCheckbutton",
+                font=("Segoe UI", 10),
+                padding=(10, 5)
+            )
+            self.radio_button_style.configure(
+                "Regular.TRadiobutton",
+                font=("Segoe UI", 10),
+                padding=(10, 5)
+            )
+            self.entry_style.configure(
+                "Regular.TEntry",
+                font=("Segoe UI", 10),
+                padding=(6, 2)
+            )
 
     def on_frame_configure(self, event):
         '''Reset the scroll region to encompass the inner frame and adjust window size if necessary'''
@@ -410,6 +551,9 @@ class TrackingUI:
             msg = "Select a video before opening the frame selector"
             error_popup(msg)
 
+    def frame_preprocessor(self):
+        FramePreprocessor(self, self.video_path)
+
     def remove_outliers(self):
         OutlierRemoval(self, float(self.conversion_factor_entry.get()), self.conversion_units_entry.get())
 
@@ -425,9 +569,29 @@ class TrackingUI:
         else:
             msg = "Select a video before opening the video compression tool"
             error_popup(msg)
-        
+    
+    def bind_scroll_events(self, event):
+        if platform.system() == 'Darwin' or platform.system() == 'Linux': # macOS and Linux
+            self.scrollable_frame.bind_all("<Button-4>", self.on_mousewheel)
+            self.scrollable_frame.bind_all("<Button-5>", self.on_mousewheel)
+        else: # windows OS
+            self.scrollable_frame.bind_all("<MouseWheel>", self.on_mousewheel)
+
+    def unbind_scroll_events(self, event):
+        if platform.system() == 'Darwin' or platform.system() == 'Linux': # macOS and Linux
+            self.scrollable_frame.unbind_all("<Button-4>")
+            self.scrollable_frame.unbind_all("<Button-5>")
+        else: # windows OS
+            self.scrollable_frame.unbind_all("<MouseWheel>")
+
     def on_mousewheel(self, event):
-        self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        if platform.system() == 'Darwin' or platform.system() == 'Linux': # macOS and Linux
+            if event.num == 4:
+                self.canvas.yview_scroll(-1, "units")
+            elif event.num == 5:
+                self.canvas.yview_scroll(1, "units")
+        else: # windows OS
+            self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
 
     def handle_checkbuttons(self):
         if self.is_timelapse_var.get() == 1:
@@ -840,7 +1004,7 @@ class FrameSelector:
                 foreground=[('selected', 'blue'), ('!selected', 'black')],
                 background=[('selected', 'blue'), ('!selected', 'white')])
         
-        self.frame_select_label = ttk.Label(self.child_window, textvariable=self.child_label_var)
+        self.frame_select_label = ttk.Label(self.child_window, textvariable=self.child_label_var, style='Regular.TLabel')
         self.frame_select_label.grid(pady=10)
         
         self.confirm_start_button = ttk.Button(self.child_window, text="Confirm start frame", command=self.confirm_start, style='Regular.TButton')
@@ -848,7 +1012,7 @@ class FrameSelector:
         self.confirm_end_button = ttk.Button(self.child_window, text="Confirm end frame", command=self.confirm_end, style='Regular.TButton')
         self.confirm_end_button.grid()
         
-        self.frame_display = ttk.Label(self.child_window, text="test")
+        self.frame_display = ttk.Label(self.child_window, text="test", style='Regular.TLabel')
         self.frame_display.grid(pady=10)
         self.slider = ttk.Scale(self.child_window, from_=0, to=self.n_frames - 1, orient="horizontal", length=400,
                                 command=self.update_frames)
@@ -892,7 +1056,7 @@ class FrameSelector:
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, self.frame_start)
         ret, frame = self.cap.read()
         if ret:
-            frame, _ = tracking.scale_frame(frame, 0.75)
+            frame, _ = tracking.scale_frame(frame, 0.5)
             self.display_frame(frame)
 
     def display_frame(self, frame):
@@ -972,24 +1136,24 @@ class OutlierRemoval:
 
         # Setup for file selection and data label listbox
         file_selection_frame = tk.Frame(self.window)
-        analysis_selector_label = ttk.Label(file_selection_frame, text="Select file type:")
+        analysis_selector_label = ttk.Label(file_selection_frame, text="Select file type:", style='Regular.TLabel')
         analysis_selector_label.grid(row=2, column=0)
         self.analysis_selector = ttk.Combobox(file_selection_frame, values=list(self.output_files.keys()))
         self.analysis_selector.set('Select analysis type')
         self.analysis_selector.grid(row=3, column=0, padx=8, pady=12)
 
-        data_label_selector_label = ttk.Label(file_selection_frame, text="Select data labels:")
+        data_label_selector_label = ttk.Label(file_selection_frame, text="Select data labels:", style='Regular.TLabel')
         data_label_selector_label.grid(row=2, column=1)
         self.data_label_selector = tk.Listbox(file_selection_frame, selectmode='single', exportselection=0, height=4)
         self.data_label_selector.grid(row=3, column=1, padx=8, pady=12)
         
-        locator_choice_label = ttk.Label(file_selection_frame, text="Locator choice for:\ndiplacement, distance, and velocity")
+        locator_choice_label = ttk.Label(file_selection_frame, text="Locator choice for:\ndiplacement, distance, and velocity", style='Regular.TLabel')
         locator_choice_label.grid(row=0, column=0, columnspan=2, padx=4, pady=(8,2))
         self.locator_choice_var = tk.StringVar()
         self.locator_choice_var.set(LocatorType.BBOX.value)
-        locator_marker_choice_radio = ttk.Radiobutton(file_selection_frame, text='Marker (use marker tracker)', variable=self.locator_choice_var, value=LocatorType.BBOX.value)
+        locator_marker_choice_radio = ttk.Radiobutton(file_selection_frame, text='Marker (use marker tracker)', variable=self.locator_choice_var, value=LocatorType.BBOX.value, style='Regular.TRadiobutton')
         locator_marker_choice_radio.grid(row=1, column=0)
-        locator_choice_centroid_radio = ttk.Radiobutton(file_selection_frame, text='Centroid (use surface area)', variable=self.locator_choice_var, value=LocatorType.CENTROID.value)
+        locator_choice_centroid_radio = ttk.Radiobutton(file_selection_frame, text='Centroid (use surface area)', variable=self.locator_choice_var, value=LocatorType.CENTROID.value, style='Regular.TRadiobutton')
         locator_choice_centroid_radio.grid(row=1, column=1, pady=12)
 
         file_selection_frame.grid(row=0, column=0)
@@ -1251,23 +1415,23 @@ class DataSelector:
         # Create a combobox widget for user units selection
         data_selection_frame = tk.Frame(self.window)
 
-        locator_choice_label = ttk.Label(data_selection_frame, text="Locator choice for:\ndiplacement, distance, and velocity")
+        locator_choice_label = ttk.Label(data_selection_frame, text="Locator choice for:\ndiplacement, distance, and velocity", style='Regular.TLabel')
         locator_choice_label.grid(row=0, column=0, columnspan=2, padx=4, pady=(8,2))
         self.locator_choice_var = tk.StringVar()
         self.locator_choice_var.set(LocatorType.BBOX.value)
-        locator_marker_choice_radio = ttk.Radiobutton(data_selection_frame, text='Marker (use marker tracker)', variable=self.locator_choice_var, value=LocatorType.BBOX.value)
+        locator_marker_choice_radio = ttk.Radiobutton(data_selection_frame, text='Marker (use marker tracker)', variable=self.locator_choice_var, value=LocatorType.BBOX.value, style='Regular.TRadiobutton')
         locator_marker_choice_radio.grid(row=1, column=0)
-        locator_choice_centroid_radio = ttk.Radiobutton(data_selection_frame, text='Centroid (use surface area)', variable=self.locator_choice_var, value=LocatorType.CENTROID.value)
+        locator_choice_centroid_radio = ttk.Radiobutton(data_selection_frame, text='Centroid (use surface area)', variable=self.locator_choice_var, value=LocatorType.CENTROID.value, style='Regular.TRadiobutton')
         locator_choice_centroid_radio.grid(row=1, column=1, pady=12)
 
-        analysis_selector_label = ttk.Label(data_selection_frame, text="Select analysis option")
+        analysis_selector_label = ttk.Label(data_selection_frame, text="Select analysis option", style='Regular.TLabel')
         analysis_selector_label.grid(row=2, column=0)
         self.analysis_selector = ttk.Combobox(data_selection_frame, values=list(self.output_files.keys()))
         self.analysis_selector.set('Select analysis option')  # Set default placeholder text
         self.analysis_selector.grid(row=3, column=0, padx=8, pady=12)  # Pack the combobox into the window
 
         # Create a second combobox for data labels, initially empty
-        data_label_selector_label = ttk.Label(data_selection_frame, text="Select data label(s)")
+        data_label_selector_label = ttk.Label(data_selection_frame, text="Select data label(s)", style='Regular.TLabel')
         data_label_selector_label.grid(row=2, column=1)
         self.data_label_selector = tk.Listbox(data_selection_frame, selectmode='multiple', exportselection=0, height=5)
         self.data_label_selector.grid(row=3, column=1, padx=8, pady=12)
@@ -1513,14 +1677,14 @@ class Boxplotter:
 
         # combo box to choose analysis/file type
         selection_frame = tk.Frame(self.window)
-        analysis_selector_label = ttk.Label(selection_frame, text="Select analysis option")
+        analysis_selector_label = ttk.Label(selection_frame, text="Select analysis option", style='Regular.TLabel')
         analysis_selector_label.grid(row=0, column=0)
         self.analysis_selector = ttk.Combobox(selection_frame, values=list(self.output_files.keys()))
         self.analysis_selector.set('Select analysis option')  # Set default placeholder text
         self.analysis_selector.grid(row=1, column=0, padx=8, pady=12)  # Pack the combobox into the window
 
         # Create a listbox for data labels, initially empty
-        data_label_selector_label = ttk.Label(selection_frame, text="Select data label(s)")
+        data_label_selector_label = ttk.Label(selection_frame, text="Select data label(s)", style='Regular.TLabel')
         data_label_selector_label.grid(row=0, column=1)
         self.data_label_selector = tk.Listbox(selection_frame, selectmode='multiple', exportselection=0, height=5)
         self.data_label_selector.grid(row=1, column=1, padx=8, pady=12)
@@ -1531,12 +1695,12 @@ class Boxplotter:
         # Add Radio Buttons for Selection Method
         self.grouping_var = tk.StringVar()
         grouping_frame = tk.Frame(self.window)
-        grouping_label = ttk.Label(grouping_frame, text="Select grouping method:")
+        grouping_label = ttk.Label(grouping_frame, text="Select grouping method:", style='Regular.TLabel')
         grouping_label.grid(row=0, column=0, padx=8, pady=8)
 
-        conditions_radio = ttk.Radiobutton(grouping_frame, text="By Conditions", variable=self.grouping_var, value="conditions")
+        conditions_radio = ttk.Radiobutton(grouping_frame, text="By Conditions", variable=self.grouping_var, value="conditions", style='Regular.TRadiobutton')
         conditions_radio.grid(row=1, column=0, padx=8)
-        time_radio = ttk.Radiobutton(grouping_frame, text="By Time Points", variable=self.grouping_var, value="time_points")
+        time_radio = ttk.Radiobutton(grouping_frame, text="By Time Points", variable=self.grouping_var, value="time_points", style='Regular.TRadiobutton')
         time_radio.grid(row=2, column=0, padx=8)
 
         grouping_frame.grid(row=2, column=0, padx=8, pady=12)
@@ -1572,11 +1736,11 @@ class Boxplotter:
 
     def setup_conditions_ui(self):
         self.condition_frame = tk.Frame(self.window)
-        condition_label = ttk.Label(self.condition_frame, text="Enter Condition Name:")
+        condition_label = ttk.Label(self.condition_frame, text="Enter Condition Name:", style='Regular.TLabel')
         condition_label.grid(row=0, column=0, padx=8)
-        condition_name_entry = ttk.Entry(self.condition_frame)
+        condition_name_entry = ttk.Entry(self.condition_frame, style='Regular.TEntry')
         condition_name_entry.grid(row=0, column=1, padx=8)
-        condition_instr_label = ttk.Label(self.condition_frame, text="Select from data labels above that are associated with this condition\nThese labels will be analyzed and grouped into a box in the boxplot")
+        condition_instr_label = ttk.Label(self.condition_frame, text="Select from data labels above that are associated with this condition\nThese labels will be analyzed and grouped into a box in the boxplot", style='Regular.TLabel')
         condition_instr_label.grid(row=1, column=0, columnspan=2)
 
         add_condition_button = ttk.Button(self.condition_frame, text="Add Condition",
@@ -1587,7 +1751,7 @@ class Boxplotter:
                                         command=self.remove_selected_condition)
         remove_condition_button.grid(row=3, column=0, columnspan=2, pady=8)
 
-        label_instr = ttk.Label(self.condition_frame, text="Each condition will be its own box in the plot, and each label will become a point in that box\nIf you want to group by data time ranges, use 'By Time Points'")
+        label_instr = ttk.Label(self.condition_frame, text="Each condition will be its own box in the plot, and each label will become a point in that box\nIf you want to group by data time ranges, use 'By Time Points'", style='Regular.TLabel')
         label_instr.grid(row=5, column=0, columnspan=2)
 
         self.condition_listbox = tk.Listbox(self.condition_frame, height=5)
@@ -1614,16 +1778,16 @@ class Boxplotter:
     def setup_time_ranges_ui(self):
         self.time_frame = tk.Frame(self.window)
         _, _, self.time_units = analysis.get_time_labels(self.df)
-        entry_instr_label = ttk.Label(self.time_frame, text=f"Indicate time range of each box\nCurrent units specified in main UI: ({self.time_units})")
+        entry_instr_label = ttk.Label(self.time_frame, text=f"Indicate time range of each box\nCurrent units specified in main UI: ({self.time_units})", style='Regular.TLabel')
         entry_instr_label.grid(row=0, column=0, columnspan=2)
-        t0_label = ttk.Label(self.time_frame, text="Start Time (t0):")
+        t0_label = ttk.Label(self.time_frame, text="Start Time (t0):", style='Regular.TLabel')
         t0_label.grid(row=2, column=0, padx=8)
-        t0_entry = ttk.Entry(self.time_frame)
+        t0_entry = ttk.Entry(self.time_frame, style='Regular.TEntry')
         t0_entry.grid(row=2, column=1, padx=8)
 
-        tf_label = ttk.Label(self.time_frame, text="End Time (tf):")
+        tf_label = ttk.Label(self.time_frame, text="End Time (tf):", style='Regular.TLabel')
         tf_label.grid(row=3, column=0, padx=8)
-        tf_entry = ttk.Entry(self.time_frame)
+        tf_entry = ttk.Entry(self.time_frame, style='Regular.TEntry')
         tf_entry.grid(row=3, column=1, padx=8)
 
         add_time_button = ttk.Button(self.time_frame, text="Add Time Range",
@@ -1633,7 +1797,7 @@ class Boxplotter:
         remove_time_button = ttk.Button(self.time_frame, text="Remove Selected", command=self.remove_selected_time_range)
         remove_time_button.grid(row=5, column=0, columnspan=2, pady=8)
 
-        time_range_label_instr = ttk.Label(self.time_frame, text="All labels selected will be analyzed and averaged for each time range\nIf you want to group by data labels, use 'By Conditions'")
+        time_range_label_instr = ttk.Label(self.time_frame, text="All labels selected will be analyzed and averaged for each time range\nIf you want to group by data labels, use 'By Conditions'", style='Regular.TLabel')
         time_range_label_instr.grid(row=6, column=0, columnspan=2)
 
         self.time_listbox = tk.Listbox(self.time_frame, height=5)
@@ -1706,10 +1870,10 @@ class CropAndCompressVideo:
         self.crop_frame.grid(row=0, column=0, sticky="we", padx=10, pady=(10, 0))
 
         # Crop labels
-        crop_label = ttk.Label(self.crop_frame, text="Opens first frame to select region of interest")
+        crop_label = ttk.Label(self.crop_frame, text="Opens first frame to select region of interest", style='Regular.TLabel')
         crop_label.grid(row=0, column=0, sticky="w")
 
-        crop_label_details = ttk.Label(self.crop_frame, text="Press enter to confirm crop dimensions or ESC to cancel")
+        crop_label_details = ttk.Label(self.crop_frame, text="Press enter to confirm crop dimensions or ESC to cancel", style='Regular.TLabel')
         crop_label_details.grid(row=1, column=0, sticky="w")
 
         # Button to crop the video
@@ -1717,30 +1881,30 @@ class CropAndCompressVideo:
         self.crop_button.grid(row=2, column=0, pady=16)
 
         # dimensions labels
-        self.original_label = ttk.Label(self.crop_frame, text="Original Dimensions: ")
+        self.original_label = ttk.Label(self.crop_frame, text="Original Dimensions: ", style='Regular.TLabel')
         self.original_label.grid(row=3, column=0, sticky="w")
-        self.new_label = ttk.Label(self.crop_frame, text="New Dimensions: ")
+        self.new_label = ttk.Label(self.crop_frame, text="New Dimensions: ", style='Regular.TLabel')
         self.new_label.grid(row=4, column=0, sticky="w", pady=(0, 10))
 
         # compression options
         self.compression_frame = ttk.Frame(self.window)
         self.compress_var = tk.BooleanVar(value=False)  # Default value is False
-        self.compress_checkbox = ttk.Checkbutton(self.window, text="Compress Video", variable=self.compress_var, command=self.toggle_compress_sliders)
+        self.compress_checkbox = ttk.Checkbutton(self.window, text="Compress Video", variable=self.compress_var, command=self.toggle_compress_sliders, style='Regular.TCheckbutton')
         self.compress_checkbox.grid(row=2, column=0, pady=(16,0))
 
         # Quality slider
-        self.quality_label = ttk.Label(self.compression_frame, text="Quality:")
+        self.quality_label = ttk.Label(self.compression_frame, text="Quality:", style='Regular.TLabel')
         self.quality_label.grid(row=1, column=0, sticky="w")
-        self.quality_value_label = ttk.Label(self.compression_frame, text="1.0")
+        self.quality_value_label = ttk.Label(self.compression_frame, text="1.0", style='Regular.TLabel')
         self.quality_scale = ttk.Scale(self.compression_frame, from_=0, to=1, orient="horizontal", command=self.update_quality_label)
         self.quality_scale.set(1.0)  # Default value
         self.quality_scale.grid(row=1, column=1, sticky="we", padx=(0, 10))
         self.quality_value_label.grid(row=1, column=2, sticky="w")
 
         # Resolution scale factor slider
-        self.resolution_label = ttk.Label(self.compression_frame, text="Resolution Scale Factor:")
+        self.resolution_label = ttk.Label(self.compression_frame, text="Resolution Scale Factor:", style='Regular.TLabel')
         self.resolution_label.grid(row=2, column=0, sticky="w", pady=(10, 0))
-        self.resolution_value_label = ttk.Label(self.compression_frame, text="1.0")
+        self.resolution_value_label = ttk.Label(self.compression_frame, text="1.0", style='Regular.TLabel')
         self.resolution_scale = ttk.Scale(self.compression_frame, from_=0, to=1, orient="horizontal", command=self.update_resolution_label)
         self.resolution_scale.set(1.0)  # Default value
         self.resolution_scale.grid(row=2, column=1, sticky="we", padx=(0, 10), pady=(10, 0))
@@ -1755,7 +1919,7 @@ class CropAndCompressVideo:
         self.progress_bar.grid(row=6, column=0, columnspan=2, pady=10, padx=20)
 
         # Label to indicate completion of saving process
-        self.complete_label = ttk.Label(self.window, text="Video Saved!")
+        self.complete_label = ttk.Label(self.window, text="Video Saved!", style='Regular.TLabel')
         self.complete_label.grid(row=7, column=0, columnspan=2, pady=(10, 20))
 
     def toggle_compress_sliders(self):
@@ -1899,6 +2063,33 @@ class CropAndCompressVideo:
         
         # Show completion message
         self.complete_label.pack()
+
+
+class FramePreprocessor:
+    def __init__(self, parent, video_path):
+        self.root = parent.root
+        self.parent = parent
+        self.video_path = video_path
+        
+        # Create the main window
+        self.window = tk.Toplevel(self.root)
+        self.window.title("Preprocess Video")
+        self.window.iconphoto(False, tk.PhotoImage(file="ico/m3b_comp.png"))
+
+        msg = "In this window you can select various processing techniques and the strength at which they are used\n\n"+\
+                "Warning: Surface area tracking already performs several fine tuned preprocessing techniques that are not displayed to the user when tracking\n"+\
+                "Proceed with caution if adjusting for surface area tracking"
+        self.instructions_and_warning_label = ttk.Label(self.window, text=msg, style='Regular.TLabel')
+        self.instructions_and_warning_label.grid(row=0, column=0)
+
+        # checkboxes to select preprocessing options
+        # sharpness, contrast, blurring, brightness
+
+        # upon checking the checkbox, a slider for each option should appear, where the user can adjust the strength of the preprocessing
+        # there should also be a display of the first frame of the video selected that updates whenever the slider is adjusted
+        # (not sure if live adjusting would be too taxing on the system so it's fine if it updates just when the slider is released or when a button like 'show'preview' is pressed)
+        # this visual indicator should display with all combined adjustments if multiple adjustments are made
+
 
 if __name__ == '__main__':
     root = tk.Tk()

@@ -3,17 +3,46 @@
 ## TODO
 
 FIX
+- more mac compatible?
+- scale frames more and in frame selector
+- shrink ui
+    - buttons width
+    - open smaller height
+- kcf markers not tracking well when moving really slow
+    - try kalman filter
+    - try optical flow
+        - klt algorithm
+
 
 Housekeeping
 
 Hydrogel
 
 Multi purpose
+- option to sharpen (kernel) and boost contrast (clahe)
+    - aggression levels
 
 Cell Mechanics  
 - see about surface tracking on the stained videos (awaiting videos)
+    - (siammask/deepsort)
 
 # Changelog
+
+5/23
+- mac friendly stuff
+    - fixed scrollbar not working on mac
+    - scaled frame to even smaller for frame selection to it's all visible
+    - put all stylings into a function, and OS specific styles are dictated
+- added styles to things that were originally default (labels, checkboxes)
+
+
+5/22
+- increased speed of single thread for tracking all frames
+- added FAQ to the readme
+- added various WIP frame enhancement functions that will be fully flushed out at a later date
+    - sharpness
+    - cotnrast (kernel)
+    - gamma
 
 5/21
 - removed old err msg that prevented poissons ratio calculations being different sizes across different dataset

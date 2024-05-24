@@ -210,6 +210,9 @@ def init_trackers(marker_positions, bbox_size, first_frame, tracker_choice=Track
     elif tracker_choice == TrackerChoice.CSRT:
         for _ in range(len(marker_positions)):
             trackers.append(cv2.TrackerCSRT_create())
+    elif tracker_choice == TrackerChoice.MedianFlow:
+        for _ in range(len(marker_positions)):
+            trackers.append(cv2.legacy.TrackerMedianFlow_create())
 
     # init trackers
     scaled_first_frame, scale_factor = scale_frame(first_frame)
@@ -221,6 +224,34 @@ def init_trackers(marker_positions, bbox_size, first_frame, tracker_choice=Track
         trackers[i].init(scaled_first_frame, bbox)
 
     return trackers
+
+def enhance_contrast(frame):
+    clip_limit=3.0
+    tile_grid_size=(8, 8)
+    # CLAHE
+
+def sharpen_frame(frame):
+    # Define a sharpening kernel
+    kernel = np.array([[ 0, -1,  0],
+                       [-1, 7, -1],
+                       [ 0, -1,  0]])
+    
+    # Apply the kernel to the image
+    sharpened = cv2.filter2D(frame, -1, kernel)
+    return sharpened
+
+def adjust_gamma(image, gamma=1.0):
+    inv_gamma = 1.0 / gamma
+    table = np.array([((i / 255.0) ** inv_gamma) * 255
+                      for i in np.arange(0, 256)]).astype("uint8")
+    return cv2.LUT(image, table)
+
+def linear_contrast_stretch(image):
+    yuv = cv2.cvtColor(image, cv2.COLOR_BGR2YUV)
+    y, u, v = cv2.split(yuv)
+    y = cv2.normalize(y, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
+    yuv_stretched = cv2.merge((y, u, v))
+    return cv2.cvtColor(yuv_stretched, cv2.COLOR_YUV2BGR)
 
 def track_markers(
         marker_positions,
@@ -273,16 +304,18 @@ def track_markers(
     while True:
         ret, frame = cap.read()
         frame_num += frame_record_interval
-        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
+        if frame_record_interval != 1:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
 
         if not ret:
             break  # break when frame read unsuccessful (end of video or error)
 
         scaled_frame, scale_factor = scale_frame(frame)  # Use the scale_factor obtained from the current frame scaling
+        enhanced_frame = enhance_contrast(scaled_frame)
 
         # updating trackers and saving location
         for i, tracker in enumerate(trackers):
-            success, bbox = tracker.update(scaled_frame)              
+            success, bbox = tracker.update(enhanced_frame)              
 
             if success:  # get coords of marker on successful frame update
                 x_bbox, y_bbox, w_bbox, h_bbox = [int(coord) for coord in bbox]  # get coords of bbox in the scaled frame
@@ -297,7 +330,7 @@ def track_markers(
                 tracker_data['1-Tracker'].append(i + 1)
                 tracker_data['1-x (px)'].append(int((marker_center[0] / scale_factor)))  # scale back to the original frame resolution
                 tracker_data['1-y (px)'].append(int((marker_center[1] / scale_factor)))
-                cv2.rectangle(scaled_frame, (x_bbox, y_bbox), (x_bbox + w_bbox, y_bbox + h_bbox), (0, 255, 0), 2)  # update tracker rectangle
+                cv2.rectangle(enhanced_frame, (x_bbox, y_bbox), (x_bbox + w_bbox, y_bbox + h_bbox), (0, 255, 0), 2)  # update tracker rectangle
 
             else:
                 msg = "WARNING: Lost tracking marker\n\nPlease retry after adjusting any of the following:\n\n-Parameters\n-Initial tracker placement\n-Frame selection"
@@ -306,7 +339,7 @@ def track_markers(
                 cv2.destroyAllWindows()
                 return
 
-        cv2.imshow("Tracking...", scaled_frame)  # show updated frame tracking
+        cv2.imshow("Tracking...", enhanced_frame)  # show updated frame tracking
 
         if cv2.waitKey(1) == 27 or frame_num >= frame_end:  # cut tracking loop short if ESC hit
             break
@@ -637,7 +670,8 @@ def necking_point(
     while True:  # read frame by frame until the end of the video
         ret, frame = cap.read()
         frame_num += frame_record_interval
-        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
+        if frame_record_interval != 1:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
 
         if not ret:
             break
@@ -1025,7 +1059,8 @@ def necking_point_midpoint(
     while True:  # read frame by frame until the end of the video
         ret, frame = cap.read()
         frame_num += frame_record_interval
-        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
+        if frame_record_interval != 1:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
 
         if not ret:
             break
@@ -1542,7 +1577,8 @@ def track_area(
     while frame_num < frame_end:
         ret, frame = cap.read()
         frame_num += frame_record_interval
-        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
+        if frame_record_interval != 1:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
 
         if not ret:
             break

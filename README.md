@@ -17,6 +17,7 @@
 
 - Run 'main.py' upon completion of above
 - Click button to select video file
+- **NOTE** This software was designed on Windows, for Windows. The video tracking and data analysis should perform the same across operating systems, but the UI main have some bugs displaying. Several adjustments have been made to behave better on Mac and Linux systems, but issues may persist.
 
 ### Crop/Compression Tool
 - Once video selected, user may click on button to open this tool 
@@ -278,3 +279,11 @@ surface area (4 threads):
 
 ### Plot Customizations
 - In the plot opts folder there are 2 json files, in order to customize your plot you may edit any variable in the 'plot_customizations.json' file, while the 'default_opts.json' is purely for reference
+
+# FAQ
+- my CSRT trackers aren't tracking well, how can I fix this?
+    - change the size of the bounding box, it should encompass as much of the object as possible without getting too much background. Play with the bbox size to find a happy medium
+    - Try selecting a different area of the object to track
+- my KCF trackers aren't tracking as well as they should, why?
+    - If the trackers in your video are moving really slowly, increase the frame record interval so they move faster
+    - Try using CSRT trackers instead
