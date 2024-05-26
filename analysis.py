@@ -67,14 +67,15 @@ def get_time_labels(df, col_num=1):
     Expects dataframe in the formatting of the tracking methods output.
     '''
     time_col = f'{col_num}-' + (df.filter(like='Time').columns[0]).split('-', 1)[1] # accounts for any kind of units in time col
-    time_label = r'Time, $\mathit{t}$ (s)'
-    time_unit = TimeUnits.SECONDS.value
-    if time_col.__contains__('min'):
+    if 'min' in time_col:
         time_label = r'Time, $\mathit{t}$ (min)'
         time_unit = TimeUnits.MINUTES.value
-    if time_col.__contains__('hr'):
+    elif 'hr' in time_col:
         time_label = r'Time, $\mathit{t}$ (hr)'
         time_unit = TimeUnits.HOURS.value
+    else:
+        time_label = r'Time, $\mathit{t}$ (s)'
+        time_unit = TimeUnits.SECONDS.value
 
     return time_col, time_label, time_unit
 
@@ -689,7 +690,7 @@ def analyze_necking_point(conversion_factor, conversion_units, df=None, will_sav
 
         # plot diameter at necking point
         plot_args['title'] = r'Diameter of Hydrogel at Necking Point' 
-        plot_args['y_label'] = f'Diameter, $\mathit{{D_{{np}}}}$ ({conversion_units})'
+        plot_args['y_label'] = rf'Diameter, $\mathit{{D_{{np}}}}$ ({conversion_units})'
         necking_pt_len_fig, necking_pt_len_ax = plot_scatter_data(times, necking_pt_lens, plot_args, n_datasets, output_fig_name='diameter_at_necking_point')
 
     print("Done")
@@ -1622,5 +1623,5 @@ def velocity_boxplot(conditions, user_unit_conversion):
     plt.savefig(f"figures/marker_velocity_boxplot.{plot_customs['fig_format']}", dpi=plot_customs['fig_dpi'])
 
 
-if __name__=='__main__':
-    analyze_marker_deltas()
+#if __name__=='__main__':
+#    analyze_marker_deltas()
