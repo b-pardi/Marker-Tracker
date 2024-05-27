@@ -274,7 +274,7 @@ def sharpen_frame(frame, strength=1.0):
 
 def adjust_gamma(frame, gamma=50.0):
     # Apply gamma correction
-    gamma=gamma/100
+    gamma=1-gamma/100
     gamma_corrected = np.array(255 * (frame / 255) ** gamma, dtype='uint8')
     return gamma_corrected
 
