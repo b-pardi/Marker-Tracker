@@ -2085,12 +2085,25 @@ class CropAndCompressVideo:
         # Show completion message
         self.complete_label.pack()
 
-
 class FramePreprocessor:
     """
     Details:
-    Note:
+        - Initializes a window where the user can adjust preprocessing parameters.
+        - Loads the first frame of the video and displays it as the original image.
+        - Provides checkboxes and sliders for adjusting sharpness, contrast, and brightness.
+        - Allows the user to toggle each preprocessing option and adjust its strength using sliders.
+        - When the user clicks "Show Preview", it applies the selected preprocessing to the original frame and displays the modified frame in a separate window.
+
     Args:
+        - self: 
+        - parent: 
+        - video_path: contains the path to the selected video
+
+    returns:
+        - A dictionary with these values:
+            - sharpness: 0 - 100. If 0, no change made
+            - contrast: same as above
+            - brightness: same as above
     """
     # Apply the preprocessing options to the first frame
         # Load the first frame of the video
@@ -2107,7 +2120,6 @@ class FramePreprocessor:
         
         # for a reference on how to effectively use tkinter sliders, see the CropCompress class
         # for putting a frame into a tkinter window and having it move/update with a slider, see the FrameSelector class
-
     def __init__(self, parent, video_path):
         self.root = parent.root
         self.parent = parent
@@ -2117,34 +2129,39 @@ class FramePreprocessor:
         self.ret, self.first_frame = self.cap.read()
         self.first_frame = cv2.cvtColor(self.first_frame, cv2.COLOR_BGR2GRAY)
         self.modded_frame = self.first_frame
-        
+
         # Create the main window
         self.window = tk.Toplevel(self.root)
         self.window.title("Preprocess Video")
         self.window.iconphoto(False, tk.PhotoImage(file="ico/m3b_comp.png"))
 
-        msg = "In this window you can select various processing techniques and the strength at which they are used\n\n"+\
-                "Warning: Surface area tracking already performs several fine tuned \n" +\
-                "   preprocessing techniques that are not displayed to the user when tracking\n"+\
-                "   Proceed with caution if adjusting for surface area tracking"
-        
+        msg = ("In this window you can select various processing techniques and the strength at which they are used\n\n"
+               "Warning: Surface area tracking already performs several fine tuned\n"
+               "preprocessing techniques that are not displayed to the user when tracking\n"
+               "Proceed with caution if adjusting for surface area tracking")
+
         self.instructions_and_warning_label = ttk.Label(self.window, text=msg, style='Regular.TLabel')
         self.instructions_and_warning_label.grid(row=0, column=0, columnspan=10, padx=10, pady=10)
 
         # Initialize variables for checkbox states
         self.sharpness_var = tk.BooleanVar()
         self.contrast_var = tk.BooleanVar()
-        self.blur_var = tk.BooleanVar()
         self.brightness_var = tk.BooleanVar()
 
-        # creates pairs of checkboxes and sliders
-        self.create_checkbox_with_slider("Sharpness", self.sharpness_var, 1, 0, 100)
-        self.create_checkbox_with_slider("Contrast", self.contrast_var, 2, 0, 100)
-        self.create_checkbox_with_slider("Blur", self.blur_var, 3, 0, 100)
-        self.create_checkbox_with_slider("Brightness", self.brightness_var, 4, -100, 100)
+        # Dictionary to store sliders
+        self.sliders = {}
+
+        # Create pairs of checkboxes and sliders
+        self.create_checkbox_with_slider("Sharpness", self.sharpness_var, 1, 1, 100)
+        self.create_checkbox_with_slider("Contrast", self.contrast_var, 2, 1, 100)
+        self.create_checkbox_with_slider("Brightness", self.brightness_var, 4, 1, 100)
+
+        # Button to show original image
+        self.original_frame_show = ttk.Button(self.window, text="Show original", command=self.display_first_frame_with_cv2)
+        self.original_frame_show.grid(row=5, column=4, columnspan=2, pady=10)
 
         # Button to show the preview
-        self.preview_button = ttk.Button(self.window, text="Show Preview", command=self.display_first_frame_with_cv2)
+        self.preview_button = ttk.Button(self.window, text="Show Preview", command=self.display_modded_with_cv2)
         self.preview_button.grid(row=5, column=0, columnspan=2, pady=10)
 
     def create_checkbox_with_slider(self, text, variable, row, min_val, max_val):
@@ -2160,10 +2177,13 @@ class FramePreprocessor:
         max_label = ttk.Label(self.window, text=f"{max_val}")
         max_label.grid(row=row, column=3)
 
-        value_label = ttk.Label(self.window, text=f"Value: {int(slider.get())}", width = 10)
+        value_label = ttk.Label(self.window, text=f"Value: {int(slider.get())}", width=10)
         value_label.grid(row=row, column=4, padx=(10, 50))
 
         slider.config(command=lambda value, var=value_label: var.config(text=f"Value: {int(float(value))}"))
+
+        # Store the slider in the dictionary
+        self.sliders[text] = slider
 
         slider.grid_remove()
         min_label.grid_remove()
@@ -2177,29 +2197,44 @@ class FramePreprocessor:
             slider.grid()
             min_label.grid()
             max_label.grid()
+            value_label.grid()
         else:
             slider.grid_remove()
             min_label.grid_remove()
             max_label.grid_remove()
-        value_label.grid()
-    
-    def display_first_frame_with_cv2(self):
-        # Display the frame using OpenCV
+            value_label.grid_remove()
+
+    def display_modded_with_cv2(self):
         if self.modded_frame is not None and self.modded_frame.size > 0:
-            print("frame exists")
+            print("moddedframe exists")
+            sharpness_value = self.sliders["Sharpness"].get() if self.sharpness_var.get() else 0
+            contrast_value = self.sliders["Contrast"].get() if self.contrast_var.get() else 0
+            brightness_value = self.sliders["Brightness"].get() if self.brightness_var.get() else 0
+
+            self.modded_frame = tracking.preprocess_frame(
+                self.modded_frame, sharpness_value, contrast_value, brightness_value
+            )
         else:
-            print("Doesn't work")
-        cv2.imshow("Frame Preview", self.modded_frame)
+            print("moddedframe doesn't work")
+
+        cv2.imshow("Modded Frame Preview", self.modded_frame)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        self.modded_frame = self.first_frame
+
+    def display_first_frame_with_cv2(self):
+        cv2.imshow("Frame Preview", self.first_frame)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
-    def update_preview(self):
-        # Call preprocessing function in tracking
+    def get_selected_processing_values(self):
+        return_dict = {
+            "sharpness": self.sliders["Sharpness"].get() if self.sharpness_var.get() else 0,
+            "contrast": self.sliders["Contrast"].get() if self.contrast_var.get() else 0,
+            "brightness": self.sliders["Brightness"].get() if self.brightness_var.get() else 0
+        }
+        return return_dict
 
-        sharpness = self.sharpness_slider.get()
-        contrast = self.contrast_slider.get()
-        blur = self.blur_slider.get()
-        brightness = self.brightness_slider.get()
 
 if __name__ == '__main__':
     root = tk.Tk()
