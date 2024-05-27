@@ -228,35 +228,55 @@ def init_trackers(marker_positions, bbox_size, first_frame, tracker_choice=Track
 
     return trackers
 
-def preprocess_frame(frame):
-    # call contrast
-    # call sharpen
-    # call gamma adjusted
+def preprocess_frame(frame, sharpness_strength, contrast_strength, brightness_strength):
+    # Initialize a variable to store the modified frame
+    modified_frame = frame.copy()
 
-    # return processed frame
-    pass
+    # Apply contrast enhancement
+    if contrast_strength > 0:
+        modified_frame = enhance_contrast(modified_frame, contrast_strength)
+    
+    # Apply sharpening
+    if sharpness_strength > 0:
+        modified_frame = sharpen_frame(modified_frame, sharpness_strength)
+    
+    # Apply brightness adjustment
+    if brightness_strength > 0:
+        modified_frame = adjust_gamma(modified_frame, brightness_strength)
+    
+    return modified_frame
 
-def enhance_contrast(frame):
-    clip_limit=3.0
-    tile_grid_size=(8, 8)
-    # CLAHE (contrast limited adaptive histogram equalization)
+def enhance_contrast(frame, strength=50):
+    # Define parameters for contrast enhancement
+    clip_limit = 3.0
+    tile_grid_size = (8, 8)
+    
+    # Apply CLAHE (Contrast Limited Adaptive Histogram Equalization)
+    clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
+    enhanced_frame = clahe.apply(frame)
+    
+    # Adjust contrast strength
+    enhanced_frame = cv2.addWeighted(frame, 1 + strength / 100, enhanced_frame, 0.0, 0.0)
+    
+    return enhanced_frame
 
-    return frame
+def sharpen_frame(frame, strength=1.0):
+    scaled_strength = strength/100
 
-
-def sharpen_frame(frame):
     # Define a sharpening kernel
-    # experiment with different kernels and the kernel can be scaled based on the user indications
-    kernel = np.array([[ 0, -1,  0],
-                       [-1, 7, -1],
-                       [ 0, -1,  0]])
+    kernel = np.array([[0, -0.2, 0],
+                       [-0.2, 1 + 3 * scaled_strength, -0.2],
+                       [0, -0.2, 0]])
     
     # Apply the kernel to the image
     sharpened = cv2.filter2D(frame, -1, kernel)
     return sharpened
 
-def adjust_gamma(frame, gamma=1.0):
-    pass
+def adjust_gamma(frame, gamma=50.0):
+    # Apply gamma correction
+    gamma=gamma/100
+    gamma_corrected = np.array(255 * (frame / 255) ** gamma, dtype='uint8')
+    return gamma_corrected
 
 
 def track_klt_optical_flow(
