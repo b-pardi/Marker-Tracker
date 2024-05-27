@@ -2092,6 +2092,21 @@ class FramePreprocessor:
     Note:
     Args:
     """
+    # Apply the preprocessing options to the first frame
+        # Load the first frame of the video
+        # Apply preprocessing (sharpness, contrast, blur, brightness)
+        # Display the updated frame in the preview image widget
+        # checkboxes to select preprocessing options
+        # sharpness, contrast, blurring, brightness
+        # these have been instantiated in tracking.py btwn lines 231 and 259
+
+        # upon checking the checkbox, a slider for each option should appear, where the user can adjust the strength of the preprocessing
+        # there should also be a display of the first frame of the video selected that updates whenever the slider is adjusted
+        # (not sure if live adjusting would be too taxing on the system so it's fine if it updates just when the slider is released or when a button like 'show'preview' is pressed)
+        # this visual indicator should display with all combined adjustments if multiple adjustments are made
+        
+        # for a reference on how to effectively use tkinter sliders, see the CropCompress class
+        # for putting a frame into a tkinter window and having it move/update with a slider, see the FrameSelector class
 
     def __init__(self, parent, video_path):
         self.root = parent.root
@@ -2109,11 +2124,12 @@ class FramePreprocessor:
         self.window.iconphoto(False, tk.PhotoImage(file="ico/m3b_comp.png"))
 
         msg = "In this window you can select various processing techniques and the strength at which they are used\n\n"+\
-                "Warning: Surface area tracking already performs several fine tuned preprocessing techniques that are not displayed to the user when tracking\n"+\
-                "Proceed with caution if adjusting for surface area tracking"
+                "Warning: Surface area tracking already performs several fine tuned \n" +\
+                "   preprocessing techniques that are not displayed to the user when tracking\n"+\
+                "   Proceed with caution if adjusting for surface area tracking"
         
         self.instructions_and_warning_label = ttk.Label(self.window, text=msg, style='Regular.TLabel')
-        self.instructions_and_warning_label.grid(row=0, column=0)
+        self.instructions_and_warning_label.grid(row=0, column=0, columnspan=10, padx=10, pady=10)
 
         # Initialize variables for checkbox states
         self.sharpness_var = tk.BooleanVar()
@@ -2121,87 +2137,51 @@ class FramePreprocessor:
         self.blur_var = tk.BooleanVar()
         self.brightness_var = tk.BooleanVar()
 
-        # Create checkboxes for each preprocessing option
-        self.sharpness_checkbox = ttk.Checkbutton(self.window, text="Sharpness", variable=self.sharpness_var)
-        self.sharpness_checkbox.grid(row=1, column=0, sticky=tk.W)
-
-        self.contrast_checkbox = ttk.Checkbutton(self.window, text="Contrast", variable=self.contrast_var)
-        self.contrast_checkbox.grid(row=2, column=0, sticky=tk.W)
-
-        self.blur_checkbox = ttk.Checkbutton(self.window, text="Blur", variable=self.blur_var)
-        self.blur_checkbox.grid(row=3, column=0, sticky=tk.W)
-
-        self.brightness_checkbox = ttk.Checkbutton(self.window, text="Brightness", variable=self.brightness_var)
-        self.brightness_checkbox.grid(row=4, column=0, sticky=tk.W)
-
-        # Create sliders for each preprocessing option
-        self.sharpness_slider = ttk.Scale(self.window, from_=0, to=100, orient=tk.HORIZONTAL)
-        self.sharpness_slider.grid(row=1, column=1, padx=10, pady=5)
-
-        self.contrast_slider = ttk.Scale(self.window, from_=0, to=100, orient=tk.HORIZONTAL)
-        self.contrast_slider.grid(row=2, column=1, padx=10, pady=5)
-
-        self.blur_slider = ttk.Scale(self.window, from_=0, to=100, orient=tk.HORIZONTAL)
-        self.blur_slider.grid(row=3, column=1, padx=10, pady=5)
-
-        self.brightness_slider = ttk.Scale(self.window, from_=-100, to=100, orient=tk.HORIZONTAL)
-        self.brightness_slider.grid(row=4, column=1, padx=10, pady=5)
+        # creates pairs of checkboxes and sliders
+        self.create_checkbox_with_slider("Sharpness", self.sharpness_var, 1, 0, 100)
+        self.create_checkbox_with_slider("Contrast", self.contrast_var, 2, 0, 100)
+        self.create_checkbox_with_slider("Blur", self.blur_var, 3, 0, 100)
+        self.create_checkbox_with_slider("Brightness", self.brightness_var, 4, -100, 100)
 
         # Button to show the preview
         self.preview_button = ttk.Button(self.window, text="Show Preview", command=self.display_first_frame_with_cv2)
         self.preview_button.grid(row=5, column=0, columnspan=2, pady=10)
 
-        # Label to display the preview image
-        self.preview_label = ttk.Label(self.window, text="Preview Image")
-        self.preview_label.grid(row=6, column=0, columnspan=2)
+    def create_checkbox_with_slider(self, text, variable, row, min_val, max_val):
+        checkbox = ttk.Checkbutton(self.window, text=text, variable=variable)
+        checkbox.grid(row=row, column=0, sticky=tk.W, padx=(110, 0))
 
-        #Preview image
+        min_label = ttk.Label(self.window, text=f"{min_val}")
+        min_label.grid(row=row, column=1, sticky="E")
 
+        slider = ttk.Scale(self.window, from_=min_val, to=max_val, orient=tk.HORIZONTAL)
+        slider.grid(row=row, column=2, padx=10, pady=5, sticky="ew")
 
-        self.sharpness_var.trace_add("write", lambda *args: self.toggle_sliders(self.sharpness_slider))
-        self.contrast_var.trace_add("write", lambda *args: self.toggle_sliders(self.contrast_slider))
-        self.blur_var.trace_add("write", lambda *args: self.toggle_sliders(self.blur_slider))
-        self.brightness_var.trace_add("write", lambda *args: self.toggle_sliders(self.brightness_slider))
+        max_label = ttk.Label(self.window, text=f"{max_val}")
+        max_label.grid(row=row, column=3)
 
-        # Hide sliders initially
-        self.toggle_sliders(self.sharpness_slider)
-        self.toggle_sliders(self.contrast_slider)
-        self.toggle_sliders(self.blur_slider)
-        self.toggle_sliders(self.brightness_slider)
+        value_label = ttk.Label(self.window, text=f"Value: {int(slider.get())}", width = 10)
+        value_label.grid(row=row, column=4, padx=(10, 50))
 
-    def toggle_sliders(self, slider):
-        # Toggle the state of the slider based on the checkbox state
-        checkbox_state = False
-        if slider == self.sharpness_slider:
-            checkbox_state = self.sharpness_var.get()
-        elif slider == self.contrast_slider:
-            checkbox_state = self.contrast_var.get()
-        elif slider == self.blur_slider:
-            checkbox_state = self.blur_var.get()
-        elif slider == self.brightness_slider:
-            checkbox_state = self.brightness_var.get()
+        slider.config(command=lambda value, var=value_label: var.config(text=f"Value: {int(float(value))}"))
 
-        # Show or hide the slider based on the checkbox state
-        if checkbox_state:
+        slider.grid_remove()
+        min_label.grid_remove()
+        max_label.grid_remove()
+        value_label.grid_remove()
+
+        variable.trace_add("write", lambda *args, slider=slider, min_label=min_label, max_label=max_label, value_label=value_label: self.toggle_slider(slider, variable, min_label, max_label, value_label))
+
+    def toggle_slider(self, slider, variable, min_label, max_label, value_label):
+        if variable.get():
             slider.grid()
+            min_label.grid()
+            max_label.grid()
         else:
             slider.grid_remove()
-
-        # Apply the preprocessing options to the first frame
-        # Load the first frame of the video
-        # Apply preprocessing (sharpness, contrast, blur, brightness)
-        # Display the updated frame in the preview image widget
-        # checkboxes to select preprocessing options
-        # sharpness, contrast, blurring, brightness
-        # these have been instantiated in tracking.py btwn lines 231 and 259
-
-        # upon checking the checkbox, a slider for each option should appear, where the user can adjust the strength of the preprocessing
-        # there should also be a display of the first frame of the video selected that updates whenever the slider is adjusted
-        # (not sure if live adjusting would be too taxing on the system so it's fine if it updates just when the slider is released or when a button like 'show'preview' is pressed)
-        # this visual indicator should display with all combined adjustments if multiple adjustments are made
-        
-        # for a reference on how to effectively use tkinter sliders, see the CropCompress class
-        # for putting a frame into a tkinter window and having it move/update with a slider, see the FrameSelector class
+            min_label.grid_remove()
+            max_label.grid_remove()
+        value_label.grid()
     
     def display_first_frame_with_cv2(self):
         # Display the frame using OpenCV
