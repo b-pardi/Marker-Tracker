@@ -232,13 +232,13 @@ def preprocess_frame(frame, sharpness_strength, contrast_strength, brightness_st
     # Initialize a variable to store the modified frame
     modified_frame = frame.copy()
 
+    # Apply sharpening
+    if sharpness_strength != 0:
+        modified_frame = sharpen_frame(modified_frame, sharpness_strength)
+
     # Apply contrast enhancement
     if contrast_strength > 0:
         modified_frame = enhance_contrast(modified_frame, contrast_strength)
-    
-    # Apply sharpening
-    if sharpness_strength > 0:
-        modified_frame = sharpen_frame(modified_frame, sharpness_strength)
     
     # Apply brightness adjustment
     if brightness_strength > 0:
@@ -261,16 +261,24 @@ def enhance_contrast(frame, strength=50):
     return enhanced_frame
 
 def sharpen_frame(frame, strength=1.0):
-    scaled_strength = strength/100
+    if strength > 0:
+        # Sharpening
+        scaled_strength = strength / 100
+        kernel = np.array([[0, -0.2, 0],
+                           [-0.2, 2 + 3 * scaled_strength, -0.2],
+                           [0, -0.2, 0]])
+    else:
+        # Blurring
+        scaled_strength = abs(strength) / 30
+        kernel_size = int(1 + 2 * scaled_strength)
+        if kernel_size % 2 == 0:  # Ensure the kernel size is odd
+            kernel_size += 1
+        blurred = cv2.GaussianBlur(frame, (kernel_size, kernel_size), 0)
+        return blurred
 
-    # Define a sharpening kernel
-    kernel = np.array([[0, -0.2, 0],
-                       [-0.2, 1 + 3 * scaled_strength, -0.2],
-                       [0, -0.2, 0]])
-    
     # Apply the kernel to the image
-    sharpened = cv2.filter2D(frame, -1, kernel)
-    return sharpened
+    result = cv2.filter2D(frame, -1, kernel)
+    return result
 
 def adjust_gamma(frame, gamma=50.0):
     # Apply gamma correction
