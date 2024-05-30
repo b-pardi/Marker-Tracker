@@ -15,8 +15,10 @@ FIX
 
 
 Housekeeping
+- move multithreaded functions to new file and deprecate
 
 Hydrogel
+- 
 
 Multi purpose
 - option to sharpen (kernel) and boost contrast (clahe)
@@ -27,6 +29,21 @@ Cell Mechanics
     - (siammask/deepsort)
 
 # Changelog
+
+5/29
+- tested preprocessing techniques for new contour tracked stained cell videos (see test_videos.py)
+    - median blurring
+    - gaussian blurring
+    - high pass filter (subtract method)
+    - high pass filter (kernel method)
+    - total variation denoising
+    - non local means denoising
+    - nlm with hp filter subtraction
+    - nlm with hp filter kernel*
+- added improve_smoothing to tracking, using the chosen (*) preprocessing technique above
+    - non local means denoising with a high pass filter
+- added to surface area tracking user params the option to filter a noisy background (uses preexisting improve_binarization function) or the new improve_smoothing function
+
 
 5/23
 - mac friendly stuff

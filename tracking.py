@@ -413,11 +413,10 @@ def track_markers(
             break  # break when frame read unsuccessful (end of video or error)
 
         scaled_frame, scale_factor = scale_frame(frame)  # Use the scale_factor obtained from the current frame scaling
-        enhanced_frame = enhance_contrast(scaled_frame)
 
         # updating trackers and saving location
         for i, tracker in enumerate(trackers):
-            success, bbox = tracker.update(enhanced_frame)              
+            success, bbox = tracker.update(scaled_frame)              
 
             if success:  # get coords of marker on successful frame update
                 x_bbox, y_bbox, w_bbox, h_bbox = [int(coord) for coord in bbox]  # get coords of bbox in the scaled frame
@@ -432,7 +431,7 @@ def track_markers(
                 tracker_data['1-Tracker'].append(i + 1)
                 tracker_data['1-x (px)'].append(int((marker_center[0] / scale_factor)))  # scale back to the original frame resolution
                 tracker_data['1-y (px)'].append(int((marker_center[1] / scale_factor)))
-                cv2.rectangle(enhanced_frame, (x_bbox, y_bbox), (x_bbox + w_bbox, y_bbox + h_bbox), (0, 255, 0), 2)  # update tracker rectangle
+                cv2.rectangle(scaled_frame, (x_bbox, y_bbox), (x_bbox + w_bbox, y_bbox + h_bbox), (0, 255, 0), 2)  # update tracker rectangle
 
             else:
                 msg = "WARNING: Lost tracking marker\n\nPlease retry after adjusting any of the following:\n\n-Parameters\n-Initial tracker placement\n-Frame selection"
@@ -441,7 +440,7 @@ def track_markers(
                 cv2.destroyAllWindows()
                 return
 
-        cv2.imshow("Tracking...", enhanced_frame)  # show updated frame tracking
+        cv2.imshow("Tracking...", scaled_frame)  # show updated frame tracking
 
         if cv2.waitKey(1) == 27 or frame_num >= frame_end:  # cut tracking loop short if ESC hit
             break
@@ -1611,6 +1610,32 @@ def improve_binarization(frame):
 
     return result
 
+def improve_smoothing(frame, strength=0.8):
+    """
+    Enhances the input frame by applying Non-Local Means (NLM) denoising followed by a high-pass filter.
+    
+    NLM averages pixel intensity s.t. similar patches of the image (even far apart) contribute more to the average
+    
+
+    Args:
+    frame (numpy.ndarray): The input image in grayscale.
+
+    Returns:
+    numpy.ndarray: The processed image with improved smoothing and enhanced details.
+    """
+    noise_level = np.std(frame)
+    denoised = cv2.fastNlMeansDenoising(frame, None, h=noise_level*strength, templateWindowSize=7, searchWindowSize=25)
+    
+    # highlights cental pixel and reduces neighboring pixels
+    # passes high frequencies and attenuates low frequencies
+    # this kernel represents a discrete ver of the laplacian operator, approximating 2nd order derivative of image
+    laplacian_kernel = np.array([[-1, -1, -1],
+                             [-1,  8, -1],
+                             [-1, -1, -1]])
+
+    # Apply the high-pass filter using convolution
+    high_pass = cv2.filter2D(denoised, -1, laplacian_kernel)
+    return high_pass
 
 def track_area(
         cap,
@@ -1625,7 +1650,8 @@ def track_area(
         distance_from_marker_thresh,
         file_mode,
         video_file_name,
-        data_label
+        data_label,
+        preprocessing_need
     ):
 
     """
@@ -1660,6 +1686,7 @@ def track_area(
         file_mode (FileMode enum): Mode for recording data ('FileMode.APPEND' or 'FileMode.OVERWRITE').
         video_file_name (str): Name of the video file being processed.
         data_label (str): Unique identifier for the data session.
+        preprocessing_need (PreprocessingIssue enum): type of preprocessing that is need for the video
         """
 
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_start)
@@ -1703,29 +1730,17 @@ def track_area(
             return
 
         # preprocessing
+        if preprocessing_need == PreprocessingIssue.NOISY_BG:
+            preprocessed_frame = improve_binarization(gray_frame)
+        elif preprocessing_need == PreprocessingIssue.HARSH_GRADIENT:
+            preprocessed_frame = improve_smoothing(gray_frame)
+        else:
+            preprocessed_frame = gray_frame
 
-        # reduce static noise (WIP)
-        #noise_reduced_frame = noise_reduction(gray_frame)
+        binary_frame = cv2.adaptiveThreshold(preprocessed_frame, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
 
-        #_, binary_frame = cv2.threshold(blur_frame, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        binary_frame = improve_binarization(gray_frame)
-
-        # threshold frame again with localized kernel, adds a bit of noise but strengthens contours (idk why this helps but it does)
-        adaptive_thresh = cv2.adaptiveThreshold(binary_frame, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
-        
         # Segment frame
-        contours, _ = cv2.findContours(adaptive_thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        '''for i, contour in enumerate(contours):
-            area = cv2.contourArea(contour)
-            if area > 100:  # Filter out small contours that are small blobs
-                M = cv2.moments(contour)
-                if M["m00"] != 0:
-                    cx = int(M["m10"] / M["m00"])
-                    cy = int(M["m01"] / M["m00"])
-                    if np.abs(marker_center[0] - cx) < distance_from_marker_thresh and np.abs(marker_center[1] - cy) < distance_from_marker_thresh:
-                        cv2.drawContours(scaled_frame, [contour], -1, (255, 0, 0), 2)
-                        cv2.putText(scaled_frame, str(i+1), (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)'''
+        contours, _ = cv2.findContours(binary_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         # choose optimal contour (largest and near marker)
         max_area, max_area_idx = 0, 0
@@ -1750,14 +1765,19 @@ def track_area(
         cv2.putText(scaled_frame, str(i+1), (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
         # record data
-        area_data['1-Frame'].append(frame_num)
-        if frame_interval == 0:
-            area_data[f'1-Time({time_units})'].append(np.float32(frame_num / cap.get(5)))
-        else:
-            area_data[f'1-Time({time_units})'].append(np.float16(frame_num * frame_interval))
-        area_data['1-x centroid location'].append(int((centroid[0] / scale_factor)))
-        area_data['1-y centroid location'].append(int((centroid[1] / scale_factor)))
-        area_data['1-cell surface area (px^2)'].append(max_area)
+        print(centroid)
+        try: 
+            area_data['1-Frame'].append(frame_num)
+            if frame_interval == 0:
+                area_data[f'1-Time({time_units})'].append(np.float32(frame_num / cap.get(5)))
+            else:
+                area_data[f'1-Time({time_units})'].append(np.float16(frame_num * frame_interval))
+            area_data['1-x centroid location'].append(int((centroid[0] / scale_factor)))
+            area_data['1-y centroid location'].append(int((centroid[1] / scale_factor)))
+            area_data['1-cell surface area (px^2)'].append(max_area)
+        except TypeError:
+            print("centroid not found")
+
 
         #cv2.imshow('Surface Area Tracking', noise_reduced_frame)
         cv2.imshow('Surface Area Tracking', scaled_frame)

@@ -41,6 +41,12 @@ class AnalysisType(Enum):
     DISTANCE = auto()
     SURFACE_AREA = auto()
 
+class PreprocessingIssue(Enum):
+    NOISY_BG = auto()
+    HARSH_GRADIENT = auto()
+    NONE = auto()
+
+
 class LocatorType(Enum):
     BBOX = 'marker'
     CENTROID = 'centroid'
