@@ -34,6 +34,8 @@ class TrackingUI:
         self.root.title("Marker Tracker - M3B Lab")
         self.root.iconphoto(False, tk.PhotoImage(file="ico/m3b_comp.png"))
 
+        self.preprocessVals = None
+
         self.setup_styles()
 
         # scrollbar
@@ -697,6 +699,10 @@ class TrackingUI:
     def on_submit_tracking(self):
         """calls the appropriate functions with user spec'd args when tracking start button clicked"""        
         cap = cv2.VideoCapture(self.video_path) # load video
+
+        if self.preprocessVals is not None:
+            print(self.preprocessVals)
+
         print(cap, " \n opened from: ", self.video_path)
         if not cap.isOpened():
             msg = "Error: Couldn't open video file.\nPlease ensure one was selected, and it is not corrupted."
@@ -2239,7 +2245,16 @@ class FramePreprocessor:
         self.preview_label.imgtk = imgtk
         self.preview_label.configure(image=imgtk)
 
+    def getPreprocessVals(self):
+        returnDict = {
+            "Blur/Sharpness": self.sliders["Blur/Sharpness"].get() if self.sharpness_var.get() else 0,
+            "Contrast": self.sliders["Contrast"].get() if self.contrast_var.get() else 0,
+            "Brightness": self.sliders["Brightness"].get() if self.brightness_var.get() else 0
+        }
+        return returnDict
+
     def on_close(self):
+        self.parent.preprocessVals = self.getPreprocessVals()
         self.cap.release()
         self.window.destroy()
 
