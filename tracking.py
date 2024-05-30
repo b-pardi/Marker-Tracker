@@ -82,7 +82,7 @@ def mouse_callback(event, x, y, flags, params):
     cv2.moveWindow('Select Markers', 50, 50)
 
 
-def select_markers(cap, bbox_size, frame_start, preprocessVals):
+def select_markers(cap, bbox_size, frame_start, preprocessVals = None):
     """event loop for handling initial marker selection
 
     Args:

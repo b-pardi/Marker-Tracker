@@ -34,6 +34,10 @@ Cell Mechanics
 
 # Changelog
 
+5/29 - ISAAC
+
+- Incorporated frame preprocessor to track_area and associated marker select
+
 5/28 - ISAAC
 
 - In main: Frame preprocessor
