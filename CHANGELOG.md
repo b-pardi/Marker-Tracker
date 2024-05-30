@@ -37,6 +37,7 @@ Cell Mechanics
 5/29 - ISAAC
 
 - Incorporated frame preprocessor to track_area and associated marker select
+- Changed brightness to also allow for darkening
 
 5/28 - ISAAC
 
