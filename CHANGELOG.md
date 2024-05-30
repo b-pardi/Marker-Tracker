@@ -43,7 +43,12 @@ Cell Mechanics
 - added improve_smoothing to tracking, using the chosen (*) preprocessing technique above
     - non local means denoising with a high pass filter
 - added to surface area tracking user params the option to filter a noisy background (uses preexisting improve_binarization function) or the new improve_smoothing function
-
+- revamped ui for necking point methods
+    - now there is only one button for necking point
+    - when necking point selected it blits the one universal option and radios to select from the 3 available necking methods
+    - original min distance option, midpoint, and the new in progress step approximation method
+    - each of these radios blit their respective parameters to tune
+- removed multithread from ui, soon to be deprecated
 
 5/23
 - mac friendly stuff

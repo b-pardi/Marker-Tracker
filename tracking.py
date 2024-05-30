@@ -1227,6 +1227,105 @@ def necking_point_midpoint(
     cap.release()
     cv2.destroyAllWindows()
 
+def necking_point_step_approximation(
+        cap,
+        frame_start,
+        frame_end,
+        binarize_intensity_thresh,
+        step_length,
+        frame_record_interval,
+        frame_interval,
+        time_units,
+        file_mode,
+        video_file_name,
+        data_label
+    ):
+    
+    dist_data = defaultdict(list)
+    frame_num = frame_start
+
+    while True:
+        ret, frame = cap.read()
+        frame_num += frame_record_interval
+        if frame_record_interval != 1:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
+        
+        if not ret:
+            break
+
+        scaled_frame, scale_factor = scale_frame(frame)  # scale the frame
+        gray_frame = cv2.cvtColor(scaled_frame, cv2.COLOR_BGR2GRAY)  # convert frame to gray
+        _, binary_frame = cv2.threshold(gray_frame, binarize_intensity_thresh, 255, cv2.THRESH_BINARY)  # threshold to binarize image
+
+        # error checking for appropriate binarization threshold
+        if np.all(binary_frame == 255):
+            msg = "Binarization threshold too low,\nfound no pixels below the threshold.\n\nPlease adjust the threshold (default is 120)"
+            error_popup(msg)
+        if np.all(binary_frame == 0):
+            msg = "Binarization threshold too high,\nfound no pixels above the threshold.\n\nPlease adjust the threshold (default is 120)"
+            error_popup(msg)
+
+        edges = cv2.Canny(binary_frame, 0, 2)  # edge detection, nums are gradient thresholds
+
+        x_samples = []
+        y_distances = []
+        y_line_values = []
+
+        frame_draw = scaled_frame.copy()
+        frame_draw[edges > 0] = [0, 255, 0]  # draw edges
+
+        chunk_start = 0
+        while chunk_start < scaled_frame.shape[1]:
+            chunk_end = min(chunk_start + step_length, scaled_frame.shape[1])
+            
+            chunk_top_edges = []
+            chunk_bottom_edges = []
+            
+            for x in range(chunk_start, chunk_end):
+                edge_pixels = np.nonzero(edges[:, x])[0]  # find y coord of edge pixels in cur column
+
+                if edge_pixels.size > 0:  # if edge pixels in cur column,
+                    chunk_top_edges.append(edge_pixels[0])
+                    chunk_bottom_edges.append(edge_pixels[-1])
+            
+            if chunk_top_edges and chunk_bottom_edges:  # if there are edge pixels in the chunk
+                avg_top_edge = int(np.mean(chunk_top_edges))
+                avg_bottom_edge = int(np.mean(chunk_bottom_edges))
+                dist = np.abs(avg_top_edge - avg_bottom_edge)  # find distance of average top and bottom edges
+
+                for x in range(chunk_start, chunk_end):
+                    x_samples.append(x)
+                    y_line_values.append((avg_top_edge, avg_bottom_edge))
+                    y_distances.append(dist)
+
+            chunk_start += step_length
+
+        # find index of smallest distance
+        necking_distance = np.min(y_distances)
+        necking_pt_indices = np.where(y_distances == necking_distance)[0]
+        necking_pt_ind = int(np.median(necking_pt_indices))
+
+        # record and save data using original resolution
+        if frame_record_interval == 0:
+            dist_data[f'1-Time({time_units})'].append(np.float16((frame_num - frame_start) / cap.get(5)))
+        else:
+            dist_data[f'1-Time({time_units})'].append(np.float16((frame_num - frame_start) * frame_record_interval))
+        dist_data['1-Frame'].append(frame_num - frame_start)
+        dist_data['1-x at necking point (px)'].append(int(x_samples[necking_pt_ind] / scale_factor))
+        dist_data['1-y necking distance (px)'].append(int(necking_distance / scale_factor))
+
+        cv2.line(frame_draw, (x_samples[necking_pt_ind], y_line_values[necking_pt_ind][0]), (x_samples[necking_pt_ind], y_line_values[necking_pt_ind][1]), (0, 0, 255), 2)     
+
+        cv2.imshow('Necking Point Visualization', frame_draw)
+        
+        if cv2.waitKey(1) == 27:
+            break
+
+    record_data(file_mode, dist_data, "output/Necking_Point_Output.csv")
+
+    cap.release()
+    cv2.destroyAllWindows()
+
 def frame_tracker_midpt_finder_thread(
         frame_queue,
         tracker_midpt_queue,
@@ -1780,7 +1879,7 @@ def track_area(
 
 
         #cv2.imshow('Surface Area Tracking', noise_reduced_frame)
-        cv2.imshow('Surface Area Tracking', scaled_frame)
+        cv2.imshow('Surface Area Tracking', preprocessed_frame)
         if cv2.waitKey(1) == 27:
             break
 

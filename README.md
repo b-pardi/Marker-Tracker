@@ -131,6 +131,9 @@
         - This parameter is the maximum distance from the marker to look for contours
         - i.e. when the marker is placed and this paramter is at the default 150, the tracking will only consider contours less than or equal to 150 pixels away from the center of the marker
         - This is so the algorithm knows which contours to pay attention to
+    - Choice of frame preprocessing
+        - Can choose a technique for denoising background noise effectively
+        - or choose a routine for smoothing harsh edges and gradients while leaving the subjects of interest with high contrast
 - When beginning tracking, the first frame will popup to place a marker to select a cell
     - This is the same marker selection as the marker tracker uses
 - Hit enter after marker is placed to begin tracking

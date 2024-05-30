@@ -160,9 +160,6 @@ class TrackingUI:
         operation_necking_radio = ttk.Radiobutton(operation_frame, text="Necking pt detection", variable=self.operation_intvar, value=TrackingOperation.NECKING.value, command=self.handle_radios, width=20, style='Outline.TButton')
         operation_necking_radio.grid(row=0, column=1, padx=(4,1), pady=(16, 4))
        
-        operation_necking_midpt_radio = ttk.Radiobutton(operation_frame, text="Necking pt (midpt)", variable=self.operation_intvar, value=TrackingOperation.NECKING_MIDPT.value, command=self.handle_radios, width=20, style='Outline.TButton')
-        operation_necking_midpt_radio.grid(row=0, column=2, padx=(1,4), pady=(16, 4))
-        
         operation_area_radio = ttk.Radiobutton(operation_frame, text="Surface area tracking", variable=self.operation_intvar, value=TrackingOperation.AREA.value, command=self.handle_radios, width=20, style='Outline.TButton')
         operation_area_radio.grid(row=0, column=3, padx=4, pady=(16,4))
         
@@ -191,39 +188,53 @@ class TrackingUI:
         
         # options for necking point
         self.necking_frame = tk.Frame(self.section1)
-        percent_crop_label = ttk.Label(self.necking_frame, text="% of video width to\nexclude outter edges of\n(0 for none)", style='Regular.TLabel')
-        percent_crop_label.grid(row=0, column=0, rowspan=2, padx=4, pady=8)
-        percent_crop_left_label = ttk.Label(self.necking_frame, text="left edge", style='Regular.TLabel') 
-        percent_crop_left_label.grid(row=0, column=1)    
-        self.percent_crop_left_entry = ttk.Entry(self.necking_frame, style='Regular.TEntry')
-        self.percent_crop_left_entry.insert(0, "0")
-        self.percent_crop_left_entry.grid(row=1, column=1, padx=4, pady=8)
+        self.necking_method_frame = tk.Frame(self.necking_frame)
+        self.necking_method_intvar = tk.IntVar()
+        necking_min_distance_radio = ttk.Radiobutton(self.necking_method_frame, text="Minimum distance", variable=self.necking_method_intvar, value=NeckingPointMethod.MINIMUM_DISTANCE.value, command=self.handle_necking_method_frames, width=20, style='Outline.TButton')
+        necking_min_distance_radio.grid(row=1, column=0, pady=4)
+        necking_midpt_radio = ttk.Radiobutton(self.necking_method_frame, text="Midpoint", variable=self.necking_method_intvar, value=NeckingPointMethod.MIDPOINT.value, command=self.handle_necking_method_frames, width=20, style='Outline.TButton')
+        necking_midpt_radio.grid(row=1, column=1, pady=4)
+        necking_step_radio = ttk.Radiobutton(self.necking_method_frame, text="Step approximation", variable=self.necking_method_intvar, value=NeckingPointMethod.STEP_APPROXIMATION.value, command=self.handle_necking_method_frames, width=20, style='Outline.TButton')
+        necking_step_radio.grid(row=1, column=2, pady=4)
+        self.necking_method_frame.grid(row=0, column=0, columnspan=3)
 
-        percent_crop_right_label = ttk.Label(self.necking_frame, text="right edge", style='Regular.TLabel')     
-        percent_crop_right_label.grid(row=0, column=2)    
-        self.percent_crop_right_entry = ttk.Entry(self.necking_frame, style='Regular.TEntry')
-        self.percent_crop_right_entry.insert(0, "0")
-        self.percent_crop_right_entry.grid(row=1, column=2, padx=4, pady=8)
-
-        binarize_intensity_thresh_label = ttk.Label(self.necking_frame, text="pixel intensity value\nfor frame binarization\n(0-255)", style='Regular.TLabel')
-        binarize_intensity_thresh_label.grid(row=2, column=0, padx=4, pady=8)
+        binarize_intensity_thresh_label = ttk.Label(self.necking_frame, text="pixel intensity value for frame binarization (0-255)", style='Regular.TLabel')
+        binarize_intensity_thresh_label.grid(row=2, column=0, columnspan=2, padx=4, pady=4, sticky='w')
         self.binarize_intensity_thresh_entry = ttk.Entry(self.necking_frame, style='Regular.TEntry')
         self.binarize_intensity_thresh_entry.insert(0, "120")
-        self.binarize_intensity_thresh_entry.grid(row=2, column=1, columnspan=2, padx=4, pady=8)
+        self.binarize_intensity_thresh_entry.grid(row=2, column=2, padx=4, pady=4)
 
-        # some opts for necking point also relevant for necking midpoint
-        self.necking_midpt_frame = tk.Frame(self.section1)
-        bbox_tracking_size_label = ttk.Label(self.necking_midpt_frame, text="Tracker bounding box size (px)", style='Regular.TLabel')
-        bbox_tracking_size_label.grid(row=0, column=0, padx=4, pady=8)
+        # minimum distance method args
+        self.necking_min_dist_frame = tk.Frame(self.necking_frame)
+        percent_crop_label = ttk.Label(self.necking_min_dist_frame, text="% of video width to\nexclude outter edges of\n(minimum distance method only)", style='Regular.TLabel')
+        percent_crop_label.grid(row=3, column=0, rowspan=2, padx=4, pady=4)
+        percent_crop_left_label = ttk.Label(self.necking_min_dist_frame, text="left edge", style='Regular.TLabel') 
+        percent_crop_left_label.grid(row=3, column=1)    
+        self.percent_crop_left_entry = ttk.Entry(self.necking_min_dist_frame, style='Regular.TEntry')
+        self.percent_crop_left_entry.insert(0, "0")
+        self.percent_crop_left_entry.grid(row=4, column=1, padx=4, pady=4)
+
+        percent_crop_right_label = ttk.Label(self.necking_min_dist_frame, text="right edge", style='Regular.TLabel')     
+        percent_crop_right_label.grid(row=3, column=2)    
+        self.percent_crop_right_entry = ttk.Entry(self.necking_min_dist_frame, style='Regular.TEntry')
+        self.percent_crop_right_entry.insert(0, "0")
+        self.percent_crop_right_entry.grid(row=4, column=2, padx=4, pady=4)
+
+        # midpt specific args
+        self.necking_midpt_frame = tk.Frame(self.necking_frame)
+        bbox_tracking_size_label = ttk.Label(self.necking_midpt_frame, text="Tracker bounding box size (px) (midpt method only)", style='Regular.TLabel')
+        bbox_tracking_size_label.grid(row=5, column=0, columnspan=2, padx=4, pady=4, sticky='w')
         self.bbox_size_necking_midpt_entry = ttk.Entry(self.necking_midpt_frame, style='Regular.TEntry')
         self.bbox_size_necking_midpt_entry.insert(0, "100")
-        self.bbox_size_necking_midpt_entry.grid(row=0, column=1, padx=4, pady=8)
+        self.bbox_size_necking_midpt_entry.grid(row=5, column=2, padx=4, pady=4)
 
-        binarize_intensity_thresh_label_midpt = ttk.Label(self.necking_midpt_frame, text="pixel intensity value\nfor frame binarization\n(0-255)", style='Regular.TLabel')
-        binarize_intensity_thresh_label_midpt.grid(row=2, column=0, padx=4, pady=8)
-        self.binarize_intensity_thresh_midpt_entry = ttk.Entry(self.necking_midpt_frame, style='Regular.TEntry')
-        self.binarize_intensity_thresh_midpt_entry.insert(0, "120")
-        self.binarize_intensity_thresh_midpt_entry.grid(row=2, column=1, columnspan=2, padx=4, pady=8)
+        # step function approximation args
+        self.necking_step_frame = tk.Frame(self.necking_frame)
+        step_length_label = ttk.Label(self.necking_step_frame, text="Length of steps (step approximation method only)", style='Regular.TLabel')
+        step_length_label.grid(row=6, column=0, columnspan=2, padx=4, pady=4, sticky='w')
+        self.step_length_entry = ttk.Entry(self.necking_step_frame, style='Regular.TEntry')
+        self.step_length_entry.insert(0, "200")
+        self.step_length_entry.grid(row=6, column=2, padx=4, pady=4)
 
         # options for surface area tracking
         self.area_frame = tk.Frame(self.section1)
@@ -253,7 +264,7 @@ class TrackingUI:
         track_record_frame = tk.Frame(self.section1)
         self.multithread_intvar = tk.IntVar()
         multithread_check = ttk.Checkbutton(track_record_frame, text="Use multi-threading? (unstable but faaast)", variable=self.multithread_intvar, offvalue=0, onvalue=1, style='Regular.TCheckbutton')
-        multithread_check.grid(row=0, column=0, columnspan=2, pady=(24,0))
+        #multithread_check.grid(row=0, column=0, columnspan=2, pady=(24,0))
         track_btn = ttk.Button(track_record_frame, text="Begin tracking", command=self.on_submit_tracking, style='Regular.TButton')
         track_btn.grid(row=2, column=0, columnspan=2, padx=32, pady=(24,4))
         
@@ -615,6 +626,22 @@ class TrackingUI:
         else:
             self.frame_interval_frame.grid_forget()
 
+    def handle_necking_method_frames(self):
+        necking_method = NeckingPointMethod(self.necking_method_intvar.get())
+        match necking_method:
+            case NeckingPointMethod.MINIMUM_DISTANCE:
+                self.necking_min_dist_frame.grid(row=5, column=0, columnspan=3)
+                self.necking_midpt_frame.grid_forget()
+                self.necking_step_frame.grid_forget()
+            case NeckingPointMethod.MIDPOINT:
+                self.necking_min_dist_frame.grid_forget()
+                self.necking_midpt_frame.grid(row=5, column=0, columnspan=3)
+                self.necking_step_frame.grid_forget()
+            case NeckingPointMethod.STEP_APPROXIMATION:
+                self.necking_min_dist_frame.grid_forget()
+                self.necking_midpt_frame.grid_forget()
+                self.necking_step_frame.grid(row=5, column=0, columnspan=3)
+
     def handle_radios(self):
         """blits options for the corresponding radio button selected"""  
         option = TrackingOperation(self.operation_intvar.get())
@@ -623,25 +650,16 @@ class TrackingUI:
                 self.select_msg.grid_forget()
                 self.necking_frame.grid_forget()
                 self.area_frame.grid_forget()
-                self.necking_midpt_frame.grid_forget()
                 self.tracking_frame.grid(row=15, column=0)
             case TrackingOperation.NECKING:
                 self.select_msg.grid_forget()
                 self.tracking_frame.grid_forget()
                 self.area_frame.grid_forget()
-                self.necking_midpt_frame.grid_forget()
                 self.necking_frame.grid(row=15, column=0)
-            case TrackingOperation.NECKING_MIDPT:
-                self.select_msg.grid_forget()
-                self.necking_frame.grid_forget()
-                self.tracking_frame.grid_forget()
-                self.area_frame.grid_forget()
-                self.necking_midpt_frame.grid(row=15, column=0)
             case TrackingOperation.AREA:
                 self.select_msg.grid_forget()
                 self.necking_frame.grid_forget()
                 self.tracking_frame.grid_forget()
-                self.necking_midpt_frame.grid_forget()
                 self.area_frame.grid(row=15, column=0)
 
     def undo_last_tracking_append(self, fp):
@@ -839,8 +857,8 @@ class TrackingUI:
             case TrackingOperation.NECKING:
                 profiler = cProfile.Profile()
                 profiler.enable()
-                percent_crop_right = float(self.percent_crop_right_entry.get())
-                percent_crop_left = float(self.percent_crop_left_entry.get())
+
+                necking_method = NeckingPointMethod(self.necking_method_intvar.get())
                 binarize_intensity_thresh = int(self.binarize_intensity_thresh_entry.get())
 
                 # check if range_id already used
@@ -849,22 +867,9 @@ class TrackingUI:
 
                 if not data_label_err_flag:
                     print("Beginning Necking Point")
-                    if use_multithread:
-                        tracking.necking_point_threaded(
-                            cap,
-                            self.frame_start,
-                            self.frame_end,
-                            percent_crop_left,
-                            percent_crop_right,
-                            binarize_intensity_thresh,
-                            frame_record_interval,
-                            self.frame_interval,
-                            self.time_units,
-                            file_mode,
-                            video_name,
-                            range_id
-                        )
-                    else:
+                    if necking_method == NeckingPointMethod.MINIMUM_DISTANCE:
+                        percent_crop_right = float(self.percent_crop_right_entry.get())
+                        percent_crop_left = float(self.percent_crop_left_entry.get())
                         tracking.necking_point(
                             cap,
                             self.frame_start,
@@ -879,46 +884,18 @@ class TrackingUI:
                             video_name,
                             range_id
                         )
-                    profiler.disable()
-                    stats = pstats.Stats(profiler)
-                    stats.sort_stats('cumulative').print_stats(10)
-            case TrackingOperation.NECKING_MIDPT:
-                profiler = cProfile.Profile()
-                profiler.enable()
-                binarize_intensity_thresh = int(self.binarize_intensity_thresh_entry.get())
-                bbox_size = int(self.bbox_size_necking_midpt_entry.get())
-
-                # check if range_id already used
-                if file_mode == FileMode.APPEND: # only need to check prev ids if appending
-                    data_label_err_flag = self.check_data_label('output/Necking_Point_Output.csv', range_id)
-
-                if not data_label_err_flag:
-                    selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start) # prompt to select markers
-                    if selected_markers.__contains__((-1,-1)): # select_markers returns list of -1 if selections cancelled
-                        msg = "Error: Found no markers selected"
-                        error_popup(msg)
-                    elif len(selected_markers) != 2: 
-                        msg = "Error: please ensure exactly 2 markers selected for necking point"
-                        error_popup(msg)
-                    else:
-                        print("Beginning Necking Point (midpoint method)")
-                        if use_multithread:
-                            tracking.necking_point_midpoint_threaded(
-                            cap,
-                            selected_markers,
-                            first_frame,
-                            bbox_size,
-                            self.frame_start,
-                            self.frame_end,
-                            binarize_intensity_thresh,
-                            frame_record_interval,
-                            self.frame_interval,
-                            self.time_units,
-                            file_mode,
-                            video_name,
-                            range_id
-                        )
+                    elif necking_method == NeckingPointMethod.MIDPOINT:
+                        binarize_intensity_thresh = int(self.binarize_intensity_thresh_entry.get())
+                        bbox_size = int(self.bbox_size_necking_midpt_entry.get())
+                        selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start) # prompt to select markers
+                        if selected_markers.__contains__((-1,-1)): # select_markers returns list of -1 if selections cancelled
+                            msg = "Error: Found no markers selected"
+                            error_popup(msg)
+                        elif len(selected_markers) != 2: 
+                            msg = "Error: please ensure exactly 2 markers selected for necking point"
+                            error_popup(msg)
                         else:
+                            print("Beginning Necking Point (midpoint method)")
                             tracking.necking_point_midpoint(
                                 cap,
                                 selected_markers,
@@ -934,9 +911,32 @@ class TrackingUI:
                                 video_name,
                                 range_id
                             )
-                        profiler.disable()
-                        stats = pstats.Stats(profiler)
-                        stats.sort_stats('cumulative').print_stats(10)
+
+                    elif necking_method == NeckingPointMethod.STEP_APPROXIMATION:
+                        step_length = int(self.step_length_entry.get())
+                        print("Beginning Necking Point (Step approximation method)")
+                        tracking.necking_point_step_approximation(
+                            cap,
+                            self.frame_start,
+                            self.frame_end,
+                            binarize_intensity_thresh,
+                            step_length,
+                            frame_record_interval,
+                            self.frame_interval,
+                            self.time_units,
+                            file_mode,
+                            video_name,
+                            range_id
+                        )
+
+                    else:
+                        msg = "Error: Please select a necking point method."
+                        error_popup(msg)
+                        
+                    profiler.disable()
+                    stats = pstats.Stats(profiler)
+                    stats.sort_stats('cumulative').print_stats(10)
+
             case TrackingOperation.AREA:
                 profiler = cProfile.Profile()
                 profiler.enable()

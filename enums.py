@@ -41,6 +41,11 @@ class AnalysisType(Enum):
     DISTANCE = auto()
     SURFACE_AREA = auto()
 
+class NeckingPointMethod(Enum):
+    MINIMUM_DISTANCE = auto()
+    MIDPOINT = auto()
+    STEP_APPROXIMATION = auto()
+
 class PreprocessingIssue(Enum):
     NOISY_BG = auto()
     HARSH_GRADIENT = auto()
