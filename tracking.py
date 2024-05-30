@@ -82,7 +82,7 @@ def mouse_callback(event, x, y, flags, params):
     cv2.moveWindow('Select Markers', 50, 50)
 
 
-def select_markers(cap, bbox_size, frame_start):
+def select_markers(cap, bbox_size, frame_start, preprocessVals):
     """event loop for handling initial marker selection
 
     Args:
@@ -96,6 +96,12 @@ def select_markers(cap, bbox_size, frame_start):
     """    
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_start)
     ret, first_frame = cap.read() # get first frame for selection
+
+    if preprocessVals is not None:
+        first_frame = preprocess_frame(first_frame, preprocessVals)
+    else: 
+        print("Preprocessing pass not working")
+    
     cv2.imshow('Select Markers', first_frame) # show first frame
     cv2.moveWindow('Select Markers', 50, 50)
 
@@ -241,9 +247,9 @@ def preprocess_frame(frame, preprocessVals):
         modified_frame = enhance_contrast(modified_frame, preprocessVals["Contrast"])
     
     # Apply brightness adjustment
-    if preprocessVals["Brightness"] > 0:
+    if preprocessVals["Brightness"] != 0:
         modified_frame = adjust_gamma(modified_frame, preprocessVals["Brightness"])
-    
+
     return modified_frame
 
 def enhance_contrast(frame, strength=50):
@@ -1633,7 +1639,8 @@ def track_area(
         distance_from_marker_thresh,
         file_mode,
         video_file_name,
-        data_label
+        data_label,
+        preprocessVals
     ):
 
     """
@@ -1681,7 +1688,13 @@ def track_area(
         '1-video_file_name': video_file_name,
         '1-data_label': data_label
     }
-    
+
+    if preprocessVals is not None:
+        first_frame = preprocess_frame(first_frame, preprocessVals)
+        print("First frame preprocess working" + str(preprocessVals))
+    else: 
+        print("Preprocessing pass not working")
+
     trackers = init_trackers(marker_positions, bbox_size, first_frame, TrackerChoice.CSRT)
 
     while frame_num < frame_end:
@@ -1694,8 +1707,14 @@ def track_area(
             break
 
         # Frame preprocessing
-        scaled_frame, scale_factor = scale_frame(frame)  # scale the frame
-        gray_frame = cv2.cvtColor(scaled_frame, cv2.COLOR_BGR2GRAY)
+        if preprocessVals is not None:
+            preprocessedFrame = preprocess_frame(frame, preprocessVals)
+        else:
+            print("Preprocess pass not working")
+
+        scaled_frame, scale_factor = scale_frame(preprocessedFrame)  # scale the frame
+        
+        gray_frame = cv2.cvtColor(preprocessedFrame, cv2.COLOR_BGR2GRAY)
 
         # update tracker position
         success, bbox = trackers[0].update(scaled_frame) # currently only 1 tracker will work for testing
@@ -1709,9 +1728,7 @@ def track_area(
             cap.release()
             cv2.destroyAllWindows()
             return
-
-        # preprocessing
-
+        
         # reduce static noise (WIP)
         #noise_reduced_frame = noise_reduction(gray_frame)
 

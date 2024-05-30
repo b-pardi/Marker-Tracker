@@ -700,9 +700,6 @@ class TrackingUI:
         """calls the appropriate functions with user spec'd args when tracking start button clicked"""        
         cap = cv2.VideoCapture(self.video_path) # load video
 
-        if self.preprocessVals is not None:
-            print(self.preprocessVals)
-
         print(cap, " \n opened from: ", self.video_path)
         if not cap.isOpened():
             msg = "Error: Couldn't open video file.\nPlease ensure one was selected, and it is not corrupted."
@@ -941,7 +938,7 @@ class TrackingUI:
                 if not data_label_err_flag:
                     bbox_size = int(self.bbox_size_area_entry.get())
                     distance_from_marker_thresh = int(self.distance_from_marker_thresh_entry.get())
-                    selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start) # prompt to select markers
+                    selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start, preprocessVals=self.preprocessVals) # prompt to select markers
                     print(f"marker locs: {selected_markers}")
                     if not selected_markers.__contains__((-1,-1)): # select_markers returns list of -1 if selections cancelled
                         if use_multithread:    
@@ -974,7 +971,8 @@ class TrackingUI:
                                 distance_from_marker_thresh,
                                 file_mode,
                                 video_name,
-                                range_id
+                                range_id,
+                                preprocessVals=self.preprocessVals
                             )
                         profiler.disable()
                         stats = pstats.Stats(profiler)
@@ -2163,7 +2161,7 @@ class FramePreprocessor:
         self.sliders = {}
         self.create_checkbox_with_slider("Blur/Sharpness", self.sharpness_var, 1, -100, 100)
         self.create_checkbox_with_slider("Contrast", self.contrast_var, 2, 1, 100)
-        self.create_checkbox_with_slider("Brightness", self.brightness_var, 4, 1, 100)
+        self.create_checkbox_with_slider("Brightness", self.brightness_var, 4, -100, 100)
 
         # display window
         self.preview_label = ttk.Label(self.window)
