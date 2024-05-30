@@ -2219,14 +2219,10 @@ class FramePreprocessor:
 
         self.update_preview()
 
-    def update_preview(self, *args):
+    def update_preview(self):
         if self.modded_frame is not None and self.modded_frame.size > 0:
-            sharpness_value = self.sliders["Blur/Sharpness"].get() if self.sharpness_var.get() else 0
-            contrast_value = self.sliders["Contrast"].get() if self.contrast_var.get() else 0
-            brightness_value = self.sliders["Brightness"].get() if self.brightness_var.get() else 0
-
             self.modded_frame = tracking.preprocess_frame(
-                self.first_frame, sharpness_value, contrast_value, brightness_value
+                self.first_frame, self.getPreprocessVals()
             )
             self.display_frame(self.modded_frame)
 

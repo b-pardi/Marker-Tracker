@@ -228,21 +228,21 @@ def init_trackers(marker_positions, bbox_size, first_frame, tracker_choice=Track
 
     return trackers
 
-def preprocess_frame(frame, sharpness_strength, contrast_strength, brightness_strength):
+def preprocess_frame(frame, preprocessVals):
     # Initialize a variable to store the modified frame
     modified_frame = frame.copy()
 
     # Apply sharpening
-    if sharpness_strength != 0:
-        modified_frame = sharpen_frame(modified_frame, sharpness_strength)
+    if preprocessVals["Blur/Sharpness"] != 0:
+        modified_frame = sharpen_frame(modified_frame, preprocessVals["Blur/Sharpness"])
 
     # Apply contrast enhancement
-    if contrast_strength > 0:
-        modified_frame = enhance_contrast(modified_frame, contrast_strength)
+    if preprocessVals["Contrast"] > 0:
+        modified_frame = enhance_contrast(modified_frame, preprocessVals["Contrast"])
     
     # Apply brightness adjustment
-    if brightness_strength > 0:
-        modified_frame = adjust_gamma(modified_frame, brightness_strength)
+    if preprocessVals["Brightness"] > 0:
+        modified_frame = adjust_gamma(modified_frame, preprocessVals["Brightness"])
     
     return modified_frame
 
