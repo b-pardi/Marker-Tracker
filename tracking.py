@@ -99,8 +99,6 @@ def select_markers(cap, bbox_size, frame_start, preprocessVals):
 
     if preprocessVals is not None:
         first_frame = preprocess_frame(first_frame, preprocessVals)
-    else: 
-        print("Preprocessing pass not working")
     
     cv2.imshow('Select Markers', first_frame) # show first frame
     cv2.moveWindow('Select Markers', 50, 50)
@@ -1692,8 +1690,6 @@ def track_area(
     if preprocessVals is not None:
         first_frame = preprocess_frame(first_frame, preprocessVals)
         print("First frame preprocess working" + str(preprocessVals))
-    else: 
-        print("Preprocessing pass not working")
 
     trackers = init_trackers(marker_positions, bbox_size, first_frame, TrackerChoice.CSRT)
 
@@ -1710,7 +1706,7 @@ def track_area(
         if preprocessVals is not None:
             preprocessedFrame = preprocess_frame(frame, preprocessVals)
         else:
-            print("Preprocess pass not working")
+            preprocessedFrame = frame
 
         scaled_frame, scale_factor = scale_frame(preprocessedFrame)  # scale the frame
         
