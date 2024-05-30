@@ -2106,7 +2106,7 @@ class FramePreprocessor:
         - A dictionary with these values:
             - sharpness: -100 to 100. If 0, no change made
             - contrast: 1 to 100. If 0, no change made
-            - brightness: same as above
+            - brightness: -100 to 100. If 0, no change made
     """
     # Apply the preprocessing options to the first frame
     # Load the first frame of the video
