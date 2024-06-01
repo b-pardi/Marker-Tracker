@@ -34,7 +34,7 @@ class TrackingUI:
         self.root.title("Marker Tracker - M3B Lab")
         self.root.iconphoto(False, tk.PhotoImage(file="ico/m3b_comp.png"))
 
-        self.preprocessVals = None
+        self.preprocess_vals = None
 
         self.setup_styles()
 
@@ -834,7 +834,8 @@ class TrackingUI:
                                     self.time_units,
                                     file_mode,
                                     video_name,
-                                    range_id
+                                    range_id,
+                                    self.preprocess_vals
                                 )
                         profiler.disable()
                         stats = pstats.Stats(profiler)
@@ -986,7 +987,7 @@ class TrackingUI:
                                 video_name,
                                 range_id,
                                 preprocessing_need,
-                                self.preprocessVals
+                                self.preprocess_vals
                             )
                         profiler.disable()
                         stats = pstats.Stats(profiler)
@@ -2113,8 +2114,8 @@ class FramePreprocessor:
         - Loads live preview in-window to show changes
 
     Args:
-        - self: 
-        - parent: 
+        - self: self
+        - parent: parent
         - video_path: contains the path to the selected video
 
     returns:
@@ -2235,7 +2236,7 @@ class FramePreprocessor:
     def update_preview(self):
         if self.modded_frame is not None and self.modded_frame.size > 0:
             self.modded_frame = tracking.preprocess_frame(
-                self.first_frame, self.getPreprocessVals()
+                self.first_frame, self.get_preprocess_vals()
             )
             self.display_frame(self.modded_frame)
 
@@ -2254,16 +2255,16 @@ class FramePreprocessor:
         self.preview_label.imgtk = imgtk
         self.preview_label.configure(image=imgtk)
 
-    def getPreprocessVals(self):
-        returnDict = {
+    def get_preprocess_vals(self):
+        return_dict = {
             "Blur/Sharpness": self.sliders["Blur/Sharpness"].get() if self.sharpness_var.get() else 0,
             "Contrast": self.sliders["Contrast"].get() if self.contrast_var.get() else 0,
             "Brightness": self.sliders["Brightness"].get() if self.brightness_var.get() else 0
         }
-        return returnDict
+        return return_dict
 
     def on_close(self):
-        self.parent.preprocessVals = self.getPreprocessVals()
+        self.parent.preprocess_vals = self.get_preprocess_vals()
         self.cap.release()
         self.window.destroy()
 

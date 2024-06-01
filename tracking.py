@@ -82,7 +82,7 @@ def mouse_callback(event, x, y, flags, params):
     cv2.moveWindow('Select Markers', 50, 50)
 
 
-def select_markers(cap, bbox_size, frame_start, preprocessVals = None):
+def select_markers(cap, bbox_size, frame_start, preprocess_vals = None):
     """event loop for handling initial marker selection
 
     Args:
@@ -97,8 +97,8 @@ def select_markers(cap, bbox_size, frame_start, preprocessVals = None):
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_start)
     ret, first_frame = cap.read() # get first frame for selection
 
-    if preprocessVals is not None:
-        first_frame = preprocess_frame(first_frame, preprocessVals)
+    if preprocess_vals is not None:
+        first_frame = preprocess_frame(first_frame, preprocess_vals)
     
     cv2.imshow('Select Markers', first_frame) # show first frame
     cv2.moveWindow('Select Markers', 50, 50)
@@ -232,25 +232,44 @@ def init_trackers(marker_positions, bbox_size, first_frame, tracker_choice=Track
 
     return trackers
 
-def preprocess_frame(frame, preprocessVals):
+def preprocess_frame(frame, preprocess_vals):
+    """ Applies preprocessing based on value exists
+
+    Args:
+        frame (frame): frame to apply the preprocessing to
+        preprocess_vals (dictionary): contains the blur/sharpen, contrast, and brightness values 
+
+    Returns:
+        preprocessed frame
+    """    
     # Initialize a variable to store the modified frame
     modified_frame = frame.copy()
 
     # Apply sharpening
-    if preprocessVals["Blur/Sharpness"] != 0:
-        modified_frame = sharpen_frame(modified_frame, preprocessVals["Blur/Sharpness"])
+    if preprocess_vals["Blur/Sharpness"] != 0:
+        modified_frame = sharpen_frame(modified_frame, preprocess_vals["Blur/Sharpness"])
 
     # Apply contrast enhancement
-    if preprocessVals["Contrast"] > 0:
-        modified_frame = enhance_contrast(modified_frame, preprocessVals["Contrast"])
+    if preprocess_vals["Contrast"] > 0:
+        modified_frame = enhance_contrast(modified_frame, preprocess_vals["Contrast"])
     
     # Apply brightness adjustment
-    if preprocessVals["Brightness"] != 0:
-        modified_frame = adjust_gamma(modified_frame, preprocessVals["Brightness"])
+    if preprocess_vals["Brightness"] != 0:
+        modified_frame = adjust_gamma(modified_frame, preprocess_vals["Brightness"])
 
     return modified_frame
 
 def enhance_contrast(frame, strength=50):
+    """ Enhances contrast using 
+
+    Args:
+        frame (_type_): _description_
+        strength (int, optional): _description_. Defaults to 50.
+
+    Returns:
+        _type_: _description_
+    """    
+
     # Define parameters for contrast enhancement
     clip_limit = 3.0
     tile_grid_size = (8, 8)
@@ -379,7 +398,8 @@ def track_markers(
         time_units,
         file_mode,
         video_file_name,
-        data_label):
+        data_label,
+        preprocess_vals = None):
     """Implements the main tracking loop for markers on a video.
     It tracks markers from a user-defined start to end frame and records the data.
 
@@ -405,6 +425,8 @@ def track_markers(
         file_mode (FileMode): Specifies whether to overwrite or append data in the output file.
         video_file_name (str): Name of the video file being processed.
         data_label (str): Unique identifier for the tracking session, used in data labeling.
+        preprocess_vals (dictionary): contains the blur/sharpen, contrast, and brightness values 
+        
     """    
 
 
@@ -424,7 +446,13 @@ def track_markers(
         if not ret:
             break  # break when frame read unsuccessful (end of video or error)
 
-        scaled_frame, scale_factor = scale_frame(frame)  # Use the scale_factor obtained from the current frame scaling
+         # Frame preprocessing
+        if preprocess_vals is not None:
+            preprocessed_frame = preprocess_frame(frame, preprocess_vals)
+        else:
+            preprocessed_frame = frame
+
+        scaled_frame, scale_factor = scale_frame(preprocessed_frame)  # Use the scale_factor obtained from the current frame scaling
 
         # updating trackers and saving location
         for i, tracker in enumerate(trackers):
@@ -1664,7 +1692,7 @@ def track_area(
         video_file_name,
         data_label,
         preprocessing_need,
-        preprocessVals = None
+        preprocess_vals = None
     ):
 
     """
@@ -1700,6 +1728,7 @@ def track_area(
         video_file_name (str): Name of the video file being processed.
         data_label (str): Unique identifier for the data session.
         preprocessing_need (PreprocessingIssue enum): type of preprocessing that is need for the video
+        preprocess_vals (dictionary): contains the blur/sharpen, contrast, and brightness values 
         """
 
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_start)
@@ -1714,8 +1743,8 @@ def track_area(
         '1-data_label': data_label
     }
 
-    if preprocessVals is not None:
-        first_frame = preprocess_frame(first_frame, preprocessVals)
+    if preprocess_vals is not None:
+        first_frame = preprocess_frame(first_frame, preprocess_vals)
 
     trackers = init_trackers(marker_positions, bbox_size, first_frame, TrackerChoice.CSRT)
 
@@ -1727,16 +1756,16 @@ def track_area(
 
         if not ret:
             break
-
-        # Frame preprocessing
-        if preprocessVals is not None:
-            preprocessedFrame = preprocess_frame(frame, preprocessVals)
-        else:
-            preprocessedFrame = frame
-
-        scaled_frame, scale_factor = scale_frame(preprocessedFrame)  # scale the frame
         
         gray_frame = cv2.cvtColor(scaled_frame, cv2.COLOR_BGR2GRAY)
+
+        # Frame preprocessing
+        if preprocess_vals is not None:
+            preprocessed_frame = preprocess_frame(gray_frame, preprocess_vals)
+        else:
+            preprocessed_frame = gray_frame
+
+        scaled_frame, scale_factor = scale_frame(preprocessed_frame)  # scale the frame
 
         # update tracker position
         success, bbox = trackers[0].update(scaled_frame) # currently only 1 tracker will work for testing
