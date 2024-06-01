@@ -1638,7 +1638,7 @@ def track_area(
         file_mode,
         video_file_name,
         data_label,
-        preprocessVals
+        preprocessVals = None
     ):
 
     """
@@ -1689,7 +1689,6 @@ def track_area(
 
     if preprocessVals is not None:
         first_frame = preprocess_frame(first_frame, preprocessVals)
-        print("First frame preprocess working" + str(preprocessVals))
 
     trackers = init_trackers(marker_positions, bbox_size, first_frame, TrackerChoice.CSRT)
 
@@ -1710,7 +1709,7 @@ def track_area(
 
         scaled_frame, scale_factor = scale_frame(preprocessedFrame)  # scale the frame
         
-        gray_frame = cv2.cvtColor(preprocessedFrame, cv2.COLOR_BGR2GRAY)
+        gray_frame = cv2.cvtColor(scaled_frame, cv2.COLOR_BGR2GRAY)
 
         # update tracker position
         success, bbox = trackers[0].update(scaled_frame) # currently only 1 tracker will work for testing

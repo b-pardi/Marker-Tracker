@@ -972,7 +972,7 @@ class TrackingUI:
                                 file_mode,
                                 video_name,
                                 range_id,
-                                preprocessVals=self.preprocessVals
+                                self.preprocessVals
                             )
                         profiler.disable()
                         stats = pstats.Stats(profiler)
