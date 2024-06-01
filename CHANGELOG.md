@@ -16,7 +16,8 @@ FIX
 
 ISAAC
 
-- FramePreprocessor: Add internal live preview of frame changes
+- Add/fix documentation for functions added/changed
+- Add preprocessing to track markers
 
 Housekeeping
 
@@ -37,6 +38,11 @@ Cell Mechanics
   - (siammask/deepsort)
 
 # Changelog
+
+6/1 - ISAAC
+
+- documentation updated
+- preprocessing added to track markers
 
 5/29
 
