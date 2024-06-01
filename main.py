@@ -230,15 +230,26 @@ class TrackingUI:
         # options for surface area tracking
         self.area_frame = tk.Frame(self.section1)
         bbox_area_size_label = ttk.Label(self.area_frame, text="Tracker bounding box size (px)", style='Regular.TLabel')
-        bbox_area_size_label.grid(row=0, column=0, padx=4, pady=8)
+        bbox_area_size_label.grid(row=0, column=0, padx=4, pady=4)
         self.bbox_size_area_entry = ttk.Entry(self.area_frame, style='Regular.TEntry')
         self.bbox_size_area_entry.insert(0, "100")
-        self.bbox_size_area_entry.grid(row=0, column=1, padx=4, pady=8)
+        self.bbox_size_area_entry.grid(row=0, column=1, padx=4, pady=4)
         distance_from_marker_thresh_label = ttk.Label(self.area_frame, text="Max distance from marker to find contours (px)", style='Regular.TLabel')
-        distance_from_marker_thresh_label.grid(row=1, column=0, padx=4, pady=8)
+        distance_from_marker_thresh_label.grid(row=1, column=0, padx=4, pady=4)
         self.distance_from_marker_thresh_entry = ttk.Entry(self.area_frame, style='Regular.TEntry')
         self.distance_from_marker_thresh_entry.insert(0, "150")
-        self.distance_from_marker_thresh_entry.grid(row=1, column=1, padx=4, pady=8)
+        self.distance_from_marker_thresh_entry.grid(row=1, column=1, padx=4, pady=4)
+        
+        self.preprocessing_choice_var = tk.IntVar()
+        self.preprocessing_choice_var.set(PreprocessingIssue.NONE.value)
+        preprocessing_label = ttk.Label(self.area_frame, text="Indicate the potential issue with your video that needs preprocessing", style='Regular.TLabel')
+        preprocessing_label.grid(row=3, column=0, columnspan=2)
+        noisy_bg_radio = ttk.Radiobutton(self.area_frame, text="Noisy background\n(grainy or speckled artifacts)", variable=self.preprocessing_choice_var, value=PreprocessingIssue.NOISY_BG.value, style='Regular.TRadiobutton')        
+        noisy_bg_radio.grid(row=4, column=0, pady=4)
+        noisy_bg_radio = ttk.Radiobutton(self.area_frame, text="Harsh gradients\n(distinct darker edges or rings in video,\nwith lighter tracked subjects)", variable=self.preprocessing_choice_var, value=PreprocessingIssue.HARSH_GRADIENT.value, style='Regular.TRadiobutton')        
+        noisy_bg_radio.grid(row=4, column=1, pady=4)
+        no_processing_radio = ttk.Radiobutton(self.area_frame, text="No preprocessing", variable=self.preprocessing_choice_var, value=PreprocessingIssue.NONE.value, style='Regular.TRadiobutton')        
+        no_processing_radio.grid(row=5, column=0, columnspan=2, pady=(0,4))
 
         # tracking operation buttons
         track_record_frame = tk.Frame(self.section1)
@@ -809,6 +820,7 @@ class TrackingUI:
                                     video_name,
                                     range_id
                                 )
+                            else:
                                 tracking.track_markers(
                                     selected_markers,
                                     first_frame,
@@ -938,7 +950,8 @@ class TrackingUI:
                 if not data_label_err_flag:
                     bbox_size = int(self.bbox_size_area_entry.get())
                     distance_from_marker_thresh = int(self.distance_from_marker_thresh_entry.get())
-                    selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start, preprocessVals=self.preprocessVals) # prompt to select markers
+                    preprocessing_need = PreprocessingIssue(self.preprocessing_choice_var.get())
+                    selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start) # prompt to select markers
                     print(f"marker locs: {selected_markers}")
                     if not selected_markers.__contains__((-1,-1)): # select_markers returns list of -1 if selections cancelled
                         if use_multithread:    
@@ -972,6 +985,7 @@ class TrackingUI:
                                 file_mode,
                                 video_name,
                                 range_id,
+                                preprocessing_need,
                                 self.preprocessVals
                             )
                         profiler.disable()
@@ -2087,7 +2101,8 @@ class CropAndCompressVideo:
         print(self.parent.video_path, self.new_video_path)
         
         # Show completion message
-        self.complete_label.pack()
+        self.complete_label.grid(row=50, column=0, pady=8)
+        self.window.after(5000, lambda: self.complete_label.grid_forget())
 
 class FramePreprocessor:
     """
