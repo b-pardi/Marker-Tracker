@@ -82,7 +82,7 @@ def mouse_callback(event, x, y, flags, params):
     cv2.moveWindow('Select Markers', 50, 50)
 
 
-def select_markers(cap, bbox_size, frame_start):
+def select_markers(cap, bbox_size, frame_start, preprocessVals = None):
     """event loop for handling initial marker selection
 
     Args:
@@ -96,6 +96,10 @@ def select_markers(cap, bbox_size, frame_start):
     """    
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_start)
     ret, first_frame = cap.read() # get first frame for selection
+
+    if preprocessVals is not None:
+        first_frame = preprocess_frame(first_frame, preprocessVals)
+    
     cv2.imshow('Select Markers', first_frame) # show first frame
     cv2.moveWindow('Select Markers', 50, 50)
 
@@ -228,22 +232,22 @@ def init_trackers(marker_positions, bbox_size, first_frame, tracker_choice=Track
 
     return trackers
 
-def preprocess_frame(frame, sharpness_strength, contrast_strength, brightness_strength):
+def preprocess_frame(frame, preprocessVals):
     # Initialize a variable to store the modified frame
     modified_frame = frame.copy()
 
-    # Apply contrast enhancement
-    if contrast_strength > 0:
-        modified_frame = enhance_contrast(modified_frame, contrast_strength)
-    
     # Apply sharpening
-    if sharpness_strength > 0:
-        modified_frame = sharpen_frame(modified_frame, sharpness_strength)
+    if preprocessVals["Blur/Sharpness"] != 0:
+        modified_frame = sharpen_frame(modified_frame, preprocessVals["Blur/Sharpness"])
+
+    # Apply contrast enhancement
+    if preprocessVals["Contrast"] > 0:
+        modified_frame = enhance_contrast(modified_frame, preprocessVals["Contrast"])
     
     # Apply brightness adjustment
-    if brightness_strength > 0:
-        modified_frame = adjust_gamma(modified_frame, brightness_strength)
-    
+    if preprocessVals["Brightness"] != 0:
+        modified_frame = adjust_gamma(modified_frame, preprocessVals["Brightness"])
+
     return modified_frame
 
 def enhance_contrast(frame, strength=50):
@@ -261,16 +265,24 @@ def enhance_contrast(frame, strength=50):
     return enhanced_frame
 
 def sharpen_frame(frame, strength=1.0):
-    scaled_strength = strength/100
+    if strength > 0:
+        # Sharpening
+        scaled_strength = strength / 100
+        kernel = np.array([[0, -0.2, 0],
+                           [-0.2, 2 + 3 * scaled_strength, -0.2],
+                           [0, -0.2, 0]])
+    else:
+        # Blurring
+        scaled_strength = abs(strength) / 30
+        kernel_size = int(1 + 2 * scaled_strength)
+        if kernel_size % 2 == 0:  # Ensure the kernel size is odd
+            kernel_size += 1
+        blurred = cv2.GaussianBlur(frame, (kernel_size, kernel_size), 0)
+        return blurred
 
-    # Define a sharpening kernel
-    kernel = np.array([[0, -0.2, 0],
-                       [-0.2, 1 + 3 * scaled_strength, -0.2],
-                       [0, -0.2, 0]])
-    
     # Apply the kernel to the image
-    sharpened = cv2.filter2D(frame, -1, kernel)
-    return sharpened
+    result = cv2.filter2D(frame, -1, kernel)
+    return result
 
 def adjust_gamma(frame, gamma=50.0):
     # Apply gamma correction
@@ -1651,7 +1663,8 @@ def track_area(
         file_mode,
         video_file_name,
         data_label,
-        preprocessing_need
+        preprocessing_need,
+        preprocessVals = None
     ):
 
     """
@@ -1700,7 +1713,10 @@ def track_area(
         '1-video_file_name': video_file_name,
         '1-data_label': data_label
     }
-    
+
+    if preprocessVals is not None:
+        first_frame = preprocess_frame(first_frame, preprocessVals)
+
     trackers = init_trackers(marker_positions, bbox_size, first_frame, TrackerChoice.CSRT)
 
     while frame_num < frame_end:
@@ -1713,7 +1729,13 @@ def track_area(
             break
 
         # Frame preprocessing
-        scaled_frame, scale_factor = scale_frame(frame)  # scale the frame
+        if preprocessVals is not None:
+            preprocessedFrame = preprocess_frame(frame, preprocessVals)
+        else:
+            preprocessedFrame = frame
+
+        scaled_frame, scale_factor = scale_frame(preprocessedFrame)  # scale the frame
+        
         gray_frame = cv2.cvtColor(scaled_frame, cv2.COLOR_BGR2GRAY)
 
         # update tracker position
