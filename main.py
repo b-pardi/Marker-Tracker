@@ -206,7 +206,7 @@ class TrackingUI:
 
         # minimum distance method args
         self.necking_min_dist_frame = tk.Frame(self.necking_frame)
-        percent_crop_label = ttk.Label(self.necking_min_dist_frame, text="% of video width to\nexclude outter edges of\n(minimum distance method only)", style='Regular.TLabel')
+        percent_crop_label = ttk.Label(self.necking_min_dist_frame, text="% of video width to exclude outter edges of\n(minimum distance and step approximation methods only)", style='Regular.TLabel')
         percent_crop_label.grid(row=3, column=0, rowspan=2, padx=4, pady=4)
         percent_crop_left_label = ttk.Label(self.necking_min_dist_frame, text="left edge", style='Regular.TLabel') 
         percent_crop_left_label.grid(row=3, column=1)    
@@ -230,11 +230,25 @@ class TrackingUI:
 
         # step function approximation args
         self.necking_step_frame = tk.Frame(self.necking_frame)
-        step_length_label = ttk.Label(self.necking_step_frame, text="Length of steps (step approximation method only)", style='Regular.TLabel')
-        step_length_label.grid(row=6, column=0, columnspan=2, padx=4, pady=4, sticky='w')
-        self.step_length_entry = ttk.Entry(self.necking_step_frame, style='Regular.TEntry')
-        self.step_length_entry.insert(0, "200")
-        self.step_length_entry.grid(row=6, column=2, padx=4, pady=4)
+        step_num_label = ttk.Label(self.necking_step_frame, text="Number of steps (step approximation method only)", style='Regular.TLabel')
+        step_num_label.grid(row=6, column=0, columnspan=1, padx=4, pady=4, sticky='w')
+        self.step_num_entry = ttk.Entry(self.necking_step_frame, style='Regular.TEntry')
+        self.step_num_entry.insert(0, "10")
+        self.step_num_entry.grid(row=6, column=1, columnspan=2, padx=4, pady=4)
+
+        step_percent_crop_label = ttk.Label(self.necking_step_frame, text="% of video width to exclude outter edges of\n(minimum distance and step approximation methods only)", style='Regular.TLabel')
+        step_percent_crop_label.grid(row=3, column=0, rowspan=2, padx=4, pady=4)
+        step_percent_crop_left_label = ttk.Label(self.necking_step_frame, text="left edge", style='Regular.TLabel') 
+        step_percent_crop_left_label.grid(row=3, column=1)    
+        self.step_percent_crop_left_entry = ttk.Entry(self.necking_step_frame, style='Regular.TEntry')
+        self.step_percent_crop_left_entry.insert(0, "0")
+        self.step_percent_crop_left_entry.grid(row=4, column=1, padx=4, pady=4)
+
+        step_percent_crop_right_label = ttk.Label(self.necking_step_frame, text="right edge", style='Regular.TLabel')     
+        step_percent_crop_right_label.grid(row=3, column=2)    
+        self.step_percent_crop_right_entry = ttk.Entry(self.necking_step_frame, style='Regular.TEntry')
+        self.step_percent_crop_right_entry.insert(0, "0")
+        self.step_percent_crop_right_entry.grid(row=4, column=2, padx=4, pady=4)
 
         # options for surface area tracking
         self.area_frame = tk.Frame(self.section1)
@@ -913,12 +927,16 @@ class TrackingUI:
                             )
 
                     elif necking_method == NeckingPointMethod.STEP_APPROXIMATION:
-                        step_length = int(self.step_length_entry.get())
+                        percent_crop_right = float(self.step_percent_crop_right_entry.get())
+                        percent_crop_left = float(self.step_percent_crop_left_entry.get())
+                        step_length = int(self.step_num_entry.get())
                         print("Beginning Necking Point (Step approximation method)")
                         tracking.necking_point_step_approximation(
                             cap,
                             self.frame_start,
                             self.frame_end,
+                            percent_crop_left,
+                            percent_crop_right,
                             binarize_intensity_thresh,
                             step_length,
                             frame_record_interval,

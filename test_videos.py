@@ -4,7 +4,6 @@ import numpy as np
 import time
 import torch
 import torch.nn.functional as F
-from skimage.restoration import denoise_tv_chambolle
 
 
 def improve_smoothing(frame):

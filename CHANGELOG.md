@@ -30,6 +30,13 @@ Cell Mechanics
 
 # Changelog
 
+6/3
+- fully implemented necking point step approximation method
+    - this version is similar to minimum distance method
+    - finds the average top and bottom y edge values within each chunk (chunk size spec'd by number of steps // pixel consideration range)
+    - finds the average values to make a step
+    - finds the min distance between these 'steps' so to speak
+
 5/29
 - tested preprocessing techniques for new contour tracked stained cell videos (see test_videos.py)
     - median blurring

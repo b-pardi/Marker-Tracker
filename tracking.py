@@ -1227,12 +1227,20 @@ def necking_point_midpoint(
     cap.release()
     cv2.destroyAllWindows()
 
+def rotate_image(image, angle):
+    image_center = tuple(np.array(image.shape[1::-1]) / 2)
+    rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
+    result = cv2.warpAffine(image, rot_mat, image.shape[1::-1], flags=cv2.INTER_LINEAR)
+    return result
+
 def necking_point_step_approximation(
         cap,
         frame_start,
         frame_end,
+        percent_crop_left,
+        percent_crop_right,
         binarize_intensity_thresh,
-        step_length,
+        num_steps,
         frame_record_interval,
         frame_interval,
         time_units,
@@ -1241,15 +1249,18 @@ def necking_point_step_approximation(
         data_label
     ):
     
-    dist_data = defaultdict(list)
+    dist_data = {'1-Frame': [], f'1-Time({time_units})': [], '1-x at necking point (px)': [], '1-y necking distance (px)': [], '1-video_file_name': video_file_name, '1-detection_method': 'step', '1-data_label': data_label}
     frame_num = frame_start
+    percent_crop_left *= 0.01
+    percent_crop_right *= 0.01
 
-    while True:
+    while True:  # read frame by frame until the end of the video
         ret, frame = cap.read()
+        #frame = rotate_image(frame, 15) #used to test if lines were being drawn horizontally
         frame_num += frame_record_interval
         if frame_record_interval != 1:
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
-        
+
         if not ret:
             break
 
@@ -1272,53 +1283,68 @@ def necking_point_step_approximation(
         y_line_values = []
 
         frame_draw = scaled_frame.copy()
-        frame_draw[edges > 0] = [0, 255, 0]  # draw edges
+        frame_draw[edges>0] = [0,255,0]
 
-        chunk_start = 0
-        while chunk_start < scaled_frame.shape[1]:
-            chunk_end = min(chunk_start + step_length, scaled_frame.shape[1])
-            
-            chunk_top_edges = []
-            chunk_bottom_edges = []
-            
-            for x in range(chunk_start, chunk_end):
-                edge_pixels = np.nonzero(edges[:, x])[0]  # find y coord of edge pixels in cur column
+        # remove x% of edges from consideration of detection
+        horizontal_pixels_left = 0
+        horizontal_pixels_right = scaled_frame.shape[1]
+        if percent_crop_left != 0.:
+            left_pixels_removed = int(percent_crop_left * scaled_frame.shape[1])
+            horizontal_pixels_left = max(0, left_pixels_removed)
+        if percent_crop_right != 0.:
+            right_pixels_removed = int(percent_crop_right * scaled_frame.shape[1])
+            horizontal_pixels_right = min(scaled_frame.shape[1], scaled_frame.shape[1] - right_pixels_removed)
 
-                if edge_pixels.size > 0:  # if edge pixels in cur column,
-                    chunk_top_edges.append(edge_pixels[0])
-                    chunk_bottom_edges.append(edge_pixels[-1])
-            
-            if chunk_top_edges and chunk_bottom_edges:  # if there are edge pixels in the chunk
-                avg_top_edge = int(np.mean(chunk_top_edges))
-                avg_bottom_edge = int(np.mean(chunk_bottom_edges))
-                dist = np.abs(avg_top_edge - avg_bottom_edge)  # find distance of average top and bottom edges
+        step_length = (horizontal_pixels_right - horizontal_pixels_left) // num_steps
+        for x in range(horizontal_pixels_left, horizontal_pixels_right, step_length):
+            top_edge_pixels = []
+            bottom_edge_pixels = []
+            for col in range(x, min(x+step_length, horizontal_pixels_right)):
+                col_edge_pixels = np.nonzero(edges[:, col])[0] # find row indices of edge pixels in cur col
+                
+                if col_edge_pixels.size > 0:
+                    top_edge_pixels.append(col_edge_pixels[0])
+                    bottom_edge_pixels.append(col_edge_pixels[-1])
 
-                for x in range(chunk_start, chunk_end):
-                    x_samples.append(x)
-                    y_line_values.append((avg_top_edge, avg_bottom_edge))
-                    y_distances.append(dist)
+            if top_edge_pixels and bottom_edge_pixels:
+                avg_y_top = np.mean(top_edge_pixels) 
+                avg_y_bottom = np.mean(bottom_edge_pixels)  
 
-            chunk_start += step_length
+                x_samples.append(x + step_length // 2)
+                y_line_values.append((avg_y_top, avg_y_bottom))
+                dist = np.abs(avg_y_top - avg_y_bottom)
+                y_distances.append(dist)                
 
-        # find index of smallest distance
-        necking_distance = np.min(y_distances)
-        necking_pt_indices = np.where(y_distances == necking_distance)[0]
-        necking_pt_ind = int(np.median(necking_pt_indices))
+            # draw blue lines visualizing steps
+            cv2.line(frame_draw, (x, int(avg_y_top)), (x + step_length, int(avg_y_top)), (200, 0, 0), 1)
+            cv2.line(frame_draw, (x, int(avg_y_bottom)), (x + step_length, int(avg_y_bottom)), (200, 0, 0), 1)
 
-        # record and save data using original resolution
-        if frame_record_interval == 0:
-            dist_data[f'1-Time({time_units})'].append(np.float16((frame_num - frame_start) / cap.get(5)))
-        else:
-            dist_data[f'1-Time({time_units})'].append(np.float16((frame_num - frame_start) * frame_record_interval))
-        dist_data['1-Frame'].append(frame_num - frame_start)
-        dist_data['1-x at necking point (px)'].append(int(x_samples[necking_pt_ind] / scale_factor))
-        dist_data['1-y necking distance (px)'].append(int(necking_distance / scale_factor))
+        if y_distances:  # check if y_distances is not empty
+            # find index of smallest distance
+            necking_distance = np.min(y_distances)
+            necking_pt_indices = np.where(y_distances == necking_distance)[0]
+            necking_pt_ind = int(np.median(necking_pt_indices))
 
-        cv2.line(frame_draw, (x_samples[necking_pt_ind], y_line_values[necking_pt_ind][0]), (x_samples[necking_pt_ind], y_line_values[necking_pt_ind][1]), (0, 0, 255), 2)     
+             # draw lines for steps where current min distance is
+            cv2.line(frame_draw, (x_samples[necking_pt_ind] - step_length // 2, int(y_line_values[necking_pt_ind][0])),
+                     (x_samples[necking_pt_ind] + step_length // 2, int(y_line_values[necking_pt_ind][0])), (0, 0, 255), 2)
+            cv2.line(frame_draw, (x_samples[necking_pt_ind] - step_length // 2, int(y_line_values[necking_pt_ind][1])),
+                     (x_samples[necking_pt_ind] + step_length // 2, int(y_line_values[necking_pt_ind][1])), (0, 0, 255), 2)
 
+
+            # record and save data using original resolution
+            if frame_interval == 0:
+                dist_data[f'1-Time({time_units})'].append(np.float16((frame_num - frame_start) / cap.get(5)))
+            else:
+                dist_data[f'1-Time({time_units})'].append(np.float16((frame_num - frame_start) * frame_interval))
+            dist_data['1-Frame'].append(frame_num - frame_start)
+            dist_data['1-x at necking point (px)'].append(int(x_samples[necking_pt_ind] / scale_factor))
+            dist_data['1-y necking distance (px)'].append(int(necking_distance / scale_factor))
+
+           
         cv2.imshow('Necking Point Visualization', frame_draw)
         
-        if cv2.waitKey(1) == 27:
+        if cv2.waitKey(1) == 27 or frame_end <= frame_num:
             break
 
     record_data(file_mode, dist_data, "output/Necking_Point_Output.csv")
