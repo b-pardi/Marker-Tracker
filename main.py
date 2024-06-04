@@ -34,6 +34,8 @@ class TrackingUI:
         self.root.title("Marker Tracker - M3B Lab")
         self.root.iconphoto(False, tk.PhotoImage(file="ico/m3b_comp.png"))
 
+        self.preprocessVals = None
+
         self.setup_styles()
 
         # scrollbar
@@ -740,6 +742,7 @@ class TrackingUI:
     def on_submit_tracking(self):
         """calls the appropriate functions with user spec'd args when tracking start button clicked"""        
         cap = cv2.VideoCapture(self.video_path) # load video
+
         print(cap, " \n opened from: ", self.video_path)
         if not cap.isOpened():
             msg = "Error: Couldn't open video file.\nPlease ensure one was selected, and it is not corrupted."
@@ -1000,7 +1003,8 @@ class TrackingUI:
                                 file_mode,
                                 video_name,
                                 range_id,
-                                preprocessing_need
+                                preprocessing_need,
+                                self.preprocessVals
                             )
                         profiler.disable()
                         stats = pstats.Stats(profiler)
@@ -2122,10 +2126,9 @@ class FramePreprocessor:
     """
     Details:
         - Initializes a window where the user can adjust preprocessing parameters.
-        - Loads the first frame of the video and displays it as the original image.
         - Provides checkboxes and sliders for adjusting sharpness, contrast, and brightness.
         - Allows the user to toggle each preprocessing option and adjust its strength using sliders.
-        - When the user clicks "Show Preview", it applies the selected preprocessing to the original frame and displays the modified frame in a separate window.
+        - Loads live preview in-window to show changes
 
     Args:
         - self: 
@@ -2134,36 +2137,42 @@ class FramePreprocessor:
 
     returns:
         - A dictionary with these values:
-            - sharpness: 0 - 100. If 0, no change made
-            - contrast: same as above
-            - brightness: same as above
+            - sharpness: -100 to 100. If 0, no change made
+            - contrast: 1 to 100. If 0, no change made
+            - brightness: -100 to 100. If 0, no change made
     """
     # Apply the preprocessing options to the first frame
-        # Load the first frame of the video
-        # Apply preprocessing (sharpness, contrast, blur, brightness)
-        # Display the updated frame in the preview image widget
-        # checkboxes to select preprocessing options
-        # sharpness, contrast, blurring, brightness
-        # these have been instantiated in tracking.py btwn lines 231 and 259
+    # Load the first frame of the video
+    # Apply preprocessing (sharpness, contrast, blur, brightness)
+    # Display the updated frame in the preview image widget
+    # checkboxes to select preprocessing options
+    # sharpness, contrast, blurring, brightness
+    # these have been instantiated in tracking.py btwn lines 231 and 259
 
-        # upon checking the checkbox, a slider for each option should appear, where the user can adjust the strength of the preprocessing
-        # there should also be a display of the first frame of the video selected that updates whenever the slider is adjusted
-        # (not sure if live adjusting would be too taxing on the system so it's fine if it updates just when the slider is released or when a button like 'show'preview' is pressed)
-        # this visual indicator should display with all combined adjustments if multiple adjustments are made
+    # upon checking the checkbox, a slider for each option should appear, where the user can adjust the strength of the preprocessing
+    # there should also be a display of the first frame of the video selected that updates whenever the slider is adjusted
+    # (not sure if live adjusting would be too taxing on the system so it's fine if it updates just when the slider is released or when a button like 'show'preview' is pressed)
+    # this visual indicator should display with all combined adjustments if multiple adjustments are made
         
-        # for a reference on how to effectively use tkinter sliders, see the CropCompress class
-        # for putting a frame into a tkinter window and having it move/update with a slider, see the FrameSelector class
+    # for a reference on how to effectively use tkinter sliders, see the CropCompress class
+    # for putting a frame into a tkinter window and having it move/update with a slider, see the FrameSelector class
+
     def __init__(self, parent, video_path):
         self.root = parent.root
         self.parent = parent
         self.video_path = video_path
         self.cap = cv2.VideoCapture(self.video_path)
 
+        # read first frame
         self.ret, self.first_frame = self.cap.read()
-        self.first_frame = cv2.cvtColor(self.first_frame, cv2.COLOR_BGR2GRAY)
-        self.modded_frame = self.first_frame
+        if not self.ret:
+            raise ValueError("Failed to read the video file.")
+        
+        # shrink and greyscale first frame, then copy for modded frame
+        self.first_frame, _ = tracking.scale_frame(cv2.cvtColor(self.first_frame, cv2.COLOR_BGR2GRAY), .5)
+        self.modded_frame = self.first_frame.copy()
 
-        # Create the main window
+        # create main window
         self.window = tk.Toplevel(self.root)
         self.window.title("Preprocess Video")
         self.window.iconphoto(False, tk.PhotoImage(file="ico/m3b_comp.png"))
@@ -2176,26 +2185,24 @@ class FramePreprocessor:
         self.instructions_and_warning_label = ttk.Label(self.window, text=msg, style='Regular.TLabel')
         self.instructions_and_warning_label.grid(row=0, column=0, columnspan=10, padx=10, pady=10)
 
-        # Initialize variables for checkbox states
+        # define checkbox variables
         self.sharpness_var = tk.BooleanVar()
         self.contrast_var = tk.BooleanVar()
         self.brightness_var = tk.BooleanVar()
 
-        # Dictionary to store sliders
+        # create slider/checkbox pair
         self.sliders = {}
-
-        # Create pairs of checkboxes and sliders
-        self.create_checkbox_with_slider("Sharpness", self.sharpness_var, 1, 1, 100)
+        self.create_checkbox_with_slider("Blur/Sharpness", self.sharpness_var, 1, -100, 100)
         self.create_checkbox_with_slider("Contrast", self.contrast_var, 2, 1, 100)
-        self.create_checkbox_with_slider("Brightness", self.brightness_var, 4, 1, 100)
+        self.create_checkbox_with_slider("Brightness", self.brightness_var, 4, -100, 100)
 
-        # Button to show original image
-        self.original_frame_show = ttk.Button(self.window, text="Show original", command=self.display_first_frame_with_cv2)
-        self.original_frame_show.grid(row=5, column=4, columnspan=2, pady=10)
+        # display window
+        self.preview_label = ttk.Label(self.window)
+        self.preview_label.grid(row=5, column=0, columnspan=6, pady=10)
 
-        # Button to show the preview
-        self.preview_button = ttk.Button(self.window, text="Show Preview", command=self.display_modded_with_cv2)
-        self.preview_button.grid(row=5, column=0, columnspan=2, pady=10)
+        self.update_preview()
+
+        self.window.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def create_checkbox_with_slider(self, text, variable, row, min_val, max_val):
         checkbox = ttk.Checkbutton(self.window, text=text, variable=variable)
@@ -2213,9 +2220,8 @@ class FramePreprocessor:
         value_label = ttk.Label(self.window, text=f"Value: {int(slider.get())}", width=10)
         value_label.grid(row=row, column=4, padx=(10, 50))
 
-        slider.config(command=lambda value, var=value_label: var.config(text=f"Value: {int(float(value))}"))
+        slider.config(command=lambda value, var=value_label: self.on_slider_change(value, var, variable))
 
-        # Store the slider in the dictionary
         self.sliders[text] = slider
 
         slider.grid_remove()
@@ -2224,6 +2230,11 @@ class FramePreprocessor:
         value_label.grid_remove()
 
         variable.trace_add("write", lambda *args, slider=slider, min_label=min_label, max_label=max_label, value_label=value_label: self.toggle_slider(slider, variable, min_label, max_label, value_label))
+
+    def on_slider_change(self, value, value_label, variable):
+        value_label.config(text=f"Value: {int(float(value))}")
+        if variable.get():
+            self.update_preview()
 
     def toggle_slider(self, slider, variable, min_label, max_label, value_label):
         if variable.get():
@@ -2237,37 +2248,42 @@ class FramePreprocessor:
             max_label.grid_remove()
             value_label.grid_remove()
 
-    def display_modded_with_cv2(self):
+        self.update_preview()
+
+    def update_preview(self):
         if self.modded_frame is not None and self.modded_frame.size > 0:
-            print("moddedframe exists")
-            sharpness_value = self.sliders["Sharpness"].get() if self.sharpness_var.get() else 0
-            contrast_value = self.sliders["Contrast"].get() if self.contrast_var.get() else 0
-            brightness_value = self.sliders["Brightness"].get() if self.brightness_var.get() else 0
-
             self.modded_frame = tracking.preprocess_frame(
-                self.modded_frame, sharpness_value, contrast_value, brightness_value
+                self.first_frame, self.getPreprocessVals()
             )
-        else:
-            print("moddedframe doesn't work")
+            self.display_frame(self.modded_frame)
 
-        cv2.imshow("Modded Frame Preview", self.modded_frame)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
-        self.modded_frame = self.first_frame
+    def update_frame(self, value):
+        frame_idx = int(float(value))
+        self.cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+        ret, frame = self.cap.read()
+        if ret:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            self.first_frame = frame.copy()
+            self.update_preview()
 
-    def display_first_frame_with_cv2(self):
-        cv2.imshow("Frame Preview", self.first_frame)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+    def display_frame(self, frame):
+        frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
+        imgtk = ImageTk.PhotoImage(image=Image.fromarray(frame))
+        self.preview_label.imgtk = imgtk
+        self.preview_label.configure(image=imgtk)
 
-    def get_selected_processing_values(self):
-        return_dict = {
-            "sharpness": self.sliders["Sharpness"].get() if self.sharpness_var.get() else 0,
-            "contrast": self.sliders["Contrast"].get() if self.contrast_var.get() else 0,
-            "brightness": self.sliders["Brightness"].get() if self.brightness_var.get() else 0
+    def getPreprocessVals(self):
+        returnDict = {
+            "Blur/Sharpness": self.sliders["Blur/Sharpness"].get() if self.sharpness_var.get() else 0,
+            "Contrast": self.sliders["Contrast"].get() if self.contrast_var.get() else 0,
+            "Brightness": self.sliders["Brightness"].get() if self.brightness_var.get() else 0
         }
-        return return_dict
+        return returnDict
 
+    def on_close(self):
+        self.parent.preprocessVals = self.getPreprocessVals()
+        self.cap.release()
+        self.window.destroy()
 
 if __name__ == '__main__':
     root = tk.Tk()
