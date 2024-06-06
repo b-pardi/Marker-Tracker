@@ -1,8 +1,7 @@
 pandas==2.1.1
 numpy==1.26.3
 matplotlib==3.8.2
-opencv-python==4.9.0.80
-opencv-contrib-python==4.9.0.80
+opencv-contrib-python==4.10.0.82
 tk==0.1.0
 screeninfo==0.8.1
 pillow==10.2.0

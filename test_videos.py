@@ -2,21 +2,9 @@ import cv2
 import tracking
 import numpy as np
 import time
-import torch
-import torch.nn.functional as F
 
 
-def improve_smoothing(frame):
-    denoised = cv2.fastNlMeansDenoising(frame, None, h=30, templateWindowSize=7, searchWindowSize=21)
-    
-    # Create a high-pass filter
-    high_pass_kernel = np.array([[-1, -1, -1],
-                             [-1,  8, -1],
-                             [-1, -1, -1]])
 
-    # Apply the high-pass filter using convolution
-    high_pass = cv2.filter2D(frame, -1, high_pass_kernel)
-    return high_pass
 
 def nlm_hp_kernel(frame):
     denoised = cv2.fastNlMeansDenoising(frame, None, h=np.std(frame)*1.2, templateWindowSize=5, searchWindowSize=17)
@@ -56,54 +44,94 @@ def hp_subtract(frame):
 
     return high_pass
 
-def non_local_means_denoising(image):
-    return cv2.fastNlMeansDenoising(image, None, h=30, templateWindowSize=7, searchWindowSize=21)
+
+def improve_binarization(frame):    
+    """
+    Enhances the binarization of a grayscale image using various image processing techniques. This function applies
+    CLAHE for contrast enhancement, background subtraction to highlight foreground objects, morphological operations
+    to refine the image, and edge detection to further define object boundaries.
+
+    Steps:
+        1. Apply Contrast Limited Adaptive Histogram Equalization (CLAHE) to boost the contrast of the image.
+        2. Perform background subtraction using a median blur to isolate foreground features.
+        3. Apply morphological closing to close small holes within the foreground objects.
+        4. Detect edges using the Canny algorithm, and dilate these edges to enhance their visibility.
+        5. Optionally adjust the edge thickness with additional morphological operations like dilation or erosion
+           depending on specific requirements (commented out in the code but can be adjusted as needed).
+
+    Note:
+        - This function is designed to work with grayscale images and expects a single-channel input.
+        - Adjustments to parameters like CLAHE limits, kernel sizes for morphological operations, and Canny thresholds
+          may be necessary depending on the specific characteristics of the input image.
 
 
-def fourier_transform_filtering(image):
-    # Ensure the image is in float32 format
-    image_float32 = image.astype(np.float32)
+    Args:
+        frame (np.array): A single-channel (grayscale) image on which to perform binarization improvement.
+
+    Returns:
+        np.array: The processed image with enhanced binarization and clearer object definitions.
+
+    """
+
+    # Apply CLAHE (Contrast Limited Adaptive Histogram Equalization)
+    # boosts contrast
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(12, 12))
+    equalized = clahe.apply(frame)
     
-    # Perform Fourier Transform
-    dft = cv2.dft(image_float32, flags=cv2.DFT_COMPLEX_OUTPUT)
-    dft_shift = np.fft.fftshift(dft)
-
-    rows, cols = image.shape
-    crow, ccol = rows // 2, cols // 2
-    mask = np.ones((rows, cols, 2), np.uint8)
-    r = 30  # Radius of the low-pass filter
-    center = [crow, ccol]
-    x, y = np.ogrid[:rows, :cols]
-    mask_area = (x - center[0]) ** 2 + (y - center[1]) ** 2 <= r * r
-    mask[mask_area] = 0
-
-    fshift = dft_shift * mask
-    f_ishift = np.fft.ifftshift(fshift)
-    img_back = cv2.idft(f_ishift)
-    return cv2.magnitude(img_back[:, :, 0], img_back[:, :, 1])
-
-def total_variation_denoising_gpu(image):
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    image_tensor = torch.from_numpy(image).float().unsqueeze(0).unsqueeze(0).to(device)
-
-    # Define the TV regularization weight and the number of iterations
-    weight = 0.01
-    num_iters = 50
-
-    # TV denoising
-    for _ in range(num_iters):
-        grad_x = torch.diff(image_tensor, dim=2, append=image_tensor[:, :, -1:, :])
-        grad_y = torch.diff(image_tensor, dim=3, append=image_tensor[:, :, :, -1:])
-        grad_mag = torch.sqrt(grad_x ** 2 + grad_y ** 2 + 1e-8)
-        div_x = torch.diff(grad_x / grad_mag, dim=2, prepend=grad_x[:, :, :1, :])
-        div_y = torch.diff(grad_y / grad_mag, dim=3, prepend=grad_y[:, :, :, :1])
-        image_tensor = image_tensor - weight * (div_x + div_y)
+    # Perform Background Subtraction
+    # (Assuming a relatively uniform background)
+    background = cv2.medianBlur(equalized, 13)
+    subtracted = cv2.subtract(equalized, background)
     
-    denoised_image = image_tensor.squeeze().cpu().numpy()
-    # Normalize the denoised image to the original image's intensity range
-    denoised_image = cv2.normalize(denoised_image, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+    # Use morphological closing to close small holes inside the foreground
+    kernel = np.ones((3, 3), np.uint8)
+    closing = cv2.morphologyEx(subtracted, cv2.MORPH_CLOSE, kernel, iterations=2)
     
-    return denoised_image
+    # Use Canny edge detector to find edges and use it as a mask
+    edges = cv2.Canny(closing, 30, 140)
+    edges_dilated = cv2.dilate(edges, kernel, iterations=1)
+    result = cv2.bitwise_or(closing, edges_dilated)
+
+    # if edges too fine after result
+    #result = cv2.dilate(result, kernel, iterations=1)
+    # if edges too thick after result
+    kernel = np.ones((3, 3), np.uint8)
+    result = cv2.erode(result, kernel, iterations=1)
+
+    return result
+
+def improve_smoothing(frame, strength=1):
+    """
+    Enhances the input frame by applying Non-Local Means (NLM) denoising followed by a high-pass filter.
+    
+    NLM averages pixel intensity s.t. similar patches of the image (even far apart) contribute more to the average
+    
+
+    Args:
+    frame (numpy.ndarray): The input image in grayscale.
+
+    Returns:
+    numpy.ndarray: The processed image with improved smoothing and enhanced details.
+    """
+    noise_level = np.std(frame)
+    denoised = cv2.fastNlMeansDenoising(frame, None, h=noise_level*strength, templateWindowSize=7, searchWindowSize=25)
+    
+    # highlights cental pixel and reduces neighboring pixels
+    # passes high frequencies and attenuates low frequencies
+    # this kernel represents a discrete ver of the laplacian operator, approximating 2nd order derivative of image
+    laplacian_kernel = np.array([[-1, -1, -1],
+                             [-1,  8, -1],
+                             [-1, -1, -1]])
+
+    # Apply the high-pass filter using convolution
+    high_pass = cv2.filter2D(denoised, -1, laplacian_kernel)
+    return high_pass
+
+def adjust_gamma(frame, gamma=50.0):
+    # Apply gamma correction
+    gamma=1-gamma/100
+    gamma_corrected = np.array(255 * (frame / 255) ** gamma, dtype='uint8')
+    return gamma_corrected
 
 def add_text(image, text, position=(10, 30), font=cv2.FONT_HERSHEY_SIMPLEX, font_scale=1, color=(255, 255, 255), thickness=2):
     return cv2.putText(image, text, position, font, font_scale, color, thickness, cv2.LINE_AA)
@@ -122,22 +150,29 @@ def test(fp):
             print("can't read frame")
             break
 
-        scaled_frame, _ = tracking.scale_frame(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY), 0.5)
+        scaled_frame, _ = tracking.scale_frame(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY), 0.7)
         original = add_text(scaled_frame.copy(), 'original')
         
         #tv_denoise = add_text(total_variation_denoising_gpu(scaled_frame.copy()), 'tv')
-        nlm_denoise = add_text(non_local_means_denoising(scaled_frame.copy()), 'nlm')
+        '''nlm_denoise = add_text(non_local_means_denoising(scaled_frame.copy()), 'nlm')
         hp_filter_subtract = add_text(hp_subtract(scaled_frame.copy()), 'hp_subtract')
         hp_filter_kernel = add_text(hp_kernel(scaled_frame.copy()), 'hp_kernel')
         nlm_hp_filter_subtract = add_text(nlm_hp_subtract(scaled_frame.copy()), 'nlm_hp_subtract')
-        nlm_hp_filter_kernel = add_text(nlm_hp_kernel(scaled_frame.copy()), 'nlm_hp_kernel')
+        nlm_hp_filter_kernel = add_text(nlm_hp_kernel(scaled_frame.copy()), 'nlm_hp_kernel')'''
 
-        frame_hstack_top = np.hstack((original, nlm_denoise, hp_filter_subtract))
-        frame_hstack_bottom = np.hstack((hp_filter_kernel, nlm_hp_filter_subtract, nlm_hp_filter_kernel))
-        frame_stack = np.vstack((frame_hstack_top, frame_hstack_bottom))
+        smoothedifuckinhope = improve_smoothing(scaled_frame)
+        #smoothedifuckinhope = cv2.fastNlMeansDenoising(smoothedifuckinhope, None, h=np.std(frame)*0.5, templateWindowSize=7, searchWindowSize=25)
+
+        binarizedifuckinhope = cv2.adaptiveThreshold(smoothedifuckinhope, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
 
 
-        cv2.imshow("Tracking...", frame_stack)  # show updated frame tracking
+
+        frame_hstack_top = np.hstack((original, smoothedifuckinhope, binarizedifuckinhope))
+        #frame_hstack_bottom = np.hstack((hp_filter_kernel, nlm_hp_filter_subtract, nlm_hp_filter_kernel))
+        #frame_stack = np.vstack((frame_hstack_top, frame_hstack_bottom))
+
+
+        cv2.imshow("Tracking...",frame_hstack_top)  # show updated frame tracking
 
         if cv2.waitKey(1) == 27:
             break
@@ -149,5 +184,5 @@ def test(fp):
     cv2.destroyAllWindows()
 
 if __name__ == '__main__':
-    video_path = r"C:\Users\Brandon\Documents\00 School Files 00\University\M3b Software\temp_videos\C2-20240522_20222605_a549_RFP_stiff Elastic_AS_current_02.vsi - 002 PH, TRITC.avi"
+    video_path = r"C:\Users\Brandon\Documents\00 School Files 00\University\M3b Software\temp_videos\20240308_20240307_A549 _stiff VE sub._col-I_AS_current_02.vsi - 002 PH-Cell 2.avi"
     test(video_path)

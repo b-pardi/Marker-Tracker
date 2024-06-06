@@ -4,22 +4,13 @@
 
 FIX
 
-- more mac compatible?
-- scale frames more and in frame selector
-- shrink ui
-  - buttons width
-  - open smaller height
-- kcf markers not tracking well when moving really slow
-  - try kalman filter
-  - try optical flow
-    - klt algorithm
+- more mac compatible? (awaiting dominique feedback)
 
 ISAAC
-
 - FramePreprocessor: Add internal live preview of frame changes
 
 Housekeeping
-
+- capital np for yaxis necking pt diameter label
 - move multithreaded functions to new file and deprecate
 
 Hydrogel
@@ -37,6 +28,12 @@ Cell Mechanics
   - (siammask/deepsort)
 
 # Changelog
+
+6/5
+- changed necking pt diameter y axis slightly
+- fully deprecated multithread tracking functions
+- fully deprecated old analysis functions
+- attempted tests to improve viscoelastic cells
 
 6/3
 - fully implemented necking point step approximation method
