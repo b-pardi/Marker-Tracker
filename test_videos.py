@@ -163,6 +163,7 @@ def test(fp):
         smoothedifuckinhope = improve_smoothing(scaled_frame)
         #smoothedifuckinhope = cv2.fastNlMeansDenoising(smoothedifuckinhope, None, h=np.std(frame)*0.5, templateWindowSize=7, searchWindowSize=25)
 
+        # look into other binarization methods as well
         binarizedifuckinhope = cv2.adaptiveThreshold(smoothedifuckinhope, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
 
 

@@ -844,17 +844,10 @@ def necking_point_step_approximation(
 
 
 
-def noise_reduction(frame):
+def improve_noise_reduction(frame):
     '''WIP function for noisy (staticy) viscoelastic substrate frames'''
-    # Apply Median Filtering
-    median_filtered = cv2.medianBlur(frame, 7)
-
-    # Apply Non-local Means Denoising
-    non_local_means = cv2.fastNlMeansDenoising(median_filtered, h=15, templateWindowSize=5, searchWindowSize=17)
-    
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(12, 12))
-    equalized = clahe.apply(non_local_means)
-    return equalized
+    ''' Isaac, test your code in test_videos.py, and then when it's ready put it here'''
+    pass
 
 
 def improve_binarization(frame):    
@@ -1008,7 +1001,7 @@ def track_area(
         first_frame = preprocess_frame(first_frame, preprocessVals)
 
 
-    trackers = init_trackers(marker_positions, bbox_size, improve_smoothing(first_frame), TrackerChoice.CSRT)
+    trackers = init_trackers(marker_positions, bbox_size, first_frame, TrackerChoice.CSRT)
 
     while frame_num < frame_end:
         ret, frame = cap.read()
