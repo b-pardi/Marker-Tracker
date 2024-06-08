@@ -97,8 +97,11 @@ def select_markers(cap, bbox_size, frame_start, preprocessVals = None):
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_start)
     ret, first_frame = cap.read() # get first frame for selection
 
+    gray_frame = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
+
     if preprocessVals is not None:
-        first_frame = preprocess_frame(first_frame, preprocessVals)
+        print(preprocessVals)
+        first_frame = preprocess_frame(gray_frame, preprocessVals)
     
     cv2.imshow('Select Markers', first_frame) # show first frame
     cv2.moveWindow('Select Markers', 50, 50)
@@ -254,8 +257,6 @@ def preprocess_frame(frame, preprocessVals):
 
     if preprocessVals["Binarize"]:
         modified_frame = improve_binarization(modified_frame)
-        print(preprocessVals["Binarize"])
-        pass
 
     return modified_frame
 
@@ -282,7 +283,7 @@ def sharpen_frame(frame, strength=1.0):
                            [0, -0.2, 0]])
     else:
         # Blurring
-        scaled_strength = abs(strength) / 30
+        scaled_strength = abs(strength) / 10
         kernel_size = int(1 + 2 * scaled_strength)
         if kernel_size % 2 == 0:  # Ensure the kernel size is odd
             kernel_size += 1
@@ -1031,26 +1032,25 @@ def track_area(
         if not ret:
             break
 
+        scaled_frame, scale_factor = scale_frame(frame)  # scale the frame
+
         gray_frame = cv2.cvtColor(scaled_frame, cv2.COLOR_BGR2GRAY)
 
         # Frame preprocessing
         if preprocessVals is not None:
-            preprocessedFrame = preprocess_frame(gray_frame, preprocessVals)
-        else:
-            preprocessedFrame = frame
-
-        scaled_frame, scale_factor = scale_frame(preprocessedFrame)  # scale the frame
-        
-
-        # preprocessing
-        if preprocessing_need == PreprocessingIssue.NOISY_BG:
-            preprocessed_frame = improve_binarization(gray_frame)
-        elif preprocessing_need == PreprocessingIssue.HARSH_GRADIENT:
-            preprocessed_frame = improve_smoothing(gray_frame)
+            preprocessed_frame = preprocess_frame(gray_frame, preprocessVals)
         else:
             preprocessed_frame = gray_frame
 
-        preprocessed_frame = scaled_frame
+        # preprocessing
+        #if preprocessing_need == PreprocessingIssue.NOISY_BG:
+        #    preprocessed_frame = improve_binarization(gray_frame)
+        #elif preprocessing_need == PreprocessingIssue.HARSH_GRADIENT:
+        #    preprocessed_frame = improve_smoothing(gray_frame)
+        #else:
+        #    preprocessed_frame = gray_frame
+
+        # preprocessed_frame = scaled_frame
 
         # update tracker position
         success, bbox = trackers[0].update(preprocessed_frame) # currently only 1 tracker will work for testing
