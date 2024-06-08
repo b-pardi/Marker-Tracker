@@ -2163,6 +2163,16 @@ class FramePreprocessor:
         self.window.title("Preprocess Video")
         self.window.iconphoto(False, tk.PhotoImage(file="ico/m3b_comp.png"))
 
+        # Create the basic options frame
+        self.basic_options_frame = ttk.Frame(self.window)
+        self.basic_options_frame.grid(row=1, column=0, columnspan=10, sticky="w", padx=10, pady=5)
+
+        # Create the advanced options frame
+        self.advanced_options_frame = ttk.Frame(self.window)
+        self.advanced_options_frame.grid(row=2, column=0, columnspan=10, sticky="w", padx=10, pady=5)
+        self.advanced_options_frame.grid_remove()  # Hide the advanced options frame initially
+        self.advanced_options_visible = False
+
         msg = ("In this window you can select various processing techniques and the strength at which they are used\n\n"
                "Warning: Surface area tracking already performs several fine tuned\n"
                "preprocessing techniques that are not displayed to the user when tracking\n"
@@ -2180,25 +2190,31 @@ class FramePreprocessor:
 
         # create slider/checkbox pair
         self.sliders = {}
-        self.create_checkbox_with_slider("Blur/Sharpness", self.sharpness_var, 1, -100, 100)
-        self.create_checkbox_with_slider("Contrast", self.contrast_var, 2, 1, 100)
-        self.create_checkbox_with_slider("Brightness", self.brightness_var, 3, -100, 100)
-        self.create_checkbox_with_slider("Smoothness", self.smoothness_var, 4, 1, 100)
+        self.create_checkbox_with_slider("Blur/Sharpness", self.sharpness_var, 1, -100, 100, self.basic_options_frame)
+        self.create_checkbox_with_slider("Contrast", self.contrast_var, 2, 1, 100, self.basic_options_frame)
+        self.create_checkbox_with_slider("Brightness", self.brightness_var, 3, -100, 100, self.basic_options_frame)
+
+        # Create "Show Advanced" button
+        self.show_advanced_button = tk.Button(self.window, text="Show Advanced", command=self.toggle_advanced_options)
+        self.show_advanced_button.grid(row=4, column=0, sticky=tk.W, padx=(110, 0))
+
+        # smoothness options
+        self.create_checkbox_with_slider("Smoothness", self.smoothness_var, 5, 1, 100, self.advanced_options_frame)
 
         # create binarize checkbox
-        checkbox = ttk.Checkbutton(self.window, text="Binarize", variable=self.binarize_var, command=self.update_preview)
-        checkbox.grid(row=5, column=0, sticky=tk.W, padx=(110, 0))
+        checkbox = ttk.Checkbutton(self.advanced_options_frame, text="Binarize", variable=self.binarize_var, command=self.update_preview)
+        checkbox.grid(row=6, column=0, sticky=tk.W, padx=(110, 0))
 
         # Add Save and Load buttons
         save_button = ttk.Button(self.window, text="Save Options", command=self.save_options)
-        save_button.grid(row=6, column=0, padx=5, pady=5)
+        save_button.grid(row=7, column=0, padx=5, pady=5)
 
         load_button = ttk.Button(self.window, text="Load Options", command=self.load_options)
-        load_button.grid(row=6, column=1, padx=5, pady=5)
+        load_button.grid(row=7, column=1, padx=5, pady=5)
 
         # display window
         self.preview_label = ttk.Label(self.window)
-        self.preview_label.grid(row=7, column=0, columnspan=6, pady=10)
+        self.preview_label.grid(row=8, column=0, columnspan=6, pady=10)
 
         # Set values if prev_preprocess_vals is provided
         if prev_preprocess_vals:
@@ -2246,20 +2262,20 @@ class FramePreprocessor:
         self.sliders["Brightness"].set(preprocessVals["Brightness"])
         self.sliders["Smoothness"].set(preprocessVals["Smoothness"])
 
-    def create_checkbox_with_slider(self, text, variable, row, min_val, max_val):
-        checkbox = ttk.Checkbutton(self.window, text=text, variable=variable, command=self.update_preview)
+    def create_checkbox_with_slider(self, text, variable, row, min_val, max_val, parent_frame):
+        checkbox = ttk.Checkbutton(parent_frame, text=text, variable=variable)
         checkbox.grid(row=row, column=0, sticky=tk.W, padx=(110, 0))
 
-        min_label = ttk.Label(self.window, text=f"{min_val}")
-        min_label.grid(row=row, column=1, sticky="E")
+        min_label = ttk.Label(parent_frame, text=f"{min_val}")
+        min_label.grid(row=row, column=1, sticky="E", padx=(110, 0))
 
-        slider = ttk.Scale(self.window, from_=min_val, to=max_val, orient=tk.HORIZONTAL)
+        slider = ttk.Scale(parent_frame, from_=min_val, to=max_val, orient=tk.HORIZONTAL)
         slider.grid(row=row, column=2, padx=10, pady=5, sticky="ew")
 
-        max_label = ttk.Label(self.window, text=f"{max_val}")
+        max_label = ttk.Label(parent_frame, text=f"{max_val}")
         max_label.grid(row=row, column=3)
 
-        value_label = ttk.Label(self.window, text=f"Value: {int(slider.get())}", width=10)
+        value_label = ttk.Label(parent_frame, text=f"Value: {int(slider.get())}", width=10)
         value_label.grid(row=row, column=4, padx=(10, 50))
 
         slider.config(command=lambda value, var=value_label: self.on_slider_change(value, var, variable))
@@ -2271,13 +2287,13 @@ class FramePreprocessor:
         max_label.grid_remove()
         value_label.grid_remove()
 
-        variable.trace_add("write", lambda *args, slider=slider, min_label=min_label, max_label=max_label, value_label=value_label: self.toggle_slider(slider, variable, min_label, max_label, value_label))
+        variable.trace_add("write", lambda *args, slider=slider, min_label=min_label, max_label=max_label, value_label=value_label: self.toggle_slider(slider, variable, min_label, max_label, value_label, parent_frame))
 
     def on_slider_change(self, value, value_label, variable):
         value_label.config(text=f"Value: {int(float(value))}")
         self.update_preview()
 
-    def toggle_slider(self, slider, variable, min_label, max_label, value_label):
+    def toggle_slider(self, slider, variable, min_label, max_label, value_label, parent_frame):
         if variable.get():
             slider.grid()
             min_label.grid()
@@ -2289,7 +2305,18 @@ class FramePreprocessor:
             max_label.grid_remove()
             value_label.grid_remove()
 
-        self.update_preview()
+        # Update the layout of the parent frame
+        parent_frame.update_idletasks()
+
+    def toggle_advanced_options(self):
+        if self.advanced_options_visible:
+            self.advanced_options_frame.grid_forget()
+            self.advanced_options_visible = False
+            self.show_advanced_button.config(text="Show Advanced")
+        else:
+            self.advanced_options_frame.grid(row=6, column=0, columnspan=6, pady=10, sticky="w")
+            self.advanced_options_visible = True
+            self.show_advanced_button.config(text="Hide Advanced")
 
     def update_preview(self):
         if self.modded_frame is not None and self.modded_frame.size > 0:
