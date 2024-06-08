@@ -592,7 +592,7 @@ class TrackingUI:
 
     def frame_preprocessor(self):
         if self.video_path != "":
-            FramePreprocessor(self, self.video_path)
+            FramePreprocessor(self, self.video_path, self.preprocessVals)
         else:
             msg = "Select a video before opening the video preprocessing tool"
             error_popup(msg)
@@ -816,7 +816,7 @@ class TrackingUI:
                     data_label_err_flag = self.check_data_label('output/Tracking_Output.csv', range_id)
 
                 if not data_label_err_flag:
-                    selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start) # prompt to select markers
+                    selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start, self.preprocessVals) # prompt to select markers
                     print(f"marker locs: {selected_markers}")
                     if not selected_markers.__contains__((-1,-1)): # select_markers returns list of -1 if selections cancelled
                         if use_multithread:
@@ -2134,6 +2134,7 @@ class FramePreprocessor:
         - self: 
         - parent: 
         - video_path: contains the path to the selected video
+        - prev_preprocess_vals: preprocessing values the parent had beforehand
 
     returns:
         - A dictionary with these values:
@@ -2142,7 +2143,7 @@ class FramePreprocessor:
             - brightness: -100 to 100. If 0, no change made
     """
 
-    def __init__(self, parent, video_path):
+    def __init__(self, parent, video_path, prev_preprocess_vals=None):
         self.root = parent.root
         self.parent = parent
         self.video_path = video_path
@@ -2188,16 +2189,65 @@ class FramePreprocessor:
         checkbox = ttk.Checkbutton(self.window, text="Binarize", variable=self.binarize_var, command=self.update_preview)
         checkbox.grid(row=5, column=0, sticky=tk.W, padx=(110, 0))
 
+        # Add Save and Load buttons
+        save_button = ttk.Button(self.window, text="Save Options", command=self.save_options)
+        save_button.grid(row=6, column=0, padx=5, pady=5)
+
+        load_button = ttk.Button(self.window, text="Load Options", command=self.load_options)
+        load_button.grid(row=6, column=1, padx=5, pady=5)
+
         # display window
         self.preview_label = ttk.Label(self.window)
-        self.preview_label.grid(row=6, column=0, columnspan=6, pady=10)
+        self.preview_label.grid(row=7, column=0, columnspan=6, pady=10)
+
+        # Set values if prev_preprocess_vals is provided
+        if prev_preprocess_vals:
+            self.set_preprocess_values(prev_preprocess_vals)
 
         self.update_preview()
 
         self.window.protocol("WM_DELETE_WINDOW", self.on_close)
 
+    def save_options(self):
+        filename = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")])
+        if filename:
+            self.save_preprocess_options(filename)
+
+    def load_options(self):
+        filename = filedialog.askopenfilename(filetypes=[("JSON files", "*.json")])
+        if filename:
+            self.load_preprocess_options(filename)
+
+    def save_preprocess_options(self, filename):
+        preprocessVals = {
+            "Blur/Sharpness": self.sliders["Blur/Sharpness"].get() if self.sharpness_var.get() else 0,
+            "Contrast": self.sliders["Contrast"].get() if self.contrast_var.get() else 0,
+            "Brightness": self.sliders["Brightness"].get() if self.brightness_var.get() else 0,
+            "Smoothness": self.sliders["Smoothness"].get() if self.smoothness_var.get() else 0,
+            "Binarize": self.binarize_var.get()
+        }
+        with open(filename, 'w') as f:
+            json.dump(preprocessVals, f)
+
+    def load_preprocess_options(self, filename):
+        with open(filename, 'r') as f:
+            preprocessVals = json.load(f)
+        self.set_preprocess_values(preprocessVals)
+        self.update_preview()
+
+    def set_preprocess_values(self, preprocessVals):
+        self.sharpness_var.set(preprocessVals["Blur/Sharpness"] != 0)
+        self.contrast_var.set(preprocessVals["Contrast"] != 0)
+        self.brightness_var.set(preprocessVals["Brightness"] != 0)
+        self.smoothness_var.set(preprocessVals["Smoothness"] != 0)
+        self.binarize_var.set(preprocessVals["Binarize"])
+        self.sliders["Blur/Sharpness"].set(preprocessVals["Blur/Sharpness"])
+        self.sliders["Contrast"].set(preprocessVals["Contrast"])
+        self.sliders["Brightness"].set(preprocessVals["Brightness"])
+        self.sliders["Smoothness"].set(preprocessVals["Smoothness"])
+
     def create_checkbox_with_slider(self, text, variable, row, min_val, max_val):
-        checkbox = ttk.Checkbutton(self.window, text=text, variable=variable)
+        checkbox = ttk.Checkbutton(self.window, text=text, variable=variable, command=self.update_preview)
         checkbox.grid(row=row, column=0, sticky=tk.W, padx=(110, 0))
 
         min_label = ttk.Label(self.window, text=f"{min_val}")
@@ -2225,8 +2275,7 @@ class FramePreprocessor:
 
     def on_slider_change(self, value, value_label, variable):
         value_label.config(text=f"Value: {int(float(value))}")
-        if variable.get():
-            self.update_preview()
+        self.update_preview()
 
     def toggle_slider(self, slider, variable, min_label, max_label, value_label):
         if variable.get():
@@ -2247,22 +2296,10 @@ class FramePreprocessor:
             self.modded_frame = tracking.preprocess_frame(
                 self.first_frame, self.getPreprocessVals()
             )
-            self.display_frame(self.modded_frame)
-
-    def update_frame(self, value):
-        frame_idx = int(float(value))
-        self.cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
-        ret, frame = self.cap.read()
-        if ret:
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            self.first_frame = frame.copy()
-            self.update_preview()
-
-    def display_frame(self, frame):
-        frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
-        imgtk = ImageTk.PhotoImage(image=Image.fromarray(frame))
-        self.preview_label.imgtk = imgtk
-        self.preview_label.configure(image=imgtk)
+            frame = cv2.cvtColor(self.modded_frame, cv2.COLOR_GRAY2RGB)
+            imgtk = ImageTk.PhotoImage(image=Image.fromarray(frame))
+            self.preview_label.imgtk = imgtk
+            self.preview_label.configure(image=imgtk)
 
     def getPreprocessVals(self):
         returnDict = {
