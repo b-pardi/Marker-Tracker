@@ -184,5 +184,6 @@ def test(fp):
     cv2.destroyAllWindows()
 
 if __name__ == '__main__':
-    video_path = r"C:\Users\Brandon\Documents\00 School Files 00\University\M3b Software\temp_videos\20240308_20240307_A549 _stiff VE sub._col-I_AS_current_02.vsi - 002 PH-Cell 2.avi"
+    #video_path = r"C:\Users\ipsou\ProgrammingStuff\Github\Marker-Tracker\viscoelastic_video\20240308_20240307_A549 _stiff VE sub._col-I_AS_current_01.vsi - 001 PH-Cell 1.avi"
+    video_path = r"C:\Users\ipsou\ProgrammingStuff\Github\Marker-Tracker\data\20240208_2024_07_02_A549.p23_PAHstiff_no beads_migration_exp.3_current_03.vsi - 003 PH.avi"
     test(video_path)

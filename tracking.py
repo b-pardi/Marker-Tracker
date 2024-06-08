@@ -236,6 +236,10 @@ def preprocess_frame(frame, preprocessVals):
     # Initialize a variable to store the modified frame
     modified_frame = frame.copy()
 
+    # Apply improved smooth
+    if preprocessVals["Smoothness"] != 0:
+        modified_frame = improve_smoothing(modified_frame, preprocessVals["Smoothness"]/50+.1)
+
     # Apply sharpening
     if preprocessVals["Blur/Sharpness"] != 0:
         modified_frame = sharpen_frame(modified_frame, preprocessVals["Blur/Sharpness"])
@@ -247,6 +251,11 @@ def preprocess_frame(frame, preprocessVals):
     # Apply brightness adjustment
     if preprocessVals["Brightness"] != 0:
         modified_frame = adjust_gamma(modified_frame, preprocessVals["Brightness"])
+
+    if preprocessVals["Binarize"]:
+        modified_frame = improve_binarization(modified_frame)
+        print(preprocessVals["Binarize"])
+        pass
 
     return modified_frame
 
@@ -260,7 +269,7 @@ def enhance_contrast(frame, strength=50):
     enhanced_frame = clahe.apply(frame)
     
     # Adjust contrast strength
-    enhanced_frame = cv2.addWeighted(frame, 1 + strength / 100, enhanced_frame, 0.0, 0.0)
+    enhanced_frame = cv2.addWeighted(frame, 1 + strength / 5, enhanced_frame, 0.0, 0.0)
     
     return enhanced_frame
 
@@ -286,7 +295,10 @@ def sharpen_frame(frame, strength=1.0):
 
 def adjust_gamma(frame, gamma=50.0):
     # Apply gamma correction
-    gamma=1-gamma/100
+    if gamma > 0:
+        gamma=1-gamma/100
+    elif gamma < 0:
+        gamma=1-gamma/10
     gamma_corrected = np.array(255 * (frame / 255) ** gamma, dtype='uint8')
     return gamma_corrected
 
@@ -1019,14 +1031,16 @@ def track_area(
         if not ret:
             break
 
+        gray_frame = cv2.cvtColor(scaled_frame, cv2.COLOR_BGR2GRAY)
+
         # Frame preprocessing
         if preprocessVals is not None:
-            preprocessedFrame = preprocess_frame(frame, preprocessVals)
+            preprocessedFrame = preprocess_frame(gray_frame, preprocessVals)
         else:
             preprocessedFrame = frame
 
         scaled_frame, scale_factor = scale_frame(preprocessedFrame)  # scale the frame
-        gray_frame = cv2.cvtColor(scaled_frame, cv2.COLOR_BGR2GRAY)
+        
 
         # preprocessing
         if preprocessing_need == PreprocessingIssue.NOISY_BG:
@@ -1035,6 +1049,8 @@ def track_area(
             preprocessed_frame = improve_smoothing(gray_frame)
         else:
             preprocessed_frame = gray_frame
+
+        preprocessed_frame = scaled_frame
 
         # update tracker position
         success, bbox = trackers[0].update(preprocessed_frame) # currently only 1 tracker will work for testing
@@ -1093,6 +1109,7 @@ def track_area(
 
         #cv2.imshow('Surface Area Tracking', noise_reduced_frame)
         cv2.imshow('Surface Area Tracking', scaled_frame)
+
         if cv2.waitKey(1) == 27:
             break
 

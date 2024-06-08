@@ -969,7 +969,7 @@ class TrackingUI:
                     bbox_size = int(self.bbox_size_area_entry.get())
                     distance_from_marker_thresh = int(self.distance_from_marker_thresh_entry.get())
                     preprocessing_need = PreprocessingIssue(self.preprocessing_choice_var.get())
-                    selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start) # prompt to select markers
+                    selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start, self.preprocessVals) # prompt to select markers
                     print(f"marker locs: {selected_markers}")
                     if not selected_markers.__contains__((-1,-1)): # select_markers returns list of -1 if selections cancelled
                         if use_multithread:    
@@ -2141,21 +2141,6 @@ class FramePreprocessor:
             - contrast: 1 to 100. If 0, no change made
             - brightness: -100 to 100. If 0, no change made
     """
-    # Apply the preprocessing options to the first frame
-    # Load the first frame of the video
-    # Apply preprocessing (sharpness, contrast, blur, brightness)
-    # Display the updated frame in the preview image widget
-    # checkboxes to select preprocessing options
-    # sharpness, contrast, blurring, brightness
-    # these have been instantiated in tracking.py btwn lines 231 and 259
-
-    # upon checking the checkbox, a slider for each option should appear, where the user can adjust the strength of the preprocessing
-    # there should also be a display of the first frame of the video selected that updates whenever the slider is adjusted
-    # (not sure if live adjusting would be too taxing on the system so it's fine if it updates just when the slider is released or when a button like 'show'preview' is pressed)
-    # this visual indicator should display with all combined adjustments if multiple adjustments are made
-        
-    # for a reference on how to effectively use tkinter sliders, see the CropCompress class
-    # for putting a frame into a tkinter window and having it move/update with a slider, see the FrameSelector class
 
     def __init__(self, parent, video_path):
         self.root = parent.root
@@ -2189,16 +2174,23 @@ class FramePreprocessor:
         self.sharpness_var = tk.BooleanVar()
         self.contrast_var = tk.BooleanVar()
         self.brightness_var = tk.BooleanVar()
+        self.smoothness_var = tk.BooleanVar()
+        self.binarize_var = tk.BooleanVar()
 
         # create slider/checkbox pair
         self.sliders = {}
         self.create_checkbox_with_slider("Blur/Sharpness", self.sharpness_var, 1, -100, 100)
         self.create_checkbox_with_slider("Contrast", self.contrast_var, 2, 1, 100)
-        self.create_checkbox_with_slider("Brightness", self.brightness_var, 4, -100, 100)
+        self.create_checkbox_with_slider("Brightness", self.brightness_var, 3, -100, 100)
+        self.create_checkbox_with_slider("Smoothness", self.smoothness_var, 4, 1, 100)
+
+        # create binarize checkbox
+        checkbox = ttk.Checkbutton(self.window, text="Binarize", variable=self.binarize_var, command=self.update_preview)
+        checkbox.grid(row=5, column=0, sticky=tk.W, padx=(110, 0))
 
         # display window
         self.preview_label = ttk.Label(self.window)
-        self.preview_label.grid(row=5, column=0, columnspan=6, pady=10)
+        self.preview_label.grid(row=6, column=0, columnspan=6, pady=10)
 
         self.update_preview()
 
@@ -2276,7 +2268,9 @@ class FramePreprocessor:
         returnDict = {
             "Blur/Sharpness": self.sliders["Blur/Sharpness"].get() if self.sharpness_var.get() else 0,
             "Contrast": self.sliders["Contrast"].get() if self.contrast_var.get() else 0,
-            "Brightness": self.sliders["Brightness"].get() if self.brightness_var.get() else 0
+            "Brightness": self.sliders["Brightness"].get() if self.brightness_var.get() else 0,
+            "Smoothness": self.sliders["Smoothness"].get() if self.smoothness_var.get() else 0,
+            "Binarize": self.binarize_var.get()
         }
         return returnDict
 
