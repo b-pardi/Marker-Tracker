@@ -7,9 +7,11 @@ FIX
 - more mac compatible? (awaiting dominique feedback)
 
 ISAAC
+
 - FramePreprocessor: Add internal live preview of frame changes
 
 Housekeeping
+
 - capital np for yaxis necking pt diameter label
 - move multithreaded functions to new file and deprecate
 
@@ -29,18 +31,24 @@ Cell Mechanics
 
 # Changelog
 
+6/7 - ISAAC
+
+- incorporated binarization and smoothing to preprocessing screen
+
 6/5
+
 - changed necking pt diameter y axis slightly
 - fully deprecated multithread tracking functions
 - fully deprecated old analysis functions
 - attempted tests to improve viscoelastic cells
 
 6/3
+
 - fully implemented necking point step approximation method
-    - this version is similar to minimum distance method
-    - finds the average top and bottom y edge values within each chunk (chunk size spec'd by number of steps // pixel consideration range)
-    - finds the average values to make a step
-    - finds the min distance between these 'steps' so to speak
+  - this version is similar to minimum distance method
+  - finds the average top and bottom y edge values within each chunk (chunk size spec'd by number of steps // pixel consideration range)
+  - finds the average values to make a step
+  - finds the min distance between these 'steps' so to speak
 
 5/29
 
@@ -57,12 +65,12 @@ Cell Mechanics
   - non local means denoising with a high pass filter
 - added to surface area tracking user params the option to filter a noisy background (uses preexisting improve_binarization function) or the new improve_smoothing function
 - revamped ui for necking point methods
-    - now there is only one button for necking point
-    - when necking point selected it blits the one universal option and radios to select from the 3 available necking methods
-    - original min distance option, midpoint, and the new in progress step approximation method
-    - each of these radios blit their respective parameters to tune
+  - now there is only one button for necking point
+  - when necking point selected it blits the one universal option and radios to select from the 3 available necking methods
+  - original min distance option, midpoint, and the new in progress step approximation method
+  - each of these radios blit their respective parameters to tune
 - removed multithread from ui, soon to be deprecated
-5/29 - ISAAC
+  5/29 - ISAAC
 
 - Incorporated frame preprocessor to track_area and associated marker select
 - Changed brightness to also allow for darkening

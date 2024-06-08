@@ -592,7 +592,7 @@ class TrackingUI:
 
     def frame_preprocessor(self):
         if self.video_path != "":
-            FramePreprocessor(self, self.video_path)
+            FramePreprocessor(self, self.video_path, self.preprocessVals)
         else:
             msg = "Select a video before opening the video preprocessing tool"
             error_popup(msg)
@@ -816,7 +816,7 @@ class TrackingUI:
                     data_label_err_flag = self.check_data_label('output/Tracking_Output.csv', range_id)
 
                 if not data_label_err_flag:
-                    selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start) # prompt to select markers
+                    selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start, self.preprocessVals) # prompt to select markers
                     print(f"marker locs: {selected_markers}")
                     if not selected_markers.__contains__((-1,-1)): # select_markers returns list of -1 if selections cancelled
                         if use_multithread:
@@ -969,7 +969,7 @@ class TrackingUI:
                     bbox_size = int(self.bbox_size_area_entry.get())
                     distance_from_marker_thresh = int(self.distance_from_marker_thresh_entry.get())
                     preprocessing_need = PreprocessingIssue(self.preprocessing_choice_var.get())
-                    selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start) # prompt to select markers
+                    selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start, self.preprocessVals) # prompt to select markers
                     print(f"marker locs: {selected_markers}")
                     if not selected_markers.__contains__((-1,-1)): # select_markers returns list of -1 if selections cancelled
                         if use_multithread:    
@@ -2134,6 +2134,7 @@ class FramePreprocessor:
         - self: 
         - parent: 
         - video_path: contains the path to the selected video
+        - prev_preprocess_vals: preprocessing values the parent had beforehand
 
     returns:
         - A dictionary with these values:
@@ -2141,23 +2142,8 @@ class FramePreprocessor:
             - contrast: 1 to 100. If 0, no change made
             - brightness: -100 to 100. If 0, no change made
     """
-    # Apply the preprocessing options to the first frame
-    # Load the first frame of the video
-    # Apply preprocessing (sharpness, contrast, blur, brightness)
-    # Display the updated frame in the preview image widget
-    # checkboxes to select preprocessing options
-    # sharpness, contrast, blurring, brightness
-    # these have been instantiated in tracking.py btwn lines 231 and 259
 
-    # upon checking the checkbox, a slider for each option should appear, where the user can adjust the strength of the preprocessing
-    # there should also be a display of the first frame of the video selected that updates whenever the slider is adjusted
-    # (not sure if live adjusting would be too taxing on the system so it's fine if it updates just when the slider is released or when a button like 'show'preview' is pressed)
-    # this visual indicator should display with all combined adjustments if multiple adjustments are made
-        
-    # for a reference on how to effectively use tkinter sliders, see the CropCompress class
-    # for putting a frame into a tkinter window and having it move/update with a slider, see the FrameSelector class
-
-    def __init__(self, parent, video_path):
+    def __init__(self, parent, video_path, prev_preprocess_vals=None):
         self.root = parent.root
         self.parent = parent
         self.video_path = video_path
@@ -2177,6 +2163,16 @@ class FramePreprocessor:
         self.window.title("Preprocess Video")
         self.window.iconphoto(False, tk.PhotoImage(file="ico/m3b_comp.png"))
 
+        # Create the basic options frame
+        self.basic_options_frame = ttk.Frame(self.window)
+        self.basic_options_frame.grid(row=1, column=0, columnspan=10, sticky="w", padx=10, pady=5)
+
+        # Create the advanced options frame
+        self.advanced_options_frame = ttk.Frame(self.window)
+        self.advanced_options_frame.grid(row=2, column=0, columnspan=10, sticky="w", padx=10, pady=5)
+        self.advanced_options_frame.grid_remove()  # Hide the advanced options frame initially
+        self.advanced_options_visible = False
+
         msg = ("In this window you can select various processing techniques and the strength at which they are used\n\n"
                "Warning: Surface area tracking already performs several fine tuned\n"
                "preprocessing techniques that are not displayed to the user when tracking\n"
@@ -2189,35 +2185,97 @@ class FramePreprocessor:
         self.sharpness_var = tk.BooleanVar()
         self.contrast_var = tk.BooleanVar()
         self.brightness_var = tk.BooleanVar()
+        self.smoothness_var = tk.BooleanVar()
+        self.binarize_var = tk.BooleanVar()
 
         # create slider/checkbox pair
         self.sliders = {}
-        self.create_checkbox_with_slider("Blur/Sharpness", self.sharpness_var, 1, -100, 100)
-        self.create_checkbox_with_slider("Contrast", self.contrast_var, 2, 1, 100)
-        self.create_checkbox_with_slider("Brightness", self.brightness_var, 4, -100, 100)
+        self.create_checkbox_with_slider("Blur/Sharpness", self.sharpness_var, 1, -100, 100, self.basic_options_frame)
+        self.create_checkbox_with_slider("Contrast", self.contrast_var, 2, 1, 100, self.basic_options_frame)
+        self.create_checkbox_with_slider("Brightness", self.brightness_var, 3, -100, 100, self.basic_options_frame)
+
+        # Create "Show Advanced" button
+        self.show_advanced_button = tk.Button(self.window, text="Show Advanced", command=self.toggle_advanced_options)
+        self.show_advanced_button.grid(row=4, column=0, sticky=tk.W, padx=(110, 0))
+
+        # smoothness options
+        self.create_checkbox_with_slider("Smoothness", self.smoothness_var, 5, 1, 100, self.advanced_options_frame)
+
+        # create binarize checkbox
+        checkbox = ttk.Checkbutton(self.advanced_options_frame, text="Binarize", variable=self.binarize_var, command=self.update_preview)
+        checkbox.grid(row=6, column=0, sticky=tk.W, padx=(110, 0))
+
+        # Add Save and Load buttons
+        save_button = ttk.Button(self.window, text="Save Options", command=self.save_options)
+        save_button.grid(row=7, column=0, padx=5, pady=5)
+
+        load_button = ttk.Button(self.window, text="Load Options", command=self.load_options)
+        load_button.grid(row=7, column=1, padx=5, pady=5)
 
         # display window
         self.preview_label = ttk.Label(self.window)
-        self.preview_label.grid(row=5, column=0, columnspan=6, pady=10)
+        self.preview_label.grid(row=8, column=0, columnspan=6, pady=10)
+
+        # Set values if prev_preprocess_vals is provided
+        if prev_preprocess_vals:
+            self.set_preprocess_values(prev_preprocess_vals)
 
         self.update_preview()
 
         self.window.protocol("WM_DELETE_WINDOW", self.on_close)
 
-    def create_checkbox_with_slider(self, text, variable, row, min_val, max_val):
-        checkbox = ttk.Checkbutton(self.window, text=text, variable=variable)
+    def save_options(self):
+        filename = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")])
+        if filename:
+            self.save_preprocess_options(filename)
+
+    def load_options(self):
+        filename = filedialog.askopenfilename(filetypes=[("JSON files", "*.json")])
+        if filename:
+            self.load_preprocess_options(filename)
+
+    def save_preprocess_options(self, filename):
+        preprocessVals = {
+            "Blur/Sharpness": self.sliders["Blur/Sharpness"].get() if self.sharpness_var.get() else 0,
+            "Contrast": self.sliders["Contrast"].get() if self.contrast_var.get() else 0,
+            "Brightness": self.sliders["Brightness"].get() if self.brightness_var.get() else 0,
+            "Smoothness": self.sliders["Smoothness"].get() if self.smoothness_var.get() else 0,
+            "Binarize": self.binarize_var.get()
+        }
+        with open(filename, 'w') as f:
+            json.dump(preprocessVals, f)
+
+    def load_preprocess_options(self, filename):
+        with open(filename, 'r') as f:
+            preprocessVals = json.load(f)
+        self.set_preprocess_values(preprocessVals)
+        self.update_preview()
+
+    def set_preprocess_values(self, preprocessVals):
+        self.sharpness_var.set(preprocessVals["Blur/Sharpness"] != 0)
+        self.contrast_var.set(preprocessVals["Contrast"] != 0)
+        self.brightness_var.set(preprocessVals["Brightness"] != 0)
+        self.smoothness_var.set(preprocessVals["Smoothness"] != 0)
+        self.binarize_var.set(preprocessVals["Binarize"])
+        self.sliders["Blur/Sharpness"].set(preprocessVals["Blur/Sharpness"])
+        self.sliders["Contrast"].set(preprocessVals["Contrast"])
+        self.sliders["Brightness"].set(preprocessVals["Brightness"])
+        self.sliders["Smoothness"].set(preprocessVals["Smoothness"])
+
+    def create_checkbox_with_slider(self, text, variable, row, min_val, max_val, parent_frame):
+        checkbox = ttk.Checkbutton(parent_frame, text=text, variable=variable)
         checkbox.grid(row=row, column=0, sticky=tk.W, padx=(110, 0))
 
-        min_label = ttk.Label(self.window, text=f"{min_val}")
-        min_label.grid(row=row, column=1, sticky="E")
+        min_label = ttk.Label(parent_frame, text=f"{min_val}")
+        min_label.grid(row=row, column=1, sticky="E", padx=(110, 0))
 
-        slider = ttk.Scale(self.window, from_=min_val, to=max_val, orient=tk.HORIZONTAL)
+        slider = ttk.Scale(parent_frame, from_=min_val, to=max_val, orient=tk.HORIZONTAL)
         slider.grid(row=row, column=2, padx=10, pady=5, sticky="ew")
 
-        max_label = ttk.Label(self.window, text=f"{max_val}")
+        max_label = ttk.Label(parent_frame, text=f"{max_val}")
         max_label.grid(row=row, column=3)
 
-        value_label = ttk.Label(self.window, text=f"Value: {int(slider.get())}", width=10)
+        value_label = ttk.Label(parent_frame, text=f"Value: {int(slider.get())}", width=10)
         value_label.grid(row=row, column=4, padx=(10, 50))
 
         slider.config(command=lambda value, var=value_label: self.on_slider_change(value, var, variable))
@@ -2229,14 +2287,13 @@ class FramePreprocessor:
         max_label.grid_remove()
         value_label.grid_remove()
 
-        variable.trace_add("write", lambda *args, slider=slider, min_label=min_label, max_label=max_label, value_label=value_label: self.toggle_slider(slider, variable, min_label, max_label, value_label))
+        variable.trace_add("write", lambda *args, slider=slider, min_label=min_label, max_label=max_label, value_label=value_label: self.toggle_slider(slider, variable, min_label, max_label, value_label, parent_frame))
 
     def on_slider_change(self, value, value_label, variable):
         value_label.config(text=f"Value: {int(float(value))}")
-        if variable.get():
-            self.update_preview()
+        self.update_preview()
 
-    def toggle_slider(self, slider, variable, min_label, max_label, value_label):
+    def toggle_slider(self, slider, variable, min_label, max_label, value_label, parent_frame):
         if variable.get():
             slider.grid()
             min_label.grid()
@@ -2248,35 +2305,36 @@ class FramePreprocessor:
             max_label.grid_remove()
             value_label.grid_remove()
 
-        self.update_preview()
+        # Update the layout of the parent frame
+        parent_frame.update_idletasks()
+
+    def toggle_advanced_options(self):
+        if self.advanced_options_visible:
+            self.advanced_options_frame.grid_forget()
+            self.advanced_options_visible = False
+            self.show_advanced_button.config(text="Show Advanced")
+        else:
+            self.advanced_options_frame.grid(row=6, column=0, columnspan=6, pady=10, sticky="w")
+            self.advanced_options_visible = True
+            self.show_advanced_button.config(text="Hide Advanced")
 
     def update_preview(self):
         if self.modded_frame is not None and self.modded_frame.size > 0:
             self.modded_frame = tracking.preprocess_frame(
                 self.first_frame, self.getPreprocessVals()
             )
-            self.display_frame(self.modded_frame)
-
-    def update_frame(self, value):
-        frame_idx = int(float(value))
-        self.cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
-        ret, frame = self.cap.read()
-        if ret:
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            self.first_frame = frame.copy()
-            self.update_preview()
-
-    def display_frame(self, frame):
-        frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
-        imgtk = ImageTk.PhotoImage(image=Image.fromarray(frame))
-        self.preview_label.imgtk = imgtk
-        self.preview_label.configure(image=imgtk)
+            frame = cv2.cvtColor(self.modded_frame, cv2.COLOR_GRAY2RGB)
+            imgtk = ImageTk.PhotoImage(image=Image.fromarray(frame))
+            self.preview_label.imgtk = imgtk
+            self.preview_label.configure(image=imgtk)
 
     def getPreprocessVals(self):
         returnDict = {
             "Blur/Sharpness": self.sliders["Blur/Sharpness"].get() if self.sharpness_var.get() else 0,
             "Contrast": self.sliders["Contrast"].get() if self.contrast_var.get() else 0,
-            "Brightness": self.sliders["Brightness"].get() if self.brightness_var.get() else 0
+            "Brightness": self.sliders["Brightness"].get() if self.brightness_var.get() else 0,
+            "Smoothness": self.sliders["Smoothness"].get() if self.smoothness_var.get() else 0,
+            "Binarize": self.binarize_var.get()
         }
         return returnDict
 
