@@ -2327,6 +2327,8 @@ class FramePreprocessor:
             imgtk = ImageTk.PhotoImage(image=Image.fromarray(frame))
             self.preview_label.imgtk = imgtk
             self.preview_label.configure(image=imgtk)
+        
+        self.window.lift()
 
     def getPreprocessVals(self):
         returnDict = {
