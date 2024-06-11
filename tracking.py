@@ -1030,20 +1030,20 @@ def track_area(
         gray_frame = cv2.cvtColor(scaled_frame, cv2.COLOR_BGR2GRAY)
 
         # Frame preprocessing
-        if preprocessVals is not None:
+        '''if preprocessVals is not None:
             preprocessed_frame = preprocess_frame(gray_frame, preprocessVals)
         else:
-            preprocessed_frame = gray_frame
+            preprocessed_frame = gray_frame'''
 
         # preprocessing
-        #if preprocessing_need == PreprocessingIssue.NOISY_BG:
-        #    preprocessed_frame = improve_binarization(gray_frame)
-        #elif preprocessing_need == PreprocessingIssue.HARSH_GRADIENT:
-        #    preprocessed_frame = improve_smoothing(gray_frame)
-        #else:
-        #    preprocessed_frame = gray_frame
+        if preprocessing_need == PreprocessingIssue.NOISY_BG:
+            preprocessed_frame = improve_binarization(gray_frame)
+        elif preprocessing_need == PreprocessingIssue.HARSH_GRADIENT:
+            preprocessed_frame = improve_smoothing(gray_frame)
+        else:
+           preprocessed_frame = gray_frame
 
-        # preprocessed_frame = scaled_frame
+        preprocessed_frame = scaled_frame
 
         # update tracker position
         success, bbox = trackers[0].update(preprocessed_frame) # currently only 1 tracker will work for testing
