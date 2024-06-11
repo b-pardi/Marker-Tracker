@@ -31,6 +31,11 @@ Cell Mechanics
 
 # Changelog
 
+6/10 - ISAAC
+
+- Tweaked preprocessing functions
+- Reenabled preprocessing radio buttons and added salt+pepper option and custom option
+
 6/9 - ISAAC
 
 - Added intermediate frame function, which creates a window displaying the frame and then closes automatically on button press
