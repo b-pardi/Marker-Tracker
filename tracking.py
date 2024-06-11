@@ -98,28 +98,13 @@ def select_markers(cap, bbox_size, frame_start, preprocessing_vals = None):
     ret, first_frame = cap.read() # get first frame for selection
 
     scaled_frame, scale_factor = scale_frame(first_frame)
-
-    gray_frame = cv2.cvtColor(scaled_frame, cv2.COLOR_BGR2GRAY)
-
-    if preprocessing_vals is not None:
-        disp_preprocessing_vals = preprocessing_vals.copy()
-        disp_preprocessing_vals["Binarize"] = False
-
-        preprocessed_frame = preprocess_frame(gray_frame, disp_preprocessing_vals)
-
-        # print("Marker preprocessing done")
-
-        cv2.imshow('After Preprocessing', preprocessed_frame)
-        cv2.waitKey(0)  # Wait for a key press to proceed
-    else:
-        preprocessed_frame = gray_frame
     
     # print("Image show")
     
-    cv2.imshow('Select Markers', preprocessed_frame) # show first frame
+    cv2.imshow('Select Markers', scaled_frame) # show first frame
     cv2.moveWindow('Select Markers', 50, 50)
 
-    mouse_params = {"first_frame": preprocessed_frame.copy(), "marker_positions": [], 'bbox_size': bbox_size}
+    mouse_params = {"first_frame": scaled_frame.copy(), "marker_positions": [], 'bbox_size': bbox_size}
     cv2.setMouseCallback('Select Markers', mouse_callback, mouse_params) # set mouse callback function defn above
     
     # inf loop until user hits esc to cancel or enter to confirm selections
@@ -248,14 +233,15 @@ def init_trackers(marker_positions, bbox_size, first_frame, tracker_choice=Track
 
     return trackers
 
-def preprocess_frame(frame, preprocessing_vals):
+def preprocess_frame(frame, preprocessing_vals, advanced):
     
     # print("Preprocessing...")
     # Initialize a variable to store the modified frame
     modified_frame = frame.copy()
 
     # Apply improved smooth
-    if preprocessing_vals["Smoothness"] != 0:
+
+    if preprocessing_vals["Smoothness"] != 0 and advanced:
         modified_frame = improve_smoothing(modified_frame, preprocessing_vals["Smoothness"]/50+.1)
 
     # Apply sharpening
@@ -270,7 +256,7 @@ def preprocess_frame(frame, preprocessing_vals):
     if preprocessing_vals["Brightness"] != 0:
         modified_frame = adjust_gamma(modified_frame, preprocessing_vals["Brightness"])
 
-    if preprocessing_vals["Binarize"]:
+    if preprocessing_vals["Binarize"]  and advanced:
         modified_frame = improve_binarization(modified_frame)
 
     # intermediate_frame_check("Preprocessing done", modified_frame)
@@ -1064,6 +1050,9 @@ def track_area(
 
     trackers = init_trackers(marker_positions, bbox_size, first_frame, TrackerChoice.CSRT)
 
+    if preprocessing_vals is None:
+            preprocessing_vals = {"Blur/Sharpness": 0, "Contrast": 0, "Brightness": 0, "Smoothness": 0, "Binarize": False}
+
     while frame_num < frame_end:
         ret, frame = cap.read()
         frame_num += frame_record_interval
@@ -1077,23 +1066,37 @@ def track_area(
 
         gray_frame = cv2.cvtColor(scaled_frame, cv2.COLOR_BGR2GRAY)
 
-        # Frame preprocessing
+        """# Frame preprocessing
         if preprocessing_vals is not None:
             preprocessed_frame = preprocess_frame(gray_frame, preprocessing_vals)
             display_frame = preprocess_frame(gray_frame, disp_preprocessing_vals)
             # print("In-loop area preprocessing done")
         else:
-            preprocessed_frame = gray_frame
+            preprocessed_frame = gray_frame"""
 
         # preprocessing
-        #if preprocessing_need == PreprocessingIssue.NOISY_BG:
-        #    preprocessed_frame = improve_binarization(gray_frame)
-        #elif preprocessing_need == PreprocessingIssue.HARSH_GRADIENT:
-        #    preprocessed_frame = improve_smoothing(gray_frame)
-        #else:
-        #    preprocessed_frame = gray_frame
+        if preprocessing_need == PreprocessingIssue.NOISY_BG:
+            basic_preprocessed_frame = preprocess_frame(gray_frame, preprocessing_vals, False)
+            preprocessed_frame = improve_binarization(basic_preprocessed_frame)
+        elif preprocessing_need == PreprocessingIssue.HARSH_GRADIENT:
+            basic_preprocessed_frame = preprocess_frame(gray_frame, preprocessing_vals, False)
+            preprocessed_frame = improve_smoothing(basic_preprocessed_frame)
+        elif preprocessing_need == PreprocessingIssue.SALT_PEPPER:
+            saltpep_dict = {"Blur/Sharpness": -73.21428571428572, "Contrast": 60.223214285714285, "Brightness": 65.78571428571428, "Smoothness": 58.455357142857146, "Binarize": True}
+            preprocessed_frame = preprocess_frame(gray_frame, saltpep_dict, True)
+        elif preprocessing_need == PreprocessingIssue.CUSTOM:
+            if preprocessing_vals is not None:
+                preprocessed_frame = preprocess_frame(gray_frame, preprocessing_vals, True)
+            else:
+                msg = "No custom settings entered yet"
+                error_popup(msg)
+            #    print("In-loop area preprocessing done")
+        else:
+            preprocessed_frame = gray_frame
+        #    preprocessed_frame = scaled_frame
 
-        # preprocessed_frame = scaled_frame
+        binary_frame = cv2.adaptiveThreshold(preprocessed_frame, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
+        # intermediate_frame_check("Salt&pep", binary_frame)
 
         # update tracker position
         success, bbox = trackers[0].update(preprocessed_frame) # currently only 1 tracker will work for testing
@@ -1108,7 +1111,18 @@ def track_area(
             cv2.destroyAllWindows()
             return
 
-        binary_frame = cv2.adaptiveThreshold(preprocessed_frame, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
+        """if(preprocessing_vals is not None and not (preprocessing_vals["Binarize"])):
+            binarize_dict  = {
+            "Blur/Sharpness": 0,
+            "Contrast": 0,
+            "Brightness": 0,
+            "Smoothness": 0,
+            "Binarize": True
+            }
+            preprocessed_frame = preprocess_frame(preprocessed_frame, binarize_dict)
+            binary_frame = cv2.adaptiveThreshold(preprocessed_frame, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
+        else:
+            binary_frame = cv2.adaptiveThreshold(preprocessed_frame, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)"""
 
         # Segment frame
         contours, _ = cv2.findContours(binary_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -1131,9 +1145,9 @@ def track_area(
         # draw the chosen contour
         contour = contours[max_area_idx]
         if centroid:
-            cv2.circle(display_frame, centroid, 5, (0, 0, 255), -1)
-        cv2.drawContours(display_frame, [contour], -1, (255, 0, 0), 2)
-        cv2.putText(display_frame, str(i+1), (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+            cv2.circle(scaled_frame, centroid, 5, (0, 0, 255), -1)
+        cv2.drawContours(scaled_frame, [contour], -1, (255, 0, 0), 2)
+        cv2.putText(scaled_frame, str(i+1), (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
         # record data
         print(centroid)
@@ -1149,10 +1163,11 @@ def track_area(
         except TypeError:
             print("centroid not found")
 
-        cv2.imshow('Surface Area Tracking', display_frame)
+        # cv2.imshow('Surface Area Tracking', display_frame)
         # cv2.imshow('Surface Area Tracking', preprocessed_frame)
-        # cv2.imshow('Surface Area Tracking', gray_frame)
-        
+        # cv2.imshow('Surface Area Tracking', gray_frame)  scaled_frame
+        cv2.imshow('Surface Area Tracking', scaled_frame)
+
         if cv2.waitKey(1) == 27:
             break
 

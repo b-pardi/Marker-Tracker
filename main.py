@@ -34,7 +34,7 @@ class TrackingUI:
         self.root.title("Marker Tracker - M3B Lab")
         self.root.iconphoto(False, tk.PhotoImage(file="ico/m3b_comp.png"))
 
-        self.preprocessVals = None
+        self.preprocess_vals = None
 
         self.setup_styles()
 
@@ -273,8 +273,12 @@ class TrackingUI:
         noisy_bg_radio.grid(row=4, column=0, pady=4)
         noisy_bg_radio = ttk.Radiobutton(self.area_frame, text="Harsh gradients\n(distinct darker edges or rings in video,\nwith lighter tracked subjects)", variable=self.preprocessing_choice_var, value=PreprocessingIssue.HARSH_GRADIENT.value, style='Regular.TRadiobutton')        
         noisy_bg_radio.grid(row=4, column=1, pady=4)
+        salt_pepper_radio = ttk.Radiobutton(self.area_frame, text="Salt+Pepper noise", variable=self.preprocessing_choice_var, value=PreprocessingIssue.SALT_PEPPER.value, style='Regular.TRadiobutton')        
+        salt_pepper_radio.grid(row=5, column=0, pady=(0,4))
+        custom_radio = ttk.Radiobutton(self.area_frame, text="Custom", variable=self.preprocessing_choice_var, value=PreprocessingIssue.CUSTOM.value, style='Regular.TRadiobutton')        
+        custom_radio.grid(row=5, column=1, pady=(0,4))
         no_processing_radio = ttk.Radiobutton(self.area_frame, text="No preprocessing", variable=self.preprocessing_choice_var, value=PreprocessingIssue.NONE.value, style='Regular.TRadiobutton')        
-        no_processing_radio.grid(row=5, column=0, columnspan=2, pady=(0,4))
+        no_processing_radio.grid(row=6, column=0, columnspan=2, pady=(0,4))
 
         # tracking operation buttons
         track_record_frame = tk.Frame(self.section1)
@@ -592,7 +596,7 @@ class TrackingUI:
 
     def frame_preprocessor(self):
         if self.video_path != "":
-            FramePreprocessor(self, self.video_path, self.preprocessVals)
+            FramePreprocessor(self, self.video_path, self.preprocess_vals)
         else:
             msg = "Select a video before opening the video preprocessing tool"
             error_popup(msg)
@@ -814,7 +818,7 @@ class TrackingUI:
                     data_label_err_flag = self.check_data_label('output/Tracking_Output.csv', range_id)
 
                 if not data_label_err_flag:
-                    selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start, self.preprocessVals) # prompt to select markers
+                    selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start, self.preprocess_vals) # prompt to select markers
                     print(f"marker locs: {selected_markers}")
                     if not selected_markers.__contains__((-1,-1)): # select_markers returns list of -1 if selections cancelled
                         if use_multithread:
@@ -957,7 +961,7 @@ class TrackingUI:
                     bbox_size = int(self.bbox_size_area_entry.get())
                     distance_from_marker_thresh = int(self.distance_from_marker_thresh_entry.get())
                     preprocessing_need = PreprocessingIssue(self.preprocessing_choice_var.get())
-                    selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start, self.preprocessVals) # prompt to select markers
+                    selected_markers, first_frame = tracking.select_markers(cap, bbox_size, self.frame_start, self.preprocess_vals) # prompt to select markers
                     print(f"marker locs: {selected_markers}")
                     if not selected_markers.__contains__((-1,-1)): # select_markers returns list of -1 if selections cancelled
                         if use_multithread:    
@@ -992,7 +996,7 @@ class TrackingUI:
                                 video_name,
                                 range_id,
                                 preprocessing_need,
-                                self.preprocessVals
+                                self.preprocess_vals
                             )
     def get_file(self):
         """util function to prompt a file browser to select the video file that will be tracked
@@ -2180,7 +2184,7 @@ class FramePreprocessor:
         self.create_checkbox_with_slider("Brightness", self.brightness_var, 3, -100, 100, self.basic_options_frame)
 
         # Create "Show Advanced" button
-        self.show_advanced_button = tk.Button(self.window, text="Show Advanced", command=self.toggle_advanced_options)
+        self.show_advanced_button = tk.Button(self.window, text="Show Custom Options - Advanced", command=self.toggle_advanced_options)
         self.show_advanced_button.grid(row=4, column=0, sticky=tk.W, padx=(110, 0))
 
         # smoothness options
@@ -2220,7 +2224,7 @@ class FramePreprocessor:
             self.load_preprocess_options(filename)
 
     def save_preprocess_options(self, filename):
-        preprocessVals = {
+        preprocess_vals = {
             "Blur/Sharpness": self.sliders["Blur/Sharpness"].get() if self.sharpness_var.get() else 0,
             "Contrast": self.sliders["Contrast"].get() if self.contrast_var.get() else 0,
             "Brightness": self.sliders["Brightness"].get() if self.brightness_var.get() else 0,
@@ -2228,24 +2232,24 @@ class FramePreprocessor:
             "Binarize": self.binarize_var.get()
         }
         with open(filename, 'w') as f:
-            json.dump(preprocessVals, f)
+            json.dump(preprocess_vals, f)
 
     def load_preprocess_options(self, filename):
         with open(filename, 'r') as f:
-            preprocessVals = json.load(f)
-        self.set_preprocess_values(preprocessVals)
+            preprocess_vals = json.load(f)
+        self.set_preprocess_values(preprocess_vals)
         self.update_preview()
 
-    def set_preprocess_values(self, preprocessVals):
-        self.sharpness_var.set(preprocessVals["Blur/Sharpness"] != 0)
-        self.contrast_var.set(preprocessVals["Contrast"] != 0)
-        self.brightness_var.set(preprocessVals["Brightness"] != 0)
-        self.smoothness_var.set(preprocessVals["Smoothness"] != 0)
-        self.binarize_var.set(preprocessVals["Binarize"])
-        self.sliders["Blur/Sharpness"].set(preprocessVals["Blur/Sharpness"])
-        self.sliders["Contrast"].set(preprocessVals["Contrast"])
-        self.sliders["Brightness"].set(preprocessVals["Brightness"])
-        self.sliders["Smoothness"].set(preprocessVals["Smoothness"])
+    def set_preprocess_values(self, preprocess_vals):
+        self.sharpness_var.set(preprocess_vals["Blur/Sharpness"] != 0)
+        self.contrast_var.set(preprocess_vals["Contrast"] != 0)
+        self.brightness_var.set(preprocess_vals["Brightness"] != 0)
+        self.smoothness_var.set(preprocess_vals["Smoothness"] != 0)
+        self.binarize_var.set(preprocess_vals["Binarize"])
+        self.sliders["Blur/Sharpness"].set(preprocess_vals["Blur/Sharpness"])
+        self.sliders["Contrast"].set(preprocess_vals["Contrast"])
+        self.sliders["Brightness"].set(preprocess_vals["Brightness"])
+        self.sliders["Smoothness"].set(preprocess_vals["Smoothness"])
 
     def create_checkbox_with_slider(self, text, variable, row, min_val, max_val, parent_frame):
         checkbox = ttk.Checkbutton(parent_frame, text=text, variable=variable)
@@ -2306,7 +2310,7 @@ class FramePreprocessor:
     def update_preview(self):
         if self.modded_frame is not None and self.modded_frame.size > 0:
             self.modded_frame = tracking.preprocess_frame(
-                self.first_frame, self.getPreprocessVals()
+                self.first_frame, self.getpreprocess_vals(), True
             )
             frame = cv2.cvtColor(self.modded_frame, cv2.COLOR_GRAY2RGB)
             imgtk = ImageTk.PhotoImage(image=Image.fromarray(frame))
@@ -2315,7 +2319,7 @@ class FramePreprocessor:
         
         self.window.lift()
 
-    def getPreprocessVals(self):
+    def get_preprocess_vals(self):
         returnDict = {
             "Blur/Sharpness": self.sliders["Blur/Sharpness"].get() if self.sharpness_var.get() else 0,
             "Contrast": self.sliders["Contrast"].get() if self.contrast_var.get() else 0,
@@ -2326,7 +2330,7 @@ class FramePreprocessor:
         return returnDict
 
     def on_close(self):
-        self.parent.preprocessVals = self.getPreprocessVals()
+        self.parent.preprocess_vals = self.get_preprocess_vals()
         self.cap.release()
         self.window.destroy()
 
