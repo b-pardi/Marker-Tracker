@@ -2144,7 +2144,7 @@ class FramePreprocessor:
             raise ValueError("Failed to read the video file.")
         
         # shrink and greyscale first frame, then copy for modded frame
-        self.first_frame, _ = tracking.scale_frame(cv2.cvtColor(self.first_frame, cv2.COLOR_BGR2GRAY), .5)
+        self.first_frame, _ = tracking.scale_frame(cv2.cvtColor(self.first_frame, cv2.COLOR_BGR2GRAY), .9)
         self.modded_frame = self.first_frame.copy()
 
         # create main window
@@ -2276,7 +2276,7 @@ class FramePreprocessor:
         max_label.grid_remove()
         value_label.grid_remove()
 
-        variable.trace_add("write", lambda *args, slider=slider, min_label=min_label, max_label=max_label, value_label=value_label: self.toggle_slider(slider, variable, min_label, max_label, value_label, parent_frame))
+        variable.trace_add("write", lambda *args: self.toggle_slider(slider, variable, min_label, max_label, value_label, parent_frame))
 
     def on_slider_change(self, value, value_label, variable):
         value_label.config(text=f"Value: {int(float(value))}")
@@ -2293,9 +2293,10 @@ class FramePreprocessor:
             min_label.grid_remove()
             max_label.grid_remove()
             value_label.grid_remove()
-
+            
         # Update the layout of the parent frame
         parent_frame.update_idletasks()
+        self.update_preview()
 
     def toggle_advanced_options(self):
         if self.advanced_options_visible:
@@ -2310,7 +2311,7 @@ class FramePreprocessor:
     def update_preview(self):
         if self.modded_frame is not None and self.modded_frame.size > 0:
             self.modded_frame = tracking.preprocess_frame(
-                self.first_frame, self.getpreprocess_vals(), True
+                self.first_frame, self.get_preprocess_vals(), True
             )
             frame = cv2.cvtColor(self.modded_frame, cv2.COLOR_GRAY2RGB)
             imgtk = ImageTk.PhotoImage(image=Image.fromarray(frame))

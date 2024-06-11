@@ -164,15 +164,20 @@ def test(fp):
         #smoothedifuckinhope = cv2.fastNlMeansDenoising(smoothedifuckinhope, None, h=np.std(frame)*0.5, templateWindowSize=7, searchWindowSize=25)
 
         binarizedifuckinhope = cv2.adaptiveThreshold(smoothedifuckinhope, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
+        # {"Blur/Sharpness": -73.21428571428572, "Contrast": 60.223214285714285, "Brightness": 65.78571428571428, "Smoothness": 58.455357142857146, "Binarize": True}
+        # {"Blur/Sharpness": -18.604651162790702, "Contrast": 100.0, "Brightness": -7.302325581395351, "Smoothness": 100.0, "Binarize": True}
+        # {"Blur/Sharpness": -18.604651162790702, "Contrast": 44.74418604651163, "Brightness": -7.302325581395351, "Smoothness": 100.0, "Binarize": true}
+        # {"Blur/Sharpness": -60.46511627906977, "Contrast": 68.9186046511628, "Brightness": -6.976744186046517, "Smoothness": 96.54651162790698, "Binarize": true}
+        # {"Blur/Sharpness": -46.162790697674424, "Contrast": 43.68604651162791, "Brightness": -46.51162790697675, "Smoothness": 38.2906976744186, "Binarize": true}
+        salt_pep_frame = tracking.preprocess_frame( scaled_frame, {"Blur/Sharpness": -46.162790697674424, "Contrast": 43.68604651162791, "Brightness": -46.51162790697675, "Smoothness": 38.2906976744186, "Binarize": True}, True)
 
-
-
-        frame_hstack_top = np.hstack((original, smoothedifuckinhope, binarizedifuckinhope))
+        #frame_hstack_top = np.hstack((original, smoothedifuckinhope, binarizedifuckinhope))
         #frame_hstack_bottom = np.hstack((hp_filter_kernel, nlm_hp_filter_subtract, nlm_hp_filter_kernel))
         #frame_stack = np.vstack((frame_hstack_top, frame_hstack_bottom))
+        frame_hstack = np.hstack((original, salt_pep_frame))
 
 
-        cv2.imshow("Tracking...",frame_hstack_top)  # show updated frame tracking
+        cv2.imshow("Tracking...",frame_hstack)  # show updated frame tracking
 
         if cv2.waitKey(1) == 27:
             break
@@ -184,6 +189,7 @@ def test(fp):
     cv2.destroyAllWindows()
 
 if __name__ == '__main__':
-    #video_path = r"C:\Users\ipsou\ProgrammingStuff\Github\Marker-Tracker\viscoelastic_video\20240308_20240307_A549 _stiff VE sub._col-I_AS_current_01.vsi - 001 PH-Cell 1.avi"
-    video_path = r"C:\Users\ipsou\ProgrammingStuff\Github\Marker-Tracker\data\20240208_2024_07_02_A549.p23_PAHstiff_no beads_migration_exp.3_current_03.vsi - 003 PH.avi"
+    video_path = r"C:\Users\ipsou\ProgrammingStuff\Github\Marker-Tracker\viscoelastic_video\20240308_20240307_A549 _stiff VE sub._col-I_AS_current_01.vsi - 001 PH-Cell 1.avi"
+    # video_path = r"C:\Users\ipsou\ProgrammingStuff\Github\Marker-Tracker\viscoelastic_video\20240308_20240307_A549 _stiff VE sub._col-I_AS_current_02.vsi - 002 PH-Cell 2.avi"
+    #video_path = r"C:\Users\ipsou\ProgrammingStuff\Github\Marker-Tracker\data\20240208_2024_07_02_A549.p23_PAHstiff_no beads_migration_exp.3_current_03.vsi - 003 PH.avi"
     test(video_path)

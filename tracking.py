@@ -234,7 +234,16 @@ def init_trackers(marker_positions, bbox_size, first_frame, tracker_choice=Track
     return trackers
 
 def preprocess_frame(frame, preprocessing_vals, advanced):
-    
+    """_summary_
+
+    Args:
+        frame (frame): frame to preprocess
+        preprocessing_vals (dict): dictionary containing the values
+        advanced (bool): whether to apply advanced preprocessing
+
+    Returns:
+        _type_: _description_
+    """    
     # print("Preprocessing...")
     # Initialize a variable to store the modified frame
     modified_frame = frame.copy()
@@ -258,6 +267,8 @@ def preprocess_frame(frame, preprocessing_vals, advanced):
 
     if preprocessing_vals["Binarize"]  and advanced:
         modified_frame = improve_binarization(modified_frame)
+
+    # modified_frame = cv2.adaptiveThreshold(modified_frame, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
 
     # intermediate_frame_check("Preprocessing done", modified_frame)
     # print("Preprocessing done")
@@ -288,7 +299,7 @@ def enhance_contrast(frame, strength=50):
     enhanced_frame = clahe.apply(frame)
     
     # Adjust contrast strength
-    enhanced_frame = cv2.addWeighted(frame, 1 + strength / 5, enhanced_frame, 0.0, 0.0)
+    enhanced_frame = cv2.addWeighted(frame, 1 + strength / 2, enhanced_frame, 0.0, 0.0)
     
     return enhanced_frame
 
@@ -1040,7 +1051,7 @@ def track_area(
     gray_frame = cv2.cvtColor(scaled_frame, cv2.COLOR_BGR2GRAY) # grayscale conversion
 
     if preprocessing_vals is not None:
-        first_frame = preprocess_frame(gray_frame, preprocessing_vals)
+        first_frame = preprocess_frame(gray_frame, preprocessing_vals, True)
         disp_preprocessing_vals = preprocessing_vals.copy()
         disp_preprocessing_vals["Binarize"] = False
         print("Track area preprocessing done")
@@ -1082,7 +1093,7 @@ def track_area(
             basic_preprocessed_frame = preprocess_frame(gray_frame, preprocessing_vals, False)
             preprocessed_frame = improve_smoothing(basic_preprocessed_frame)
         elif preprocessing_need == PreprocessingIssue.SALT_PEPPER:
-            saltpep_dict = {"Blur/Sharpness": -73.21428571428572, "Contrast": 60.223214285714285, "Brightness": 65.78571428571428, "Smoothness": 58.455357142857146, "Binarize": True}
+            saltpep_dict = {"Blur/Sharpness": -46.162790697674424, "Contrast": 43.68604651162791, "Brightness": -46.51162790697675, "Smoothness": 38.2906976744186, "Binarize": True}
             preprocessed_frame = preprocess_frame(gray_frame, saltpep_dict, True)
         elif preprocessing_need == PreprocessingIssue.CUSTOM:
             if preprocessing_vals is not None:
@@ -1111,20 +1122,8 @@ def track_area(
             cv2.destroyAllWindows()
             return
 
-        """if(preprocessing_vals is not None and not (preprocessing_vals["Binarize"])):
-            binarize_dict  = {
-            "Blur/Sharpness": 0,
-            "Contrast": 0,
-            "Brightness": 0,
-            "Smoothness": 0,
-            "Binarize": True
-            }
-            preprocessed_frame = preprocess_frame(preprocessed_frame, binarize_dict)
-            binary_frame = cv2.adaptiveThreshold(preprocessed_frame, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
-        else:
-            binary_frame = cv2.adaptiveThreshold(preprocessed_frame, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)"""
-
         # Segment frame
+        # intermediate_frame_check("contour frame", binary_frame)
         contours, _ = cv2.findContours(binary_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         # choose optimal contour (largest and near marker)
