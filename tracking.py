@@ -1080,10 +1080,12 @@ def track_area(
 
     gray_frame = cv2.cvtColor(scaled_frame, cv2.COLOR_BGR2GRAY) # grayscale conversion
 
+    if preprocessing_need == PreprocessingIssue.SALT_PEPPER:
+        preprocessing_vals = {"Blur/Sharpness": -11.627906976744185, "Contrast": 49.348837209302324, "Brightness": -16.279069767441854, "Smoothness": 72.37209302325581, "Binarize": False}
+        print(preprocessing_vals)
+    
     if preprocessing_vals is not None:
         first_frame = preprocess_frame(gray_frame, preprocessing_vals, True)
-        disp_preprocessing_vals = preprocessing_vals.copy()
-        disp_preprocessing_vals["Binarize"] = False
         print("Track area preprocessing done")
     else:
         first_frame = gray_frame
@@ -1107,14 +1109,6 @@ def track_area(
 
         gray_frame = cv2.cvtColor(scaled_frame, cv2.COLOR_BGR2GRAY)
 
-        """# Frame preprocessing
-        if preprocessing_vals is not None:
-            preprocessed_frame = preprocess_frame(gray_frame, preprocessing_vals)
-            display_frame = preprocess_frame(gray_frame, disp_preprocessing_vals)
-            # print("In-loop area preprocessing done")
-        else:
-            preprocessed_frame = gray_frame"""
-
         # preprocessing
         if preprocessing_need == PreprocessingIssue.NOISY_BG:
             basic_preprocessed_frame = preprocess_frame(gray_frame, preprocessing_vals, False)
@@ -1137,7 +1131,6 @@ def track_area(
         #    preprocessed_frame = scaled_frame
 
         binary_frame = cv2.adaptiveThreshold(preprocessed_frame, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
-        # intermediate_frame_check("Salt&pep", binary_frame)
 
         # update tracker position
         success, bbox = trackers[0].update(preprocessed_frame) # currently only 1 tracker will work for testing
@@ -1153,8 +1146,9 @@ def track_area(
             return
 
         # Segment frame
-        # intermediate_frame_check("contour frame", binary_frame)
         contours, _ = cv2.findContours(binary_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # intermediate_frame_check("contour frame", binary_frame)
 
         # choose optimal contour (largest and near marker)
         max_area, max_area_idx = 0, 0
