@@ -49,9 +49,12 @@ class NeckingPointMethod(Enum):
 class PreprocessingIssue(Enum):
     NOISY_BG = auto()
     HARSH_GRADIENT = auto()
+    SALT_PEPPER = auto()
+    CUSTOM = auto()
     NONE = auto()
 
 
 class LocatorType(Enum):
     BBOX = 'marker'
     CENTROID = 'centroid'
+    

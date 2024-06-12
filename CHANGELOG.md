@@ -31,6 +31,21 @@ Cell Mechanics
 
 # Changelog
 
+6/10 - ISAAC
+
+- Tweaked preprocessing functions
+- Reenabled preprocessing radio buttons and added salt+pepper option and custom option
+
+6/9 - ISAAC
+
+- Added intermediate frame function, which creates a window displaying the frame and then closes automatically on button press
+- Integrated preprocessing to the track_area function
+  - all video preprocessing for use in the contouring algorithm is done with the preprocessing window
+
+6/8 - ISAAC
+
+- fiddling with preprocessing in the marker_select function
+
 6/7 - ISAAC
 
 - incorporated binarization and smoothing to preprocessing screen
