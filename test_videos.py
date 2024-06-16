@@ -170,17 +170,19 @@ def test(fp):
         # {"Blur/Sharpness": -60.46511627906977, "Contrast": 68.9186046511628, "Brightness": -6.976744186046517, "Smoothness": 96.54651162790698, "Binarize": true}
         # {"Blur/Sharpness": -46.162790697674424, "Contrast": 43.68604651162791, "Brightness": -46.51162790697675, "Smoothness": 38.2906976744186, "Binarize": true}
         # {"Blur/Sharpness": -46.162790697674424, "Contrast": 43.68604651162791, "Brightness": -46.51162790697675, "Smoothness": 38.2906976744186, "Binarize": False} - not bad with denoising
+        # {"Blur/Sharpness": -100.0, "Contrast": 36.68604651162791, "Brightness": -11.627906976744185, "Smoothness": 42.44186046511628, "Binarize": true, "Denoise SP": true}
+        # {"Blur/Sharpness": -100.0, "Contrast": 58.55813953488372, "Brightness": -4.6511627906976685, "Smoothness": 60.860465116279066, "Binarize": false, "Denoise SP": false}
+        salt_pep_frame = tracking.preprocess_frame( scaled_frame, {"Blur/Sharpness": -100.0, "Contrast": 66.61627906976744, "Brightness": -25.581395348837205, "Smoothness": 52.80232558139535, "Binarize": False, "Denoise SP": False} , True)
 
-        salt_pep_frame = tracking.preprocess_frame( scaled_frame, {"Blur/Sharpness": -11.627906976744185, "Contrast": 49.348837209302324, "Brightness": -16.279069767441854, "Smoothness": 72.37209302325581, "Binarize": False} , True)
+        # saltpep_denoised = tracking.denoise_frame_saltpep(scaled_frame)
 
-        saltpep_denoised = tracking.denoise_frame_saltpep(salt_pep_frame)
-
+        thresholded = cv2.adaptiveThreshold(salt_pep_frame, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
 
         #frame_hstack_top = np.hstack((original, smoothedifuckinhope, binarizedifuckinhope))
         #frame_hstack_bottom = np.hstack((hp_filter_kernel, nlm_hp_filter_subtract, nlm_hp_filter_kernel))
         #frame_stack = np.vstack((frame_hstack_top, frame_hstack_bottom))
-        # frame_hstack = np.hstack((original, salt_pep_frame))
-        frame_hstack = np.hstack((original, saltpep_denoised))
+        frame_hstack = np.hstack((original, thresholded))
+        #frame_hstack = np.hstack((original, saltpep_denoised))
 
         cv2.imshow("Tracking...",frame_hstack)  # show updated frame tracking
 
