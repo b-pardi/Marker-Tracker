@@ -2176,6 +2176,7 @@ class FramePreprocessor:
         self.brightness_var = tk.BooleanVar()
         self.smoothness_var = tk.BooleanVar()
         self.binarize_var = tk.BooleanVar()
+        self.denoise_sp_var = tk.BooleanVar()
 
         # create slider/checkbox pair
         self.sliders = {}
@@ -2194,16 +2195,20 @@ class FramePreprocessor:
         checkbox = ttk.Checkbutton(self.advanced_options_frame, text="Binarize", variable=self.binarize_var, command=self.update_preview)
         checkbox.grid(row=6, column=0, sticky=tk.W, padx=(110, 0))
 
+        # create denoise sp checkbox
+        checkbox = ttk.Checkbutton(self.advanced_options_frame, text="Denoise: S&P", variable=self.denoise_sp_var, command=self.update_preview)
+        checkbox.grid(row=7, column=0, sticky=tk.W, padx=(110, 0))
+
         # Add Save and Load buttons
         save_button = ttk.Button(self.window, text="Save Options", command=self.save_options)
-        save_button.grid(row=7, column=0, padx=5, pady=5)
+        save_button.grid(row=8, column=0, padx=5, pady=5)
 
         load_button = ttk.Button(self.window, text="Load Options", command=self.load_options)
-        load_button.grid(row=7, column=1, padx=5, pady=5)
+        load_button.grid(row=8, column=1, padx=5, pady=5)
 
         # display window
         self.preview_label = ttk.Label(self.window)
-        self.preview_label.grid(row=8, column=0, columnspan=6, pady=10)
+        self.preview_label.grid(row=9, column=0, columnspan=6, pady=10)
 
         # Set values if prev_preprocess_vals is provided
         if prev_preprocess_vals:
@@ -2229,7 +2234,8 @@ class FramePreprocessor:
             "Contrast": self.sliders["Contrast"].get() if self.contrast_var.get() else 0,
             "Brightness": self.sliders["Brightness"].get() if self.brightness_var.get() else 0,
             "Smoothness": self.sliders["Smoothness"].get() if self.smoothness_var.get() else 0,
-            "Binarize": self.binarize_var.get()
+            "Binarize": self.binarize_var.get(),
+            "Denoise SP": self.denoise_sp_var.get()
         }
         with open(filename, 'w') as f:
             json.dump(preprocess_vals, f)
@@ -2246,6 +2252,7 @@ class FramePreprocessor:
         self.brightness_var.set(preprocess_vals["Brightness"] != 0)
         self.smoothness_var.set(preprocess_vals["Smoothness"] != 0)
         self.binarize_var.set(preprocess_vals["Binarize"])
+        self.denoise_sp_var.set(preprocess_vals["Denoise SP"])
         self.sliders["Blur/Sharpness"].set(preprocess_vals["Blur/Sharpness"])
         self.sliders["Contrast"].set(preprocess_vals["Contrast"])
         self.sliders["Brightness"].set(preprocess_vals["Brightness"])
@@ -2326,7 +2333,8 @@ class FramePreprocessor:
             "Contrast": self.sliders["Contrast"].get() if self.contrast_var.get() else 0,
             "Brightness": self.sliders["Brightness"].get() if self.brightness_var.get() else 0,
             "Smoothness": self.sliders["Smoothness"].get() if self.smoothness_var.get() else 0,
-            "Binarize": self.binarize_var.get()
+            "Binarize": self.binarize_var.get(),
+            "Denoise SP": self.denoise_sp_var.get()
         }
         return returnDict
 
