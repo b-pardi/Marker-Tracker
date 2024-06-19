@@ -1161,7 +1161,7 @@ def marker_movement_analysis(analysis_type, conversion_factor, conversion_units,
         })
         analysis_df = pd.concat([analysis_df, cur_analysis_df], axis=1)
 
-    if(analysis_df != AnalysisType.SURFACE_AREA):
+    if(analysis_type != AnalysisType.SURFACE_AREA):
         analysis_df.to_csv(output_df_path, index=False)
 
     # plot

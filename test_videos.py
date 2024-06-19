@@ -172,7 +172,8 @@ def test(fp):
         # {"Blur/Sharpness": -46.162790697674424, "Contrast": 43.68604651162791, "Brightness": -46.51162790697675, "Smoothness": 38.2906976744186, "Binarize": False} - not bad with denoising
         # {"Blur/Sharpness": -100.0, "Contrast": 36.68604651162791, "Brightness": -11.627906976744185, "Smoothness": 42.44186046511628, "Binarize": true, "Denoise SP": true}
         # {"Blur/Sharpness": -100.0, "Contrast": 58.55813953488372, "Brightness": -4.6511627906976685, "Smoothness": 60.860465116279066, "Binarize": false, "Denoise SP": false}
-        salt_pep_frame = tracking.preprocess_frame( scaled_frame, {"Blur/Sharpness": -100.0, "Contrast": 66.61627906976744, "Brightness": -25.581395348837205, "Smoothness": 52.80232558139535, "Binarize": False, "Denoise SP": False} , True)
+        # {"Blur/Sharpness": -100.0, "Contrast": 15.965116279069766, "Brightness": 0, "Smoothness": 30.930232558139533, "Binarize": false, "Denoise SP": true}
+        salt_pep_frame = tracking.preprocess_frame( scaled_frame, {"Blur/Sharpness": -100.0, "Contrast": 15.965116279069766, "Brightness": 0, "Smoothness": 30.930232558139533, "Binarize": False, "Denoise SP": True} , True)
 
         # saltpep_denoised = tracking.denoise_frame_saltpep(scaled_frame)
 
@@ -197,6 +198,6 @@ def test(fp):
 
 if __name__ == '__main__':
     video_path = r"C:\Users\ipsou\ProgrammingStuff\Github\Marker-Tracker\viscoelastic_video\20240308_20240307_A549 _stiff VE sub._col-I_AS_current_01.vsi - 001 PH-Cell 1.avi"
-    # video_path = r"C:\Users\ipsou\ProgrammingStuff\Github\Marker-Tracker\viscoelastic_video\20240308_20240307_A549 _stiff VE sub._col-I_AS_current_02.vsi - 002 PH-Cell 2.avi"
+    #video_path = r"C:\Users\ipsou\ProgrammingStuff\Github\Marker-Tracker\viscoelastic_video\20240308_20240307_A549 _stiff VE sub._col-I_AS_current_02.vsi - 002 PH-Cell 2.avi"
     #video_path = r"C:\Users\ipsou\ProgrammingStuff\Github\Marker-Tracker\data\20240208_2024_07_02_A549.p23_PAHstiff_no beads_migration_exp.3_current_03.vsi - 003 PH.avi"
     test(video_path)

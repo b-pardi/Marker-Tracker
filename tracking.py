@@ -256,26 +256,29 @@ def denoise_frame_saltpep(frame):
         gray_frame = frame
     
     # Apply median filter
-    median_filtered = cv2.medianBlur(gray_frame, 5)
+    median_filtered = cv2.medianBlur(gray_frame, 11)
     
     # Apply bilateral filter (optional)
-    bilateral_filtered = cv2.bilateralFilter(median_filtered, 9, 75, 75)
+    bilateral_filtered = cv2.bilateralFilter(median_filtered, 9, 50, 50)
     
+    gaussian = cv2.GaussianBlur(bilateral_filtered, (00, 0), 5)
+
     # Adaptive thresholding
-    adaptive_thresh = cv2.adaptiveThreshold(bilateral_filtered, 255,
+    adaptive_thresh = cv2.adaptiveThreshold(gaussian, 255,
                                             cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
                                             cv2.THRESH_BINARY_INV, 11, 2)
     
-    # Morphological operations
+    
+    # Morphological operations to connect blobs
     kernel = np.ones((3, 3), np.uint8)
-    opening = cv2.morphologyEx(adaptive_thresh, cv2.MORPH_OPEN, kernel)
-    closing = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, kernel)
+    closing = cv2.morphologyEx(adaptive_thresh, cv2.MORPH_CLOSE, kernel, iterations=2)
     
-    # Invert the image
-    inverted = cv2.bitwise_not(closing)
-    
-    return inverted
+    # Dilation followed by erosion
+    dilated = cv2.dilate(closing, kernel, iterations=1)
+    eroded = cv2.erode(dilated, kernel, iterations=1)
 
+
+    return eroded
 
 def preprocess_frame(frame, preprocessing_vals, advanced):
     """_summary_
