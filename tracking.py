@@ -256,26 +256,29 @@ def denoise_frame_saltpep(frame):
         gray_frame = frame
     
     # Apply median filter
-    median_filtered = cv2.medianBlur(gray_frame, 5)
+    median_filtered = cv2.medianBlur(gray_frame, 11)
     
     # Apply bilateral filter (optional)
-    bilateral_filtered = cv2.bilateralFilter(median_filtered, 9, 75, 75)
+    bilateral_filtered = cv2.bilateralFilter(median_filtered, 9, 50, 50)
     
-    # Adaptive thresholding
-    adaptive_thresh = cv2.adaptiveThreshold(bilateral_filtered, 255,
-                                            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                            cv2.THRESH_BINARY, 11, 2)
-    
-    # Morphological operations
-    kernel = np.ones((3, 3), np.uint8)
-    opening = cv2.morphologyEx(adaptive_thresh, cv2.MORPH_OPEN, kernel)
-    closing = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, kernel)
-    
-    # Invert the image
-    inverted = cv2.bitwise_not(closing)
-    
-    return inverted
+    gaussian = cv2.GaussianBlur(bilateral_filtered, (00, 0), 5)
 
+    # Adaptive thresholding
+    adaptive_thresh = cv2.adaptiveThreshold(gaussian, 255,
+                                            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                            cv2.THRESH_BINARY_INV, 11, 2)
+    
+    
+    # Morphological operations to connect blobs
+    kernel = np.ones((3, 3), np.uint8)
+    closing = cv2.morphologyEx(adaptive_thresh, cv2.MORPH_CLOSE, kernel, iterations=2)
+    
+    # Dilation followed by erosion
+    dilated = cv2.dilate(closing, kernel, iterations=1)
+    eroded = cv2.erode(dilated, kernel, iterations=1)
+
+
+    return eroded
 
 def preprocess_frame(frame, preprocessing_vals, advanced):
     """_summary_
@@ -311,6 +314,9 @@ def preprocess_frame(frame, preprocessing_vals, advanced):
 
     if preprocessing_vals["Binarize"]  and advanced:
         modified_frame = improve_binarization(modified_frame)
+
+    if preprocessing_vals["Denoise SP"]  and advanced:
+        modified_frame = denoise_frame_saltpep(modified_frame)
 
     # modified_frame = cv2.adaptiveThreshold(modified_frame, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
 
@@ -1069,16 +1075,12 @@ def track_area(
         '1-data_label': data_label
     }
 
-<<<<<<< HEAD
-    if preprocessVals is not None:
-        first_frame = preprocess_frame(first_frame, preprocessVals)
-=======
     scaled_frame, scale_factor = scale_frame(first_frame)  # scale the frame
 
     gray_frame = cv2.cvtColor(scaled_frame, cv2.COLOR_BGR2GRAY) # grayscale conversion
 
     if preprocessing_need == PreprocessingIssue.SALT_PEPPER:
-        preprocessing_vals = {"Blur/Sharpness": -11.627906976744185, "Contrast": 49.348837209302324, "Brightness": -16.279069767441854, "Smoothness": 72.37209302325581, "Binarize": False}
+        preprocessing_vals = {"Blur/Sharpness": -11.627906976744185, "Contrast": 49.348837209302324, "Brightness": -16.279069767441854, "Smoothness": 72.37209302325581, "Binarize": False, "Denoise SP": False}
         print(preprocessing_vals)
     
     if preprocessing_vals is not None:
@@ -1086,10 +1088,12 @@ def track_area(
         print("Track area preprocessing done")
     else:
         first_frame = gray_frame
->>>>>>> 11a40683a3162708653d852f97a51f46b7767b3e
 
 
     trackers = init_trackers(marker_positions, bbox_size, first_frame, TrackerChoice.CSRT)
+
+    if preprocessing_vals is None:
+            preprocessing_vals = {"Blur/Sharpness": 0, "Contrast": 0, "Brightness": 0, "Smoothness": 0, "Binarize": False, "Denoise SP": False}
 
     while frame_num < frame_end:
         ret, frame = cap.read()
@@ -1104,17 +1108,6 @@ def track_area(
 
         gray_frame = cv2.cvtColor(scaled_frame, cv2.COLOR_BGR2GRAY)
 
-<<<<<<< HEAD
-        """# Frame preprocessing
-        '''if preprocessing_vals is not None:
-            preprocessed_frame = preprocess_frame(gray_frame, preprocessing_vals)
-            display_frame = preprocess_frame(gray_frame, disp_preprocessing_vals)
-            # print("In-loop area preprocessing done")
-        else:
-            preprocessed_frame = gray_frame'''"""
-
-=======
->>>>>>> 11a40683a3162708653d852f97a51f46b7767b3e
         # preprocessing
         if preprocessing_need == PreprocessingIssue.NOISY_BG:
             basic_preprocessed_frame = preprocess_frame(gray_frame, preprocessing_vals, False)
@@ -1123,7 +1116,7 @@ def track_area(
             basic_preprocessed_frame = preprocess_frame(gray_frame, preprocessing_vals, False)
             preprocessed_frame = improve_smoothing(basic_preprocessed_frame)
         elif preprocessing_need == PreprocessingIssue.SALT_PEPPER:
-            saltpep_dict = {"Blur/Sharpness": -60.46511627906977, "Contrast": 68.9186046511628, "Brightness": -6.976744186046517, "Smoothness": 96.54651162790698, "Binarize": True}
+            saltpep_dict = {"Blur/Sharpness": -60.46511627906977, "Contrast": 68.9186046511628, "Brightness": -6.976744186046517, "Smoothness": 96.54651162790698, "Binarize": True, "Denoise SP": False}
             preprocessed_frame = preprocess_frame(gray_frame, saltpep_dict, True)
         elif preprocessing_need == PreprocessingIssue.CUSTOM:
             if preprocessing_vals is not None:

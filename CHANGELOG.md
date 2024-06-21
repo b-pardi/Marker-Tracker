@@ -31,6 +31,10 @@ Cell Mechanics
 
 # Changelog
 
+6/13 - ISAAC
+
+- Changed analyis.py to not save the csv of the df if surface area analysis is selected
+
 6/10 - ISAAC
 
 - Tweaked preprocessing functions
