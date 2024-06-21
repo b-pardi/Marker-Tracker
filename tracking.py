@@ -233,6 +233,50 @@ def init_trackers(marker_positions, bbox_size, first_frame, tracker_choice=Track
 
     return trackers
 
+
+def intermediate_frame_check(frame_name, frame):
+    """
+        Allows user to check a frame. Creates a new window displaying that frame, waits for keypress, then destroys itself
+
+    Args:
+        frame_name (string): desired name of the window
+        frame (frame): the frame to be displayed
+    """    
+    cv2.imshow(frame_name, frame)
+    cv2.moveWindow(frame_name, 50, 50)
+    cv2.waitKey(0)  # Wait for a key press to proceed
+    cv2.destroyWindow(frame_name)
+
+def denoise_frame_saltpep(frame):
+    # Check if frame is already grayscale
+    if len(frame.shape) == 3 and frame.shape[2] == 3:
+        # Convert to grayscale
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    else:
+        gray_frame = frame
+    
+    # Apply median filter
+    median_filtered = cv2.medianBlur(gray_frame, 5)
+    
+    # Apply bilateral filter (optional)
+    bilateral_filtered = cv2.bilateralFilter(median_filtered, 9, 75, 75)
+    
+    # Adaptive thresholding
+    adaptive_thresh = cv2.adaptiveThreshold(bilateral_filtered, 255,
+                                            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                            cv2.THRESH_BINARY, 11, 2)
+    
+    # Morphological operations
+    kernel = np.ones((3, 3), np.uint8)
+    opening = cv2.morphologyEx(adaptive_thresh, cv2.MORPH_OPEN, kernel)
+    closing = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, kernel)
+    
+    # Invert the image
+    inverted = cv2.bitwise_not(closing)
+    
+    return inverted
+
+
 def preprocess_frame(frame, preprocessing_vals, advanced):
     """_summary_
 
@@ -274,20 +318,6 @@ def preprocess_frame(frame, preprocessing_vals, advanced):
     # print("Preprocessing done")
 
     return modified_frame
-
-def intermediate_frame_check(frame_name, frame):
-    """
-        Allows user to check a frame. Creates a new window displaying that frame, waits for keypress, then destroys itself
-
-    Args:
-        frame_name (string): desired name of the window
-        frame (frame): the frame to be displayed
-    """    
-    cv2.imshow(frame_name, frame)
-    cv2.moveWindow(frame_name, 50, 50)
-    cv2.waitKey(0)  # Wait for a key press to proceed
-    cv2.destroyWindow(frame_name)
-
 
 def enhance_contrast(frame, strength=50):
     # Define parameters for contrast enhancement
@@ -1039,8 +1069,24 @@ def track_area(
         '1-data_label': data_label
     }
 
+<<<<<<< HEAD
     if preprocessVals is not None:
         first_frame = preprocess_frame(first_frame, preprocessVals)
+=======
+    scaled_frame, scale_factor = scale_frame(first_frame)  # scale the frame
+
+    gray_frame = cv2.cvtColor(scaled_frame, cv2.COLOR_BGR2GRAY) # grayscale conversion
+
+    if preprocessing_need == PreprocessingIssue.SALT_PEPPER:
+        preprocessing_vals = {"Blur/Sharpness": -11.627906976744185, "Contrast": 49.348837209302324, "Brightness": -16.279069767441854, "Smoothness": 72.37209302325581, "Binarize": False}
+        print(preprocessing_vals)
+    
+    if preprocessing_vals is not None:
+        first_frame = preprocess_frame(gray_frame, preprocessing_vals, True)
+        print("Track area preprocessing done")
+    else:
+        first_frame = gray_frame
+>>>>>>> 11a40683a3162708653d852f97a51f46b7767b3e
 
 
     trackers = init_trackers(marker_positions, bbox_size, first_frame, TrackerChoice.CSRT)
@@ -1058,6 +1104,7 @@ def track_area(
 
         gray_frame = cv2.cvtColor(scaled_frame, cv2.COLOR_BGR2GRAY)
 
+<<<<<<< HEAD
         """# Frame preprocessing
         '''if preprocessing_vals is not None:
             preprocessed_frame = preprocess_frame(gray_frame, preprocessing_vals)
@@ -1066,6 +1113,8 @@ def track_area(
         else:
             preprocessed_frame = gray_frame'''"""
 
+=======
+>>>>>>> 11a40683a3162708653d852f97a51f46b7767b3e
         # preprocessing
         if preprocessing_need == PreprocessingIssue.NOISY_BG:
             basic_preprocessed_frame = preprocess_frame(gray_frame, preprocessing_vals, False)
@@ -1074,7 +1123,7 @@ def track_area(
             basic_preprocessed_frame = preprocess_frame(gray_frame, preprocessing_vals, False)
             preprocessed_frame = improve_smoothing(basic_preprocessed_frame)
         elif preprocessing_need == PreprocessingIssue.SALT_PEPPER:
-            saltpep_dict = {"Blur/Sharpness": -46.162790697674424, "Contrast": 43.68604651162791, "Brightness": -46.51162790697675, "Smoothness": 38.2906976744186, "Binarize": True}
+            saltpep_dict = {"Blur/Sharpness": -60.46511627906977, "Contrast": 68.9186046511628, "Brightness": -6.976744186046517, "Smoothness": 96.54651162790698, "Binarize": True}
             preprocessed_frame = preprocess_frame(gray_frame, saltpep_dict, True)
         elif preprocessing_need == PreprocessingIssue.CUSTOM:
             if preprocessing_vals is not None:
@@ -1088,7 +1137,6 @@ def track_area(
         #    preprocessed_frame = scaled_frame
 
         binary_frame = cv2.adaptiveThreshold(preprocessed_frame, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
-        # intermediate_frame_check("Salt&pep", binary_frame)
 
         # update tracker position
         success, bbox = trackers[0].update(preprocessed_frame) # currently only 1 tracker will work for testing
@@ -1104,8 +1152,9 @@ def track_area(
             return
 
         # Segment frame
-        # intermediate_frame_check("contour frame", binary_frame)
         contours, _ = cv2.findContours(binary_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # intermediate_frame_check("contour frame", binary_frame)
 
         # choose optimal contour (largest and near marker)
         max_area, max_area_idx = 0, 0

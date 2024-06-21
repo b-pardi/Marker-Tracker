@@ -170,13 +170,18 @@ def test(fp):
         # {"Blur/Sharpness": -18.604651162790702, "Contrast": 44.74418604651163, "Brightness": -7.302325581395351, "Smoothness": 100.0, "Binarize": true}
         # {"Blur/Sharpness": -60.46511627906977, "Contrast": 68.9186046511628, "Brightness": -6.976744186046517, "Smoothness": 96.54651162790698, "Binarize": true}
         # {"Blur/Sharpness": -46.162790697674424, "Contrast": 43.68604651162791, "Brightness": -46.51162790697675, "Smoothness": 38.2906976744186, "Binarize": true}
-        salt_pep_frame = tracking.preprocess_frame( scaled_frame, {"Blur/Sharpness": -46.162790697674424, "Contrast": 43.68604651162791, "Brightness": -46.51162790697675, "Smoothness": 38.2906976744186, "Binarize": True}, True)
+        # {"Blur/Sharpness": -46.162790697674424, "Contrast": 43.68604651162791, "Brightness": -46.51162790697675, "Smoothness": 38.2906976744186, "Binarize": False} - not bad with denoising
+
+        salt_pep_frame = tracking.preprocess_frame( scaled_frame, {"Blur/Sharpness": -11.627906976744185, "Contrast": 49.348837209302324, "Brightness": -16.279069767441854, "Smoothness": 72.37209302325581, "Binarize": False} , True)
+
+        saltpep_denoised = tracking.denoise_frame_saltpep(salt_pep_frame)
+
 
         #frame_hstack_top = np.hstack((original, smoothedifuckinhope, binarizedifuckinhope))
         #frame_hstack_bottom = np.hstack((hp_filter_kernel, nlm_hp_filter_subtract, nlm_hp_filter_kernel))
         #frame_stack = np.vstack((frame_hstack_top, frame_hstack_bottom))
-        frame_hstack = np.hstack((original, salt_pep_frame))
-
+        # frame_hstack = np.hstack((original, salt_pep_frame))
+        frame_hstack = np.hstack((original, saltpep_denoised))
 
         cv2.imshow("Tracking...",frame_hstack)  # show updated frame tracking
 
