@@ -173,6 +173,8 @@ def test(fp):
         # {"Blur/Sharpness": -100.0, "Contrast": 36.68604651162791, "Brightness": -11.627906976744185, "Smoothness": 42.44186046511628, "Binarize": true, "Denoise SP": true}
         # {"Blur/Sharpness": -100.0, "Contrast": 58.55813953488372, "Brightness": -4.6511627906976685, "Smoothness": 60.860465116279066, "Binarize": false, "Denoise SP": false}
         # {"Blur/Sharpness": -100.0, "Contrast": 15.965116279069766, "Brightness": 0, "Smoothness": 30.930232558139533, "Binarize": false, "Denoise SP": true}
+        # {"Blur/Sharpness": -100.0, "Contrast": 33.36046511627907, "Brightness": 29.906976744186053, "Smoothness": 55.80232558139535, "Binarize": false, "Denoise SP": true} - works well, but eliminates too much detail
+        
         salt_pep_frame = tracking.preprocess_frame( scaled_frame, {"Blur/Sharpness": -100.0, "Contrast": 15.965116279069766, "Brightness": 0, "Smoothness": 30.930232558139533, "Binarize": False, "Denoise SP": True} , True)
 
         # saltpep_denoised = tracking.denoise_frame_saltpep(scaled_frame)

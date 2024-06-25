@@ -1154,8 +1154,6 @@ def track_area(
         # Segment frame
         contours, _ = cv2.findContours(binary_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        # intermediate_frame_check("contour frame", binary_frame)
-
         # choose optimal contour (largest and near marker)
         max_area, max_area_idx = 0, 0
         centroid = None
@@ -1196,6 +1194,8 @@ def track_area(
         # cv2.imshow('Surface Area Tracking', preprocessed_frame)
         # cv2.imshow('Surface Area Tracking', gray_frame)  scaled_frame
         cv2.imshow('Surface Area Tracking', scaled_frame)
+        
+        # intermediate_frame_check("contour frame", binary_frame)
 
         if cv2.waitKey(1) == 27:
             break
