@@ -1669,17 +1669,19 @@ class DataSelector:
         
         averages = []
         stddevs = []
+        global_y = []
         for i, label in enumerate(self.selected_labels):
-            print(self.all_x[i], '\n*****', xmin, xmax)
             x, y = self.all_x[i], self.all_y[i]
             idxs_in_range = (x >= xmin) & (x <= xmax)  
-            print(y, idxs_in_range)  
             y_in_range = np.asarray(y)[idxs_in_range]
             averages.append(np.mean(y_in_range))
             stddevs.append(np.std(y_in_range))
+            global_y.append(y_in_range)
+
+        print("AVERAGES: ", global_y)
         #print(np.concatenate(self.all_y), '\n', np.asarray(self.all_y).shape, '\n', self.all_y)
         df = pd.DataFrame({'Averages': averages, 'StdDev': stddevs}, index=self.selected_labels)
-        global_series = pd.Series({'Averages': np.mean(np.concatenate(self.all_y).flatten()), 'StdDev': np.std(np.concatenate(self.all_y).flatten())}, name='Global')
+        global_series = pd.Series({'Averages': np.mean(np.concatenate(global_y)), 'StdDev': np.std(np.concatenate(global_y))}, name='Global')
         df = pd.concat([df, global_series], axis=1)
 
         df.to_csv(f"output/data_selector/data_selector_stats_{self.selected_analysis}.csv")

@@ -31,6 +31,9 @@ Cell Mechanics
 
 # Changelog
 
+6/27
+- Fixed data selector averaging
+
 6/13 - ISAAC
 
 - Changed analyis.py to not save the csv of the df if surface area analysis is selected
