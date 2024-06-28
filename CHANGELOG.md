@@ -31,7 +31,12 @@ Cell Mechanics
 
 # Changelog
 
+6/28 - ISAAC
+
+- Fixed marker tracker scaling issue
+
 6/27
+
 - Fixed data selector averaging
 
 6/13 - ISAAC
