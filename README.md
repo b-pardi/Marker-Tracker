@@ -90,8 +90,8 @@ There are two methods for downloading the package.
 
 ### Frame Preprocessor
 
-- Must select a video to edit first
-- Provides preprocessing parameters on video frames. Allows users to fine-tune sharpness, contrast, and brightness sliders. Users can preview the effects of these adjustments in real-time.
+- Once video selected, user may choose and fine-tune various preprocessing functions to apply to the video
+	- Allows users to fine-tune sharpness, contrast, and brightness sliders. Users can preview the effects of these adjustments in real-time.
 - Select a checkbox to enable that process. Boxes left checked when the window is closed will be saved and applied when you use the video.
 
 ### Timelapse Accountability
