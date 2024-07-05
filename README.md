@@ -190,6 +190,12 @@ There are two methods for downloading the package.
     - This parameter is the maximum distance from the marker to look for contours
     - i.e. when the marker is placed and this paramter is at the default 150, the tracking will only consider contours less than or equal to 150 pixels away from the center of the marker
     - This is so the algorithm knows which contours to pay attention to
+  - Video Preprocessing options:
+    - Noisy BG: for mild speckling/grain
+    - Harsh Gradients: for video with sharp, distinct brightness gradients in the background
+    - Salt+Pepper Noise: for videos with strong salt+pepper noise in the background
+    - Custom: uses the advanced settings from the custom preprocessing window
+    - None: use video as-is
 - When beginning tracking, the first frame will popup to place a marker to select a cell
   - This is the same marker selection as the marker tracker uses
 - Hit enter after marker is placed to begin tracking

@@ -485,8 +485,9 @@ def track_markers(
         data_label (str): Unique identifier for the tracking session, used in data labeling.
     """    
 
+    scaled_frame, scale_factor = scale_frame(first_frame)
 
-    trackers = init_trackers(marker_positions, bbox_size, first_frame, tracker_choice)
+    trackers = init_trackers(marker_positions, bbox_size, scaled_frame, tracker_choice)
 
     # init tracking data dict
     tracker_data = {'1-Frame': [], f'1-Time({time_units})': [], '1-Tracker': [], '1-x (px)': [], '1-y (px)': [], '1-video_file_name': video_file_name, '1-data_label': data_label}
