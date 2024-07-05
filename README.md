@@ -3,7 +3,46 @@
 ### Computer vision scripts intended to track fiducial markers from videos of viscoelastic hydrogels as they expand over time (updated 2/16/24)
 
 # How to Use
-
+## Getting Started
+There are two methods for downloading the package.
+### For developers or those who may want to contribute in some fashion
+- Clone the repository into a directory of your choosing
+	- In a terminal, create or navigate to the folder you want to download the code to
+	- Run the command `git clone https://github.com/b-pardi/Marker-Tracker.git`
+	- You should now have all the required files
+### For those without programming experience that simply want to use the software
+- Download the zip file
+	- In the webpage for this repository, click the button that says 'code' (1)
+	- At the bottom of the drop down, click the 'Download ZIP' button (2)
+	- Extract the zip file to a folder of your choice
+### Once downloaded, the remaining steps apply to both cases
+- In a terminal, make sure you are in the parent directory of the code
+	- Your current path should look like: `C:\path\to\directory\Marker-Tracker` with the key component being that the directory ends with 'Marker-Tracker'
+	- If not, use the `cd` command to navigate to the directory
+		- If you cloned the repository, you only need to move one directory: `cd Marker-Tracker`
+		- If you extracted the ZIP file, use your file explorer to find the code you extracted and enter the Marker-Tracker folder
+		- Then copy the folder path
+		- In a terminal, type: `cd "<paste your path here>"` ensuring you have the quotes
+	- **Note for Spyder**: you can open a terminal by going to `menu > View > Panes > Terminal`
+- Setup virtual environment (optional but reccommended)
+	- Create the virtual environment: `python -m venv .venv`
+	- Activate it
+		- Windows: `\.venv\Scripts\activate`
+		- Mac/Linux: `source .venv/bin/activate`
+	- You can also use conda if preferred
+- Install package dependencies
+	- Install with pip using the requirements file: `pip install -r requirements.txt`
+	- If you get an error with this command in Spyder,
+		- Have python 3.10.x installed on your computer (not via spyder, from https://www.python.org/downloads/)
+		- In a command prompt, (not anaconda terminal) type 'where python' on windows, or in a mac terminal type 'which python'
+		- Copy and paste the full path that it prints out
+			- On windows it should look something like: 'C:\<some path stuff>\Python\Python310\python.exe'
+			- In spider, go to tools > preferences > python interpreter
+			- Select 'Use the following Python interpreter:'
+			- Paste in the path you copied earlier from the terminal
+			- Click apply and ok, and restart spyder for changes to take effect
+- Run main.py to get started
+	- **NOTE** main.py is the ONLY python file that should ever be executed. The other scripts are dependend on main.py for UI inputs.
 ## Main UI Instructions
 
 - First run 'install_packages.py'
